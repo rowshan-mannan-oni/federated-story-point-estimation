@@ -1,0 +1,51 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local env/config
+.env
+.env.*
+
+# Build / packaging
+dist/
+build/
+
+# Training outputs and large artifacts
+artifacts/
+artifacts_test/
+saved_models/
+saved_models_*/
+*.pt
+*.bin
+*.safetensors
+*.ckpt
+
+# Predictions and logs
+predictions*.csv
+*.log
+
+# Local data copies (keep raw source datasets outside repo)
+data_*/
+*dataset*/
+
+# Jupyter
+*.ipynb
