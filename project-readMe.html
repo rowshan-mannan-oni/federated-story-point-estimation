@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Federated Learning Enabled Story Point Estimation</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --surface: #ffffff;
+      --surface-2: #eef3fa;
+      --text: #16212f;
+      --muted: #4e6077;
+      --primary: #0e7490;
+      --primary-2: #0b5b73;
+      --accent: #f59e0b;
+      --line: #d7e1ed;
+      --ok: #0f766e;
+      --warn: #b45309;
+      --radius: 18px;
+      --shadow: 0 10px 30px rgba(22, 33, 47, 0.08);
+      --max: 1120px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Aptos", "Segoe UI Variable", "Trebuchet MS", "Candara", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 500px at -10% -10%, #d7f2f8 0%, transparent 60%),
+        radial-gradient(900px 450px at 110% 10%, #fde7c3 0%, transparent 55%),
+        var(--bg);
+      line-height: 1.6;
+    }
+
+    .container {
+      width: min(var(--max), 92%);
+      margin-inline: auto;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(10px);
+      background: rgba(244, 247, 251, 0.75);
+      border-bottom: 1px solid rgba(14, 116, 144, 0.12);
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.8rem 0;
+    }
+
+    .brand {
+      font-family: "Cambria", "Palatino Linotype", serif;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      color: var(--primary-2);
+      white-space: nowrap;
+    }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      transition: 0.25s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--primary-2);
+      background: #dff1f6;
+    }
+
+    .hero {
+      padding: 5rem 0 3rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 1.6rem;
+      align-items: stretch;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-main {
+      padding: 2rem;
+      position: relative;
+      isolation: isolate;
+    }
+
+    .hero-main::after {
+      content: "";
+      position: absolute;
+      inset: auto -40px -50px auto;
+      width: 170px;
+      height: 170px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #c9eff8 0%, #c9eff800 70%);
+      z-index: -1;
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.78rem;
+      color: var(--primary-2);
+      background: #dff1f6;
+      border: 1px solid #b6dde8;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      margin-bottom: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 {
+      line-height: 1.2;
+      margin: 0 0 0.6rem;
+    }
+
+    h1 {
+      font-family: "Cambria", "Palatino Linotype", serif;
+      font-size: clamp(1.8rem, 3vw, 2.7rem);
+      color: #102236;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      margin-top: 1.2rem;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 0.7rem 1rem;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .btn.primary {
+      background: linear-gradient(135deg, var(--primary), #0891b2);
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(14, 116, 144, 0.3);
+    }
+
+    .btn.secondary {
+      background: #edf4fa;
+      color: var(--text);
+      border: 1px solid #d6e4f1;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.7rem;
+      padding: 1rem;
+    }
+
+    .stat-card {
+      background: var(--surface-2);
+      border: 1px solid #dbe5f1;
+      border-radius: 14px;
+      padding: 0.9rem;
+      min-height: 92px;
+      transition: 0.25s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: #b8cfdf;
+    }
+
+    .stat-label {
+      font-size: 0.78rem;
+      color: #617892;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 0.25rem;
+      font-weight: 700;
+    }
+
+    .stat-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .section {
+      padding: 2.4rem 0;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 1rem;
+      font-size: 1.45rem;
+      color: #11283e;
+    }
+
+    .icon {
+      width: 1.7rem;
+      height: 1.7rem;
+      border-radius: 9px;
+      display: inline-grid;
+      place-items: center;
+      font-size: 0.95rem;
+      background: #dff1f6;
+      color: var(--primary-2);
+      border: 1px solid #b6dde8;
+    }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #bfd2e3, transparent);
+      margin: 0.2rem 0 0.8rem;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.2rem;
+      transition: transform 0.25s ease, border-color 0.25s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: #b7cadc;
+    }
+
+    .badge-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-top: 0.8rem;
+    }
+
+    .badge {
+      font-size: 0.78rem;
+      border-radius: 999px;
+      padding: 0.3rem 0.62rem;
+      background: #edf4fa;
+      color: #334a63;
+      border: 1px solid #d0deec;
+      font-weight: 600;
+    }
+
+    .timeline {
+      position: relative;
+      margin-top: 1rem;
+      padding-left: 1rem;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      top: 0.2rem;
+      bottom: 0.2rem;
+      left: 0.2rem;
+      width: 2px;
+      background: linear-gradient(var(--primary), #8fb8c7);
+      border-radius: 2px;
+    }
+
+    .step {
+      position: relative;
+      margin-left: 1.1rem;
+      margin-bottom: 0.95rem;
+      padding: 0.7rem 0.75rem 0.7rem 0.85rem;
+      border-radius: 12px;
+      background: #f9fcff;
+      border: 1px solid #d7e4f0;
+    }
+
+    .step:last-child {
+      margin-bottom: 0;
+    }
+
+    .step::before {
+      content: attr(data-step);
+      position: absolute;
+      left: -1.95rem;
+      top: 0.65rem;
+      width: 1.15rem;
+      height: 1.15rem;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.68rem;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 0 4px #eef8fb;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.8rem;
+      margin-top: 0.9rem;
+    }
+
+    .mini {
+      background: #f8fbff;
+      border: 1px solid #d8e5f2;
+      border-radius: 12px;
+      padding: 0.7rem;
+    }
+
+    .mini strong {
+      color: #17314a;
+      display: block;
+      margin-bottom: 0.25rem;
+      font-size: 0.86rem;
+    }
+
+    .result-boxes {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.7rem;
+      margin-top: 0.9rem;
+    }
+
+    .result {
+      border-radius: 12px;
+      border: 1px solid #d5e1ee;
+      padding: 0.8rem;
+      background: linear-gradient(180deg, #ffffff, #f7fbff);
+      min-height: 94px;
+    }
+
+    .result .k {
+      font-size: 0.75rem;
+      color: #617892;
+      text-transform: uppercase;
+      letter-spacing: 0.35px;
+      font-weight: 700;
+    }
+
+    .result .v {
+      margin-top: 0.3rem;
+      font-weight: 700;
+      color: #12324c;
+    }
+
+    .callout {
+      margin-top: 1rem;
+      border-radius: 14px;
+      border: 1px dashed #bfcfe0;
+      background: #f7fbff;
+      padding: 0.9rem;
+      color: #40596f;
+    }
+
+    footer {
+      padding: 2rem 0 3rem;
+      color: #5a6d83;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 960px) {
+      .hero-grid,
+      .grid-2,
+      .mini-grid,
+      .result-boxes {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .nav-links {
+        justify-content: flex-start;
+      }
+
+      .hero {
+        padding-top: 4.4rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <div class="brand">Federated Story Point Estimation</div>
+      <nav class="nav-links">
+        <a href="#overview">Overview</a>
+        <a href="#dataset">Dataset</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#model">Model</a>
+        <a href="#tech">Tech Stack</a>
+        <a href="#results">Results</a>
+        <a href="#future">Future Work</a>
+        <a href="#conclusion">Conclusion</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-grid">
+        <article class="panel hero-main reveal">
+          <span class="kicker">Project Showcase</span>
+          <h1>Federated Learning Enabled Story Point Estimation</h1>
+          <p>
+            [INSERT SUMMARY]
+          </p>
+          <div class="badge-wrap">
+            <span class="badge">Federated Learning</span>
+            <span class="badge">NLP for Agile Planning</span>
+            <span class="badge">Privacy-Preserving AI</span>
+            <span class="badge">Software Effort Estimation</span>
+          </div>
+          <div class="hero-actions">
+            <a class="btn primary" href="#workflow">See Workflow</a>
+            <a class="btn secondary" href="#results">View Results</a>
+          </div>
+        </article>
+
+        <aside class="panel stats reveal">
+          <div class="stat-card">
+            <div class="stat-label">Core Problem</div>
+            <div class="stat-value">Data cannot be centrally shared</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Dataset</div>
+            <div class="stat-value">Tawos Dataset</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Learning Style</div>
+            <div class="stat-value">Distributed + Federated</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Model Family</div>
+            <div class="stat-value">Hugging Face Models</div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="overview" class="section">
+      <div class="container">
+        <h2 class="section-title"><span class="icon">01</span>Project Overview</h2>
+        <div class="divider"></div>
+        <div class="grid-2">
+          <article class="card reveal">
+            <h3>What This Project Is</h3>
+            <p>
+              This project presents a federated learning approach for story point estimation in software development. Instead of pooling all project data into a single repository, participating teams train locally and share only model updates. The objective is to improve sprint planning quality while preserving organizational privacy boundaries.
+            </p>
+          </article>
+          <article class="card reveal">
+            <h3>Problem It Solves</h3>
+            <p>
+              In many companies, project histories contain sensitive internal information and cannot be directly shared. The core challenge is: <strong>how to train a useful estimation model when raw data must stay local.</strong> This system addresses that by enabling collaborative learning without exposing private project records.
+            </p>
+            <div class="callout">
+              Problem statement: As a software company, I do not want to share my project data.
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="dataset" class="section">
+      <div class="container">
+        <h2 class="section-title"><span class="icon">02</span>Dataset</h2>
+        <div class="divider"></div>
+        <div class="grid-2">
+          <article class="card reveal">
+            <h3>Source</h3>
+            <p>
+              The project uses the <strong>Tawos Dataset</strong> as the primary data source for training and evaluation. It is used to represent software work-item text and corresponding effort labels for story point estimation tasks.
+            </p>
+            <div class="badge-wrap">
+              <span class="badge">Textual Issue Data</span>
+              <span class="badge">Effort Labels</span>
+              <span class="badge">Agile Context</span>
+            </div>
+          </article>
+          <article class="card reveal">
+            <h3>Data Notes</h3>
+            <p>[Add dataset details]</p>
+            <div class="mini-grid">
+              <div class="mini">
+                <strong>Preprocessing</strong>
+                Tokenization, cleaning, and formatting for model input.
+              </div>
+              <div class="mini">
+                <strong>Partitioning</strong>
+                Split across workers/clients to simulate decentralized organizations.
+              </div>
+              <div class="mini">
+                <strong>Evaluation Split</strong>
+                Independent data used to assess model behavior after training.
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="workflow" class="section">
+      <div class="container">
+        <h2 class="section-title"><span class="icon">03</span>Methodology / Workflow</h2>
+        <div class="divider"></div>
+        <article class="card reveal">
+          <p>
+            The system follows a federated training cycle where each participant contributes to a shared global model without exposing raw records.
+          </p>
+          <div class="timeline">
+            <div class="step" data-step="1">
+              <strong>Initialize global model</strong><br />
+              A base transformer model is selected and distributed to all participating clients.
+            </div>
+            <div class="step" data-step="2">
+              <strong>Local client training</strong><br />
+              Each client trains the model on its own project dataset for a fixed number of local epochs.
+            </div>
+            <div class="step" data-step="3">
+              <strong>Share model updates only</strong><br />
+              Clients return parameter updates (not raw project data) to the federated server.
+            </div>
+            <div class="step" data-step="4">
+              <strong>Server-side aggregation</strong><br />
+              The server combines updates into a new global model using federated optimization rules.
+            </div>
+            <div class="step" data-step="5">
+              <strong>Repeat across rounds</strong><br />
+              The process continues for multiple global epochs until performance stabilizes.
+            </div>
+            <div class="step" data-step="6">
+              <strong>Evaluate and predict</strong><br />
+              The final model is tested on held-out data and used to estimate story points from new inputs.
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="model" class="section">
+      <div class="container">
+        <h2 class="section-title"><span class="icon">04</span>Algorithm / Model</h2>
+        <div class="divider"></div>
+        <div class="grid-2">
+          <article class="card reveal">
+            <h3>Learning Method</h3>
+            <p>
+              The approach is based on <strong>Federated Learning</strong> for privacy-aware collaborative optimization, combined with <strong>Hugging Face transformer models</strong> for text understanding.
+            </p>
+            <div class="badge-wrap">
+              <span class="badge">Federated Optimization</span>
+              <span class="badge">Transformer NLP</span>
+              <span class="badge">Client-Server Training</span>
+            </div>
+          </article>
+          <article class="card reveal">
+            <h3>Model Details</h3>
+            <p>[Add model name]</p>
+            <p style="margin-top:0.6rem;">
+              Input representation is built from issue text fields, then passed through the model to estimate the target story point value.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="pipeline" class="section">
+      <div class="container">
+        <h2 class="section-title"><span class="icon">05</span>Training / Processing Pipeline</h2>
+        <div class="divider"></div>
+        <article class="card reveal">
+          <div class="mini-grid">
+            <div class="mini">
+              <strong>Input</strong>
+              Work-item text (e.g., title/description) and associated training labels.
+            </div>
+            <div class="mini">
+              <strong>Processing</strong>
+              Tokenization, batching, local model updates, server aggregation, and iterative global synchronization.
+            </div>
+            <div class="mini">
+              <strong>Output</strong>
+              Predicted story point estimates for unseen tasks.
+            </div>
+          </div>
+          <div class="callout">
+            Pipeline details: [INSERT PIPELINE / WORKFLOW]
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="tech" class="section">
+      <div class="container">
+        <h2 class="section-title"><span class="icon">06</span>Tools, Frameworks, and Technologies</h2>
+        <div class="divider"></div>
+        <article class="card reveal">
+          <div class="badge-wrap">
+            <span class="badge">Python</span>
+            <span class="badge">PyTorch</span>
+            <span class="badge">Hugging Face Transformers</span>
+            <span class="badge">Federated Learning Architecture</span>
+            <span class="badge">CSV Data Pipeline</span>
+            <span class="badge">Model Serialization</span>
+          </div>
+          <p style="margin-top:0.85rem;">
+            The implementation combines deep learning and distributed coordination components to support local training, global aggregation, model persistence, and reproducible prediction workflows.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section id="results" class="section">
+      <div class="container">
+        <h2 class="section-title"><span class="icon">07</span>Results</h2>
+        <div class="divider"></div>
+        <article class="card reveal">
+          <p>
+            Quantitative outcomes should be reported based on your experiment logs and prediction files. Place verified values below to keep the report accurate and academically credible.
+          </p>
+          <div class="result-boxes">
+            <div class="result">
+              <div class="k">Global Rounds</div>
+              <div class="v">[Add value]</div>
+            </div>
+            <div class="result">
+              <div class="k">Local Epochs</div>
+              <div class="v">[Add value]</div>
+            </div>
+            <div class="result">
+              <div class="k">Primary Metric</div>
+              <div class="v">[Add metric + value]</div>
+            </div>
+            <div class="result">
+              <div class="k">Observation</div>
+              <div class="v">[Add key finding]</div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="future" class="section">
+      <div class="container">
+        <h2 class="section-title"><span class="icon">08</span>Limitations and Future Work</h2>
+        <div class="divider"></div>
+        <div class="grid-2">
+          <article class="card reveal">
+            <h3>Current Limitations</h3>
+            <p>
+              Potential constraints include non-IID client data, communication overhead across many rounds, and variation in client compute resources. Model generalization may also vary across projects with very different text styles.
+            </p>
+          </article>
+          <article class="card reveal">
+            <h3>Future Improvements</h3>
+            <p>
+              Next steps may include advanced aggregation strategies, personalization layers per client, stronger privacy mechanisms, and broader benchmark comparisons across centralized vs federated settings.
+            </p>
+            <div class="callout">[Add future work priorities]</div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="conclusion" class="section">
+      <div class="container">
+        <h2 class="section-title"><span class="icon">09</span>Conclusion</h2>
+        <div class="divider"></div>
+        <article class="card reveal">
+          <p>
+            This project demonstrates that story point estimation can be approached in a privacy-preserving manner through federated learning. By combining decentralized training with transformer-based NLP, teams can collaborate on model quality while keeping internal project data local. The framework is practical for organizations that require both estimation intelligence and strict data confidentiality.
+          </p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    [INSERT TITLE] Federated Learning Enabled Story Point Estimation • Project Showcase
+  </footer>
+
+  <script>
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) entry.target.classList.add("visible");
+      });
+    }, { threshold: 0.15 });
+
+    document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+  </script>
+</body>
+</html>
