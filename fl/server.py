@@ -7,13 +7,18 @@ import torch
 from fl.client import FederatedClient
 
 
-class FedAvgServer:
-    """Simple FedAvg coordinator for deep learning models."""
+class FedProxServer:
+    """FedProx coordinator for deep learning models."""
 
     def __init__(self, model_factory, clients: List[FederatedClient], random_state: int) -> None:
         self.model_factory = model_factory
         self.clients = clients
         self.rng = np.random.default_rng(random_state)
+
+    @staticmethod
+    def choose_client_indices(total_clients: int, per_round: int, rng: np.random.Generator) -> np.ndarray:
+        all_indices = np.arange(total_clients)
+        return rng.choice(all_indices, size=per_round, replace=False)
 
     @staticmethod
     def _weighted_average_states(
@@ -42,8 +47,11 @@ class FedAvgServer:
         rounds: int,
         clients_per_round_fraction: float,
         local_epochs: int,
+        local_sample_ratio_per_epoch: float,
+        sample_with_replacement: bool,
         learning_rate: float,
         weight_decay: float,
+        prox_mu: float,
         device: torch.device,
     ) -> Tuple[Dict[str, torch.Tensor], List[float]]:
         global_model = self.model_factory().to(device)
@@ -51,12 +59,13 @@ class FedAvgServer:
 
         history: List[float] = []
 
-        all_indices = np.arange(len(self.clients))
         per_round = max(1, int(round(len(self.clients) * clients_per_round_fraction)))
 
         print(
-            f"[FedAvg] Starting training: rounds={rounds}, total_clients={len(self.clients)}, "
-            f"clients_per_round={per_round}",
+            f"[FedProx] Starting training: rounds={rounds}, total_clients={len(self.clients)}, "
+            f"clients_per_round={per_round}, prox_mu={prox_mu}, "
+            f"local_sample_ratio_per_epoch={local_sample_ratio_per_epoch}, "
+            f"sample_with_replacement={sample_with_replacement}",
             flush=True,
         )
 
@@ -64,11 +73,11 @@ class FedAvgServer:
 
         for round_idx in range(rounds):
             round_start = time.perf_counter()
-            picked = self.rng.choice(all_indices, size=per_round, replace=False)
+            picked = self.choose_client_indices(total_clients=len(self.clients), per_round=per_round, rng=self.rng)
             selected_client_ids = [self.clients[int(idx)].client_id for idx in picked]
 
             print(
-                f"[FedAvg][Round {round_idx + 1}/{rounds}] selected_clients={selected_client_ids}",
+                f"[FedProx][Round {round_idx + 1}/{rounds}] selected_clients={selected_client_ids}",
                 flush=True,
             )
 
@@ -77,13 +86,18 @@ class FedAvgServer:
             client_losses: List[float] = []
 
             for idx in picked:
+                client_seed = int(self.rng.integers(0, np.iinfo(np.int32).max))
                 result = self.clients[int(idx)].train_local(
                     global_state=global_state,
                     model_factory=self.model_factory,
                     device=device,
                     epochs=local_epochs,
+                    sample_ratio_per_epoch=local_sample_ratio_per_epoch,
+                    sample_with_replacement=sample_with_replacement,
                     learning_rate=learning_rate,
                     weight_decay=weight_decay,
+                    prox_mu=prox_mu,
+                    seed=client_seed,
                 )
                 client_states.append(result.state_dict)
                 client_weights.append(result.num_examples)
@@ -112,12 +126,12 @@ class FedAvgServer:
             bar = "#" * filled + "." * (bar_width - filled)
 
             print(
-                f"[FedAvg][Round {round_idx + 1}/{rounds}] "
+                f"[FedProx][Round {round_idx + 1}/{rounds}] "
                 f"mean_local_loss={round_mean_loss:.6f} weighted_local_loss={weighted_round_loss:.6f}",
                 flush=True,
             )
             print(
-                f"[FedAvg][Progress] [{bar}] {completed_rounds}/{rounds} "
+                f"[FedProx][Progress] [{bar}] {completed_rounds}/{rounds} "
                 f"round_time={round_elapsed:.1f}s elapsed={total_elapsed:.1f}s eta={eta_seconds:.1f}s",
                 flush=True,
             )

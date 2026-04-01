@@ -1,9 +1,72 @@
+# ==========================================================
+# Federated Story Point Estimation - Command Runbook
+# ==========================================================
+# Notes:
+# - Run these commands from PowerShell.
+# - Edit paths only if your folder locations differ.
+# - "--seed" keeps training reproducible.
 
-###########training##########
 
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" --data-dir "D:\Federated Learning using DL\data_3_workers" --device cuda --model-name "distilbert-base-uncased" --max-length 256 --rounds 20 --local-epochs 1 --batch-size 8 --lr 3e-5 --save-dir "D:\Federated Learning using DL\saved_models_20_global_epochs" --central-log-every 1
+# ==========================================================
+# 1) TRAINING (FedProx)
+# ==========================================================
+# What this run does:
+# - Uses each project as a client (from --data-dir)
+# - Trains for 20 global rounds
+# - 1 local epoch per selected client per round
+# - Uses all clients each round (fraction = 1.0)
+# - Uses full local client data each local epoch, reshuffled
+
+& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
+	--data-dir "D:\Federated Learning using DL\data_3_workers" `
+	--device cuda `
+	--model-name "distilbert-base-uncased" `
+	--max-length 384 `
+	--rounds 20 `
+	--local-epochs 1 `
+	--batch-size 8 `
+	--lr 3e-5 `
+	--prox-mu 1e-2 `
+	--clients-per-round-fraction 1.0 `
+	--local-sample-ratio-per-epoch 1.0 `
+	--save-dir "D:\Federated Learning using DL\saved_models_20_global_epochs_prox" `
+	--central-log-every 1 `
+	--seed 42
 
 
-#############Testing#########
+# ==========================================================
+# 2) TRAINING VARIANT (Random Local Subset Per Epoch)
+# ==========================================================
+# What changes vs command above:
+# - Select 60% of clients each round
+# - Each selected client trains on a fresh 50% random subset each local epoch
+# - No replacement in subset sampling (set --sample-with-replacement to allow duplicates)
 
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/predict_saved_model.py" --artifact-dir "D:\Federated Learning using DL\saved_models_20_global_epochs_10_local_epochs\federated" --data-dir "D:\Federated Learning using DL\data_to_test_on" --device cuda --out-csv "D:\Federated Learning using DL\predictions_federated_20_epochs_10_local_epochs.csv"
+& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
+	--data-dir "D:\Federated Learning using DL\data_3_workers" `
+	--device cuda `
+	--model-name "distilbert-base-uncased" `
+	--max-length 382 `
+	--rounds 20 `
+	--local-epochs 3 `
+	--batch-size 8 `
+	--lr 3e-5 `
+	--prox-mu 1e-2 `
+	--clients-per-round-fraction 0.6 `
+	--local-sample-ratio-per-epoch 0.5 `
+	--save-dir "D:\Federated Learning using DL\saved_models_20_global_epochs_prox" `
+	--central-log-every 1 `
+	--seed 42
+
+
+# ==========================================================
+# 3) TESTING / INFERENCE
+# ==========================================================
+# Use a saved artifact to generate predictions on new data.
+# Change --artifact-dir to centralized or federated as needed.
+
+& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/predict_saved_model.py" `
+	--artifact-dir "D:\Federated Learning using DL\saved_models_20_global_epochs_prox\federated" `
+	--data-dir "D:\Federated Learning using DL\data_to_test_on" `
+	--device cuda `
+	--out-csv "D:\Federated Learning using DL\predictions_federated_20_epochs_prox.csv"

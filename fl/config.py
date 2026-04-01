@@ -23,8 +23,11 @@ class FLConfig:
     local_epochs: int = 1
     rounds: int = 8
     clients_per_round_fraction: float = 1.0
+    local_sample_ratio_per_epoch: float = 1.0
+    sample_with_replacement: bool = False
     learning_rate: float = 2e-5
     weight_decay: float = 1e-4
+    prox_mu: float = 1e-2
 
     # Label processing.
     use_log_target: bool = True

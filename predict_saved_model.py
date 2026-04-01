@@ -9,7 +9,15 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoTokenizer
 
-from fl.data import discover_files, find_story_point_column, infer_project_id, map_input_columns, read_table
+from fl.data import (
+    clean_category_value,
+    clean_text_value,
+    discover_files,
+    find_story_point_column,
+    infer_project_id,
+    map_input_columns,
+    read_table,
+)
 from fl.metrics import evaluate_regression, format_metrics
 from fl.model import StoryPointRegressor
 
@@ -34,21 +42,27 @@ def load_inference_table(data_dir: Path) -> pd.DataFrame:
 
         frame = pd.DataFrame(
             {
-                "title": raw[required["title"]].fillna("").astype(str),
-                "description": raw[required["description"]].fillna("").astype(str),
-                "type": raw[required["type"]].fillna("unknown").astype(str),
-                "priority": raw[required["priority"]].fillna("unknown").astype(str),
+                "title": raw[required["title"]],
+                "description": raw[required["description"]],
+                "type": raw[required["type"]],
+                "priority": raw[required["priority"]],
                 "client_id": infer_project_id(file_path.name),
                 "source_file": file_path.name,
             }
         )
 
+        frame["title"] = frame["title"].map(clean_text_value)
+        frame["description"] = frame["description"].map(clean_text_value)
+        frame["type"] = frame["type"].map(clean_category_value)
+        frame["priority"] = frame["priority"].map(clean_category_value)
+
         if story_point_col is not None:
             frame["story_point"] = pd.to_numeric(raw[story_point_col], errors="coerce")
+            frame.loc[frame["story_point"] < 0, "story_point"] = np.nan
         else:
             frame["story_point"] = np.nan
 
-        frame["text"] = (frame["title"] + " [SEP] " + frame["description"]).str.strip()
+        frame["text"] = (frame["title"] + " [SEP] " + frame["description"]).map(clean_text_value)
         frame = frame[frame["text"].str.len() > 0].reset_index(drop=True)
         frames.append(frame)
 
@@ -57,9 +71,14 @@ def load_inference_table(data_dir: Path) -> pd.DataFrame:
 
 class InferenceDataset(Dataset):
     def __init__(self, frame: pd.DataFrame, type_to_id: Dict[str, int], priority_to_id: Dict[str, int]) -> None:
-        self.text = frame["text"].astype(str).tolist()
-        self.type_ids = [type_to_id.get(v, type_to_id["unknown"]) for v in frame["type"].astype(str)]
-        self.priority_ids = [priority_to_id.get(v, priority_to_id["unknown"]) for v in frame["priority"].astype(str)]
+        self.text = [clean_text_value(value) for value in frame["text"].tolist()]
+        self.type_ids = [
+            type_to_id.get(clean_category_value(value), type_to_id["unknown"]) for value in frame["type"].tolist()
+        ]
+        self.priority_ids = [
+            priority_to_id.get(clean_category_value(value), priority_to_id["unknown"])
+            for value in frame["priority"].tolist()
+        ]
 
     def __len__(self) -> int:
         return len(self.text)

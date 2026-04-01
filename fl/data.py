@@ -19,6 +19,7 @@ COLUMN_CANDIDATES = {
 }
 
 INPUT_KEYS = ["title", "description", "type", "priority"]
+MISSING_CATEGORY_TOKENS = {"", "nan", "none", "null", "na", "n/a", "unknown"}
 
 
 @dataclass
@@ -33,6 +34,19 @@ def normalize_col_name(name: str) -> str:
     cleaned = re.sub(r"[^a-z0-9]+", "_", str(name).strip().lower())
     cleaned = re.sub(r"_+", "_", cleaned).strip("_")
     return cleaned
+
+
+def clean_text_value(value: object) -> str:
+    text = "" if pd.isna(value) else str(value)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def clean_category_value(value: object) -> str:
+    text = clean_text_value(value).lower()
+    if text in MISSING_CATEGORY_TOKENS:
+        return "unknown"
+    return text
 
 
 def infer_project_id(file_name: str) -> str:
@@ -121,13 +135,14 @@ def load_dataset_by_project(data_dir: Path) -> pd.DataFrame:
 
     data = pd.concat(frames, ignore_index=True)
     data = data.dropna(subset=["story_point"]).copy()
+    data = data[data["story_point"] >= 0].copy()
 
-    data["title"] = data["title"].fillna("").astype(str)
-    data["description"] = data["description"].fillna("").astype(str)
-    data["type"] = data["type"].fillna("unknown").astype(str)
-    data["priority"] = data["priority"].fillna("unknown").astype(str)
+    data["title"] = data["title"].map(clean_text_value)
+    data["description"] = data["description"].map(clean_text_value)
+    data["type"] = data["type"].map(clean_category_value)
+    data["priority"] = data["priority"].map(clean_category_value)
 
-    data["text"] = (data["title"] + " [SEP] " + data["description"]).str.strip()
+    data["text"] = (data["title"] + " [SEP] " + data["description"]).map(clean_text_value)
     data = data[data["text"].str.len() > 0].reset_index(drop=True)
 
     return data
@@ -140,8 +155,18 @@ def split_per_client(data: pd.DataFrame, test_size: float, random_state: int) ->
     for _, group in data.groupby("client_id"):
         group = group.sample(frac=1.0, random_state=random_state).reset_index(drop=True)
 
-        if len(group) < 5:
+        if len(group) < 2:
             train_parts.append(group)
+            continue
+
+        if len(group) < 5:
+            # Keep at least one sample in both train and test when possible.
+            test_count = max(1, int(round(len(group) * test_size)))
+            test_count = min(test_count, len(group) - 1)
+            test_df = group.iloc[:test_count].copy()
+            train_df = group.iloc[test_count:].copy()
+            train_parts.append(train_df)
+            test_parts.append(test_df)
             continue
 
         train_df, test_df = train_test_split(group, test_size=test_size, random_state=random_state)
@@ -155,7 +180,7 @@ def split_per_client(data: pd.DataFrame, test_size: float, random_state: int) ->
 
 
 def build_category_map(values: pd.Series) -> Dict[str, int]:
-    unique = sorted(set(values.astype(str).tolist()))
+    unique = sorted({clean_category_value(value) for value in values.tolist()})
     if "unknown" not in unique:
         unique.insert(0, "unknown")
     return {value: idx for idx, value in enumerate(unique)}
@@ -185,11 +210,14 @@ class IssueDataset(Dataset):
         priority_to_id: Dict[str, int],
         use_log_target: bool,
     ) -> None:
-        self.text = frame["text"].astype(str).tolist()
+        self.text = [clean_text_value(value) for value in frame["text"].tolist()]
 
-        self.type_ids = [type_to_id.get(value, type_to_id["unknown"]) for value in frame["type"].astype(str)]
+        self.type_ids = [
+            type_to_id.get(clean_category_value(value), type_to_id["unknown"]) for value in frame["type"].tolist()
+        ]
         self.priority_ids = [
-            priority_to_id.get(value, priority_to_id["unknown"]) for value in frame["priority"].astype(str)
+            priority_to_id.get(clean_category_value(value), priority_to_id["unknown"])
+            for value in frame["priority"].tolist()
         ]
 
         target = frame["story_point"].to_numpy(dtype=np.float32)

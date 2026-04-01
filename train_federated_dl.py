@@ -16,7 +16,7 @@ from fl.config import FLConfig
 from fl.data import IssueDataset, load_dataset_by_project, prepare_tabular_bundle
 from fl.metrics import evaluate_regression, format_metrics
 from fl.model import StoryPointRegressor
-from fl.server import FedAvgServer
+from fl.server import FedProxServer
 
 
 def choose_device(device_name: str) -> torch.device:
@@ -149,6 +149,7 @@ def save_model_artifact(
         "hidden_dim": config.hidden_dim,
         "dropout": config.dropout,
         "freeze_encoder": config.freeze_encoder,
+        "prox_mu": config.prox_mu,
         "num_types": len(type_to_id),
         "num_priorities": len(priority_to_id),
         "type_to_id": type_to_id,
@@ -172,13 +173,21 @@ def main() -> None:
     parser.add_argument("--test-size", type=float, default=0.2)
     parser.add_argument("--lr", type=float, default=2e-5)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
-    parser.add_argument("--fraction", type=float, default=1.0)
+    parser.add_argument("--prox-mu", type=float, default=1e-2)
+    parser.add_argument("--clients-per-round-fraction", "--fraction", dest="clients_per_round_fraction", type=float, default=1.0)
+    parser.add_argument("--local-sample-ratio-per-epoch", type=float, default=1.0)
+    parser.add_argument("--sample-with-replacement", action="store_true")
     parser.add_argument("--freeze-encoder", action="store_true")
     parser.add_argument("--central-log-every", type=int, default=1)
     parser.add_argument("--save-dir", type=str, default="artifacts")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"])
     args = parser.parse_args()
+
+    if not (0.0 < args.clients_per_round_fraction <= 1.0):
+        raise ValueError("--clients-per-round-fraction must be in (0, 1].")
+    if not (0.0 < args.local_sample_ratio_per_epoch <= 1.0):
+        raise ValueError("--local-sample-ratio-per-epoch must be in (0, 1].")
 
     config = FLConfig(
         data_dir=Path(args.data_dir),
@@ -191,7 +200,10 @@ def main() -> None:
         rounds=args.rounds,
         learning_rate=args.lr,
         weight_decay=args.weight_decay,
-        clients_per_round_fraction=args.fraction,
+        prox_mu=args.prox_mu,
+        clients_per_round_fraction=args.clients_per_round_fraction,
+        local_sample_ratio_per_epoch=args.local_sample_ratio_per_epoch,
+        sample_with_replacement=args.sample_with_replacement,
         freeze_encoder=args.freeze_encoder,
         device=args.device,
     )
@@ -284,13 +296,16 @@ def main() -> None:
             )
         )
 
-    server = FedAvgServer(model_factory=model_factory, clients=clients, random_state=config.random_state)
+    server = FedProxServer(model_factory=model_factory, clients=clients, random_state=config.random_state)
     fed_state, fed_history = server.train(
         rounds=config.rounds,
         clients_per_round_fraction=config.clients_per_round_fraction,
         local_epochs=config.local_epochs,
+        local_sample_ratio_per_epoch=config.local_sample_ratio_per_epoch,
+        sample_with_replacement=config.sample_with_replacement,
         learning_rate=config.learning_rate,
         weight_decay=config.weight_decay,
+        prox_mu=config.prox_mu,
         device=device,
     )
 

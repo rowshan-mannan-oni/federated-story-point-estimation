@@ -17,7 +17,7 @@ Target:
 - fl/data.py: data loading, schema mapping, split, dataset
 - fl/model.py: transformer + categorical embedding regression model
 - fl/client.py: local client training logic
-- fl/server.py: FedAvg orchestration
+- fl/server.py: FedProx orchestration
 - fl/metrics.py: regression metrics and formatting
 - train_federated_dl.py: end-to-end training script
 
@@ -88,9 +88,12 @@ python train_federated_dl.py ^
   --max-length 128 ^
   --fraction 1.0 ^
   --lr 2e-5 ^
+  --prox-mu 1e-2 ^
   --weight-decay 1e-4 ^
   --seed 42
 ```
+
+Set `--prox-mu 0` to recover vanilla FedAvg behavior.
 
 ## Outputs
 
