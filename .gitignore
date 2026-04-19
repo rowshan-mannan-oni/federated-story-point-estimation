@@ -31,6 +31,7 @@ build/
 
 # Training outputs and large artifacts
 artifacts/
+test_run_artifact/
 artifacts_test/
 saved_models/
 saved_models_*/

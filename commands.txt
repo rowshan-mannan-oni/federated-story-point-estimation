@@ -1,9 +1,9 @@
 
 ###########training##########
 
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" --data-dir "D:\Federated Learning using DL\data_3_workers" --device cuda --model-name "distilbert-base-uncased" --max-length 256 --rounds 20 --local-epochs 1 --batch-size 8 --lr 3e-5 --save-dir "D:\Federated Learning using DL\saved_models_20_global_epochs" --central-log-every 1
+& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" --data-dir "D:\Federated Learning using DL\data_3_workers" --device cuda --model-name "distilbert-base-uncased" --max-length 512 --rounds 75 --local-epochs 1 --batch-size 4 --lr 2e-5 --fraction 0.25 --skip-centralized --save-dir "D:\Federated Learning using DL\saved_models" --central-log-every 1
 
 
 #############Testing#########
 
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/predict_saved_model.py" --artifact-dir "D:\Federated Learning using DL\saved_models_20_global_epochs_10_local_epochs\federated" --data-dir "D:\Federated Learning using DL\data_to_test_on" --device cuda --out-csv "D:\Federated Learning using DL\predictions_federated_20_epochs_10_local_epochs.csv"
+& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/predict_saved_model.py" --artifact-dir "D:\Federated Learning using DL\saved_models\federated" --data-dir "D:\Federated Learning using DL\data_to_test_on" --device cuda --out-csv "D:\Federated Learning using DL\predictions_federated.csv"

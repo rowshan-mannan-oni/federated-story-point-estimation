@@ -134,6 +134,9 @@ def main() -> None:
         collate_fn=collate_fn_builder(tokenizer, metadata["max_length"]),
     )
 
+    global_stats = metadata["global_stats"]
+    client_stats = metadata.get("client_stats", {})
+
     predictions: List[np.ndarray] = []
     with torch.no_grad():
         for batch in loader:
@@ -141,9 +144,11 @@ def main() -> None:
             pred = model(batch).detach().cpu().numpy()
             predictions.append(pred)
 
-    pred = np.concatenate(predictions, axis=0)
-    if metadata["use_log_target"]:
-        pred = np.expm1(pred)
+    pred_norm = np.concatenate(predictions, axis=0)
+    pred = np.empty_like(pred_norm, dtype=np.float64)
+    for i, (p, cid) in enumerate(zip(pred_norm, data["client_id"].tolist())):
+        s = client_stats.get(cid, global_stats)
+        pred[i] = p * s["std"] + s["mean"]
     pred = np.clip(pred, a_min=0.0, a_max=None)
 
     output = data.copy()

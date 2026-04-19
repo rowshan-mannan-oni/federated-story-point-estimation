@@ -10,6 +10,26 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 
 
+@dataclass
+class ClientNormStats:
+    mean: float
+    std: float  # clamped to min 1e-6 so normalize/denormalize are always consistent
+
+    def normalize(self, values: np.ndarray) -> np.ndarray:
+        return (values - self.mean) / self.std
+
+    def denormalize(self, values: np.ndarray) -> np.ndarray:
+        return values * self.std + self.mean
+
+
+def compute_norm_stats(series: pd.Series) -> ClientNormStats:
+    values = series.to_numpy(dtype=np.float64)
+    return ClientNormStats(
+        mean=float(values.mean()),
+        std=float(max(values.std(ddof=0), 1e-6)),
+    )
+
+
 COLUMN_CANDIDATES = {
     "title": ["title", "summary", "issue_title"],
     "description": ["description", "description_text", "issue_description"],
@@ -27,6 +47,8 @@ class TabularBundle:
     test_df: pd.DataFrame
     type_to_id: Dict[str, int]
     priority_to_id: Dict[str, int]
+    client_stats: Dict[str, ClientNormStats]
+    global_stats: ClientNormStats
 
 
 def normalize_col_name(name: str) -> str:
@@ -167,11 +189,19 @@ def prepare_tabular_bundle(data: pd.DataFrame, test_size: float, random_state: i
     type_to_id = build_category_map(train_df["type"])
     priority_to_id = build_category_map(train_df["priority"])
 
+    client_stats = {
+        cid: compute_norm_stats(group["story_point"])
+        for cid, group in train_df.groupby("client_id")
+    }
+    global_stats = compute_norm_stats(train_df["story_point"])
+
     return TabularBundle(
         train_df=train_df,
         test_df=test_df,
         type_to_id=type_to_id,
         priority_to_id=priority_to_id,
+        client_stats=client_stats,
+        global_stats=global_stats,
     )
 
 
@@ -183,7 +213,8 @@ class IssueDataset(Dataset):
         frame: pd.DataFrame,
         type_to_id: Dict[str, int],
         priority_to_id: Dict[str, int],
-        use_log_target: bool,
+        norm_mean: float,
+        norm_std: float,
     ) -> None:
         self.text = frame["text"].astype(str).tolist()
 
@@ -194,9 +225,7 @@ class IssueDataset(Dataset):
 
         target = frame["story_point"].to_numpy(dtype=np.float32)
         self.target_raw = target
-        if use_log_target:
-            target = np.log1p(np.clip(target, a_min=0.0, a_max=None)).astype(np.float32)
-        self.target_train = target
+        self.target_train = ((target - norm_mean) / norm_std).astype(np.float32)
 
     def __len__(self) -> int:
         return len(self.text)

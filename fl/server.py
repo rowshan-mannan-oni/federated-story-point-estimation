@@ -30,8 +30,8 @@ class FedAvgServer:
             if first_tensor.is_floating_point():
                 combined = torch.zeros_like(first_tensor)
                 for state, weight in zip(states, weights):
-                    combined += state[key] * (weight / total)
-                avg_state[key] = combined
+                    combined += state[key] * weight
+                avg_state[key] = combined/total
             else:
                 avg_state[key] = first_tensor.clone()
 

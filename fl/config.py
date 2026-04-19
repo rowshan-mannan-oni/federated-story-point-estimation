@@ -22,12 +22,9 @@ class FLConfig:
     batch_size: int = 16
     local_epochs: int = 1
     rounds: int = 8
-    clients_per_round_fraction: float = 1.0
+    clients_per_round_fraction: float = 0.25
     learning_rate: float = 2e-5
     weight_decay: float = 1e-4
-
-    # Label processing.
-    use_log_target: bool = True
 
     # Device.
     device: str = "cuda"

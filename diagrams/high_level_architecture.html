@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>High-Level System Architecture</title>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true, theme: "default" });
+  </script>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: Segoe UI, Tahoma, sans-serif;
+      background: #f7f8fa;
+      color: #1f2937;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>High-Level Federated Story Point Estimation Architecture</h1>
+    <pre class="mermaid">
+flowchart LR
+  subgraph Inputs[Input Layer]
+    Data[Project Issue Data]
+    Config[Experiment Config]
+  end
+
+  subgraph Prep[Data Preparation]
+    Clean[Schema Mapping and Cleaning]
+    Split[Client-Aware Train/Test Split]
+  end
+
+  subgraph Core[Learning Core]
+    Model[Shared Model Architecture]
+
+    subgraph Centralized[Centralized Path]
+      CTrain[Centralized Training]
+      CEval[Centralized Evaluation]
+    end
+
+    subgraph Federated[Federated FedProx Path]
+      Server[FedProx Server]
+      Clients[Client-Side Local Training]
+      Agg[Weighted Aggregation]
+      FEval[Federated Evaluation]
+    end
+  end
+
+  subgraph Outputs[Outputs]
+    Metrics[MAE RMSE R2 MAPE]
+    Artifacts[Saved Model Artifacts]
+    Inference[Inference on New Data]
+  end
+
+  Data --> Clean --> Split
+  Config --> Model
+
+  Split --> CTrain --> CEval --> Metrics
+  Model --> CTrain
+
+  Split --> Clients
+  Model --> Server
+  Server <--> Clients
+  Clients --> Agg --> Server
+  Server --> FEval --> Metrics
+
+  CEval --> Artifacts
+  FEval --> Artifacts
+  Artifacts --> Inference
+    </pre>
+  </div>
+</body>
+</html>

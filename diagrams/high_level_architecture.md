@@ -1,0 +1,52 @@
+# High-Level System Architecture
+
+```mermaid
+flowchart LR
+  subgraph Inputs[Input Layer]
+    Data[Project Issue Data]
+    Config[Experiment Config]
+  end
+
+  subgraph Prep[Data Preparation]
+    Clean[Schema Mapping and Cleaning]
+    Split[Client-Aware Train/Test Split]
+  end
+
+  subgraph Core[Learning Core]
+    Model[Shared Model Architecture]
+
+    subgraph Centralized[Centralized Path]
+      CTrain[Centralized Training]
+      CEval[Centralized Evaluation]
+    end
+
+    subgraph Federated[Federated FedProx Path]
+      Server[FedProx Server]
+      Clients[Client-Side Local Training]
+      Agg[Weighted Aggregation]
+      FEval[Federated Evaluation]
+    end
+  end
+
+  subgraph Outputs[Outputs]
+    Metrics[MAE RMSE R2 MAPE]
+    Artifacts[Saved Model Artifacts]
+    Inference[Inference on New Data]
+  end
+
+  Data --> Clean --> Split
+  Config --> Model
+
+  Split --> CTrain --> CEval --> Metrics
+  Model --> CTrain
+
+  Split --> Clients
+  Model --> Server
+  Server <--> Clients
+  Clients --> Agg --> Server
+  Server --> FEval --> Metrics
+
+  CEval --> Artifacts
+  FEval --> Artifacts
+  Artifacts --> Inference
+```

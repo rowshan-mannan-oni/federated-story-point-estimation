@@ -28,7 +28,8 @@ class FederatedClient:
         tokenizer: AutoTokenizer,
         type_to_id: Dict[str, int],
         priority_to_id: Dict[str, int],
-        use_log_target: bool,
+        norm_mean: float,
+        norm_std: float,
         max_length: int,
         batch_size: int,
     ) -> None:
@@ -37,7 +38,8 @@ class FederatedClient:
             frame=client_df,
             type_to_id=type_to_id,
             priority_to_id=priority_to_id,
-            use_log_target=use_log_target,
+            norm_mean=norm_mean,
+            norm_std=norm_std,
         )
         self.tokenizer = tokenizer
         self.max_length = max_length

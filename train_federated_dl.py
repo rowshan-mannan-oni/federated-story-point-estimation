@@ -13,7 +13,7 @@ from transformers import AutoTokenizer
 
 from fl.client import FederatedClient
 from fl.config import FLConfig
-from fl.data import IssueDataset, load_dataset_by_project, prepare_tabular_bundle
+from fl.data import ClientNormStats, IssueDataset, load_dataset_by_project, prepare_tabular_bundle
 from fl.metrics import evaluate_regression, format_metrics
 from fl.model import StoryPointRegressor
 from fl.server import FedAvgServer
@@ -44,18 +44,7 @@ def collate_fn_builder(tokenizer: AutoTokenizer, max_length: int):
     return collate
 
 
-def invert_target(y: np.ndarray, use_log_target: bool) -> np.ndarray:
-    if use_log_target:
-        return np.expm1(y)
-    return y
-
-
-def run_prediction(
-    model: nn.Module,
-    loader: DataLoader,
-    device: torch.device,
-    use_log_target: bool,
-) -> np.ndarray:
+def run_prediction(model: nn.Module, loader: DataLoader, device: torch.device) -> np.ndarray:
     model.eval()
     preds: List[np.ndarray] = []
 
@@ -65,8 +54,20 @@ def run_prediction(
             output = model(batch).detach().cpu().numpy()
             preds.append(output)
 
-    pred = np.concatenate(preds, axis=0)
-    return invert_target(pred, use_log_target)
+    return np.concatenate(preds, axis=0)
+
+
+def denormalize_per_client(
+    predictions: np.ndarray,
+    client_ids: List[str],
+    client_stats: Dict[str, ClientNormStats],
+    global_stats: ClientNormStats,
+) -> np.ndarray:
+    result = np.empty_like(predictions, dtype=np.float64)
+    for i, (pred, cid) in enumerate(zip(predictions, client_ids)):
+        stats = client_stats.get(cid, global_stats)
+        result[i] = stats.denormalize(np.array([pred]))[0]
+    return result
 
 
 def train_centralized(
@@ -133,6 +134,8 @@ def save_model_artifact(
     config: FLConfig,
     type_to_id: Dict[str, int],
     priority_to_id: Dict[str, int],
+    global_stats: ClientNormStats,
+    client_stats: Dict[str, ClientNormStats],
 ) -> Path:
     artifact_dir = save_root / artifact_name
     tokenizer_dir = artifact_dir / "tokenizer"
@@ -144,7 +147,6 @@ def save_model_artifact(
     metadata = {
         "model_name": config.model_name,
         "max_length": config.max_length,
-        "use_log_target": config.use_log_target,
         "categorical_emb_dim": config.categorical_emb_dim,
         "hidden_dim": config.hidden_dim,
         "dropout": config.dropout,
@@ -153,6 +155,8 @@ def save_model_artifact(
         "num_priorities": len(priority_to_id),
         "type_to_id": type_to_id,
         "priority_to_id": priority_to_id,
+        "global_stats": {"mean": global_stats.mean, "std": global_stats.std},
+        "client_stats": {cid: {"mean": s.mean, "std": s.std} for cid, s in client_stats.items()},
     }
 
     with (artifact_dir / "metadata.json").open("w", encoding="utf-8") as handle:
@@ -174,6 +178,7 @@ def main() -> None:
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--fraction", type=float, default=1.0)
     parser.add_argument("--freeze-encoder", action="store_true")
+    parser.add_argument("--skip-centralized", action="store_true")
     parser.add_argument("--central-log-every", type=int, default=1)
     parser.add_argument("--save-dir", type=str, default="artifacts")
     parser.add_argument("--seed", type=int, default=42)
@@ -195,6 +200,7 @@ def main() -> None:
         freeze_encoder=args.freeze_encoder,
         device=args.device,
     )
+
     save_dir = Path(args.save_dir)
 
     torch.manual_seed(config.random_state)
@@ -214,13 +220,15 @@ def main() -> None:
         frame=bundle.train_df,
         type_to_id=bundle.type_to_id,
         priority_to_id=bundle.priority_to_id,
-        use_log_target=config.use_log_target,
+        norm_mean=bundle.global_stats.mean,
+        norm_std=bundle.global_stats.std,
     )
     test_dataset = IssueDataset(
         frame=bundle.test_df,
         type_to_id=bundle.type_to_id,
         priority_to_id=bundle.priority_to_id,
-        use_log_target=config.use_log_target,
+        norm_mean=bundle.global_stats.mean,
+        norm_std=bundle.global_stats.std,
     )
 
     collate_fn = collate_fn_builder(tokenizer, config.max_length)
@@ -244,33 +252,41 @@ def main() -> None:
     mean_pred = np.full_like(y_test_raw, fill_value=float(np.mean(train_dataset.target_raw)), dtype=np.float64)
     baseline_metrics = evaluate_regression(y_test_raw, mean_pred)
 
-    # Centralized deep model reference.
-    centralized_model = model_factory().to(device)
-    centralized_model = train_centralized(
-        model=centralized_model,
-        train_loader=train_loader,
-        device=device,
-        epochs=config.rounds,
-        learning_rate=config.learning_rate,
-        weight_decay=config.weight_decay,
-        log_every=max(1, args.central_log_every),
-    )
-    centralized_pred = run_prediction(centralized_model, test_loader, device, config.use_log_target)
-    centralized_metrics = evaluate_regression(y_test_raw, centralized_pred)
+    # Centralized deep model reference (skipped when --skip-centralized is set).
+    centralized_metrics = None
+    centralized_artifact = None
+    if not args.skip_centralized:
+        centralized_model = model_factory().to(device)
+        centralized_model = train_centralized(
+            model=centralized_model,
+            train_loader=train_loader,
+            device=device,
+            epochs=config.rounds,
+            learning_rate=config.learning_rate,
+            weight_decay=config.weight_decay,
+            log_every=max(1, args.central_log_every),
+        )
+        centralized_pred_norm = run_prediction(centralized_model, test_loader, device)
+        centralized_pred = bundle.global_stats.denormalize(centralized_pred_norm)
+        centralized_pred = np.clip(centralized_pred, a_min=0.0, a_max=None)
+        centralized_metrics = evaluate_regression(y_test_raw, centralized_pred)
 
-    centralized_artifact = save_model_artifact(
-        save_root=save_dir,
-        artifact_name="centralized",
-        model=centralized_model,
-        tokenizer=tokenizer,
-        config=config,
-        type_to_id=bundle.type_to_id,
-        priority_to_id=bundle.priority_to_id,
-    )
+        centralized_artifact = save_model_artifact(
+            save_root=save_dir,
+            artifact_name="centralized",
+            model=centralized_model,
+            tokenizer=tokenizer,
+            config=config,
+            type_to_id=bundle.type_to_id,
+            priority_to_id=bundle.priority_to_id,
+            global_stats=bundle.global_stats,
+            client_stats=bundle.client_stats,
+        )
 
     # Federated deep model.
     clients: List[FederatedClient] = []
     for client_id, frame in bundle.train_df.groupby("client_id"):
+        stats = bundle.client_stats[client_id]
         clients.append(
             FederatedClient(
                 client_id=client_id,
@@ -278,7 +294,8 @@ def main() -> None:
                 tokenizer=tokenizer,
                 type_to_id=bundle.type_to_id,
                 priority_to_id=bundle.priority_to_id,
-                use_log_target=config.use_log_target,
+                norm_mean=stats.mean,
+                norm_std=stats.std,
                 max_length=config.max_length,
                 batch_size=config.batch_size,
             )
@@ -297,7 +314,14 @@ def main() -> None:
     federated_model = model_factory().to(device)
     federated_model.load_state_dict(fed_state)
 
-    federated_pred = run_prediction(federated_model, test_loader, device, config.use_log_target)
+    federated_pred_norm = run_prediction(federated_model, test_loader, device)
+    federated_pred = denormalize_per_client(
+        predictions=federated_pred_norm,
+        client_ids=bundle.test_df["client_id"].tolist(),
+        client_stats=bundle.client_stats,
+        global_stats=bundle.global_stats,
+    )
+    federated_pred = np.clip(federated_pred, a_min=0.0, a_max=None)
     federated_metrics = evaluate_regression(y_test_raw, federated_pred)
 
     federated_artifact = save_model_artifact(
@@ -308,6 +332,8 @@ def main() -> None:
         config=config,
         type_to_id=bundle.type_to_id,
         priority_to_id=bundle.priority_to_id,
+        global_stats=bundle.global_stats,
+        client_stats=bundle.client_stats,
     )
 
     print("\nDataset summary")
@@ -318,7 +344,8 @@ def main() -> None:
 
     print("\nRegression metrics (lower MAE/RMSE/MAPE is better, higher R2 is better)")
     print(format_metrics("Baseline (Mean)", baseline_metrics))
-    print(format_metrics("Centralized DL", centralized_metrics))
+    if centralized_metrics is not None:
+        print(format_metrics("Centralized DL", centralized_metrics))
     print(format_metrics("Federated DL", federated_metrics))
 
     if fed_history:
@@ -328,7 +355,8 @@ def main() -> None:
         )
 
     print("\nSaved artifacts")
-    print(f"Centralized: {centralized_artifact}")
+    if centralized_artifact is not None:
+        print(f"Centralized: {centralized_artifact}")
     print(f"Federated: {federated_artifact}")
 
     mae_improvement = 100.0 * (baseline_metrics["mae"] - federated_metrics["mae"]) / max(
