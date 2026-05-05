@@ -178,6 +178,8 @@ def main() -> None:
     parser.add_argument("--save-dir", type=str, default="artifacts")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"])
+    parser.add_argument("--skip-centralized", action="store_true", help="Skip centralized model training")
+    parser.add_argument("--skip-federated", action="store_true", help="Skip federated model training")
     args = parser.parse_args()
 
     config = FLConfig(
@@ -245,81 +247,91 @@ def main() -> None:
     baseline_metrics = evaluate_regression(y_test_raw, mean_pred)
 
     # Centralized deep model reference.
-    centralized_model = model_factory().to(device)
-    centralized_model = train_centralized(
-        model=centralized_model,
-        train_loader=train_loader,
-        device=device,
-        epochs=config.rounds,
-        learning_rate=config.learning_rate,
-        weight_decay=config.weight_decay,
-        log_every=max(1, args.central_log_every),
-    )
-    centralized_pred = run_prediction(centralized_model, test_loader, device, config.use_log_target)
-    centralized_metrics = evaluate_regression(y_test_raw, centralized_pred)
+    centralized_metrics = None
+    centralized_artifact = None
+    if not args.skip_centralized:
+        centralized_model = model_factory().to(device)
+        centralized_model = train_centralized(
+            model=centralized_model,
+            train_loader=train_loader,
+            device=device,
+            epochs=config.rounds,
+            learning_rate=config.learning_rate,
+            weight_decay=config.weight_decay,
+            log_every=max(1, args.central_log_every),
+        )
+        centralized_pred = run_prediction(centralized_model, test_loader, device, config.use_log_target)
+        centralized_metrics = evaluate_regression(y_test_raw, centralized_pred)
 
-    centralized_artifact = save_model_artifact(
-        save_root=save_dir,
-        artifact_name="centralized",
-        model=centralized_model,
-        tokenizer=tokenizer,
-        config=config,
-        type_to_id=bundle.type_to_id,
-        priority_to_id=bundle.priority_to_id,
-    )
+        centralized_artifact = save_model_artifact(
+            save_root=save_dir,
+            artifact_name="centralized",
+            model=centralized_model,
+            tokenizer=tokenizer,
+            config=config,
+            type_to_id=bundle.type_to_id,
+            priority_to_id=bundle.priority_to_id,
+        )
 
     # Federated deep model.
     clients: List[FederatedClient] = []
-    for client_id, frame in bundle.train_df.groupby("client_id"):
-        clients.append(
-            FederatedClient(
-                client_id=client_id,
-                client_df=frame.reset_index(drop=True),
-                tokenizer=tokenizer,
-                type_to_id=bundle.type_to_id,
-                priority_to_id=bundle.priority_to_id,
-                use_log_target=config.use_log_target,
-                max_length=config.max_length,
-                batch_size=config.batch_size,
+    federated_metrics = None
+    federated_artifact = None
+    fed_history = None
+    if not args.skip_federated:
+        for client_id, frame in bundle.train_df.groupby("client_id"):
+            clients.append(
+                FederatedClient(
+                    client_id=client_id,
+                    client_df=frame.reset_index(drop=True),
+                    tokenizer=tokenizer,
+                    type_to_id=bundle.type_to_id,
+                    priority_to_id=bundle.priority_to_id,
+                    use_log_target=config.use_log_target,
+                    max_length=config.max_length,
+                    batch_size=config.batch_size,
+                )
             )
+
+        server = FedAvgServer(model_factory=model_factory, clients=clients, random_state=config.random_state)
+        fed_state, fed_history = server.train(
+            rounds=config.rounds,
+            clients_per_round_fraction=config.clients_per_round_fraction,
+            local_epochs=config.local_epochs,
+            learning_rate=config.learning_rate,
+            weight_decay=config.weight_decay,
+            device=device,
         )
 
-    server = FedAvgServer(model_factory=model_factory, clients=clients, random_state=config.random_state)
-    fed_state, fed_history = server.train(
-        rounds=config.rounds,
-        clients_per_round_fraction=config.clients_per_round_fraction,
-        local_epochs=config.local_epochs,
-        learning_rate=config.learning_rate,
-        weight_decay=config.weight_decay,
-        device=device,
-    )
+        federated_model = model_factory().to(device)
+        federated_model.load_state_dict(fed_state)
 
-    federated_model = model_factory().to(device)
-    federated_model.load_state_dict(fed_state)
+        federated_pred = run_prediction(federated_model, test_loader, device, config.use_log_target)
+        federated_metrics = evaluate_regression(y_test_raw, federated_pred)
 
-    federated_pred = run_prediction(federated_model, test_loader, device, config.use_log_target)
-    federated_metrics = evaluate_regression(y_test_raw, federated_pred)
+        federated_artifact = save_model_artifact(
+            save_root=save_dir,
+            artifact_name="federated",
+            model=federated_model,
+            tokenizer=tokenizer,
+            config=config,
+            type_to_id=bundle.type_to_id,
+            priority_to_id=bundle.priority_to_id,
+        )
 
-    federated_artifact = save_model_artifact(
-        save_root=save_dir,
-        artifact_name="federated",
-        model=federated_model,
-        tokenizer=tokenizer,
-        config=config,
-        type_to_id=bundle.type_to_id,
-        priority_to_id=bundle.priority_to_id,
-    )
-
+    num_clients = len(clients) if clients else len(bundle.train_df["client_id"].unique())
     print("\nDataset summary")
     print(
-        f"Rows: {len(data)} | Train: {len(bundle.train_df)} | Test: {len(bundle.test_df)} | Clients: {len(clients)}"
+        f"Rows: {len(data)} | Train: {len(bundle.train_df)} | Test: {len(bundle.test_df)} | Clients: {num_clients}"
     )
     print(f"Model: {config.model_name} | Device: {device}")
 
     print("\nRegression metrics (lower MAE/RMSE/MAPE is better, higher R2 is better)")
     print(format_metrics("Baseline (Mean)", baseline_metrics))
-    print(format_metrics("Centralized DL", centralized_metrics))
-    print(format_metrics("Federated DL", federated_metrics))
+    if centralized_metrics is not None:
+        print(format_metrics("Centralized DL", centralized_metrics))
+    if federated_metrics is not None:
+        print(format_metrics("Federated DL", federated_metrics))
 
     if fed_history:
         print(
@@ -328,13 +340,16 @@ def main() -> None:
         )
 
     print("\nSaved artifacts")
-    print(f"Centralized: {centralized_artifact}")
-    print(f"Federated: {federated_artifact}")
+    if centralized_artifact is not None:
+        print(f"Centralized: {centralized_artifact}")
+    if federated_artifact is not None:
+        print(f"Federated: {federated_artifact}")
 
-    mae_improvement = 100.0 * (baseline_metrics["mae"] - federated_metrics["mae"]) / max(
-        baseline_metrics["mae"], 1e-9
-    )
-    print(f"\nFederated MAE improvement vs baseline: {mae_improvement:.2f}%")
+    if federated_metrics is not None:
+        mae_improvement = 100.0 * (baseline_metrics["mae"] - federated_metrics["mae"]) / max(
+            baseline_metrics["mae"], 1e-9
+        )
+        print(f"\nFederated MAE improvement vs baseline: {mae_improvement:.2f}%")
 
 
 if __name__ == "__main__":

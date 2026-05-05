@@ -34,6 +34,8 @@ artifacts/
 artifacts_test/
 saved_models/
 saved_models_*/
+saved_model_only_centralized/
+test_run_artifact/
 *.pt
 *.bin
 *.safetensors
