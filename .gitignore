@@ -31,6 +31,7 @@ build/
 
 # Training outputs and large artifacts
 artifacts/
+artifacts*/
 artifacts_test/
 saved_models/
 saved_models_*/
@@ -46,6 +47,7 @@ predictions*.csv
 # Local data copies (keep raw source datasets outside repo)
 data_*/
 *dataset*/
+pre_training_data/
 
 # Jupyter
 *.ipynb

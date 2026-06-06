@@ -18,7 +18,8 @@ from fl.data import (
     map_input_columns,
     read_table,
 )
-from fl.metrics import evaluate_regression, format_metrics
+from fl.data import story_point_to_label
+from fl.metrics import evaluate_classification, format_metrics
 from fl.model import StoryPointRegressor
 
 
@@ -135,6 +136,13 @@ def main() -> None:
         hidden_dim=metadata["hidden_dim"],
         dropout=metadata["dropout"],
         freeze_encoder=metadata["freeze_encoder"],
+        num_classes=metadata["num_classes"],
+        use_lora=metadata.get("use_lora", False),
+        lora_r=metadata.get("lora_r", 8),
+        lora_alpha=metadata.get("lora_alpha", 16),
+        lora_dropout=metadata.get("lora_dropout", 0.05),
+        lora_target_modules=metadata.get("lora_target_modules", ["query", "value"]),
+        ffa_lora=metadata.get("ffa_lora", True),
     )
 
     state_dict = torch.load(artifact_dir / "model_state.pt", map_location="cpu")
@@ -153,20 +161,21 @@ def main() -> None:
         collate_fn=collate_fn_builder(tokenizer, metadata["max_length"]),
     )
 
+    inv_label_map = {int(k): int(v) for k, v in metadata["inv_label_map"].items()}
+
     predictions: List[np.ndarray] = []
     with torch.no_grad():
         for batch in loader:
             batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
-            pred = model(batch).detach().cpu().numpy()
-            predictions.append(pred)
+            logits = model(batch).detach().cpu()
+            predictions.append(logits.argmax(dim=1).numpy())
 
-    pred = np.concatenate(predictions, axis=0)
-    if metadata["use_log_target"]:
-        pred = np.expm1(pred)
-    pred = np.clip(pred, a_min=0.0, a_max=None)
+    pred_labels = np.concatenate(predictions, axis=0)
+    pred_story_points = np.array([inv_label_map[int(p)] for p in pred_labels], dtype=np.int64)
 
     output = data.copy()
-    output["predicted_story_point"] = pred
+    output["predicted_class"] = pred_labels
+    output["predicted_story_point"] = pred_story_points
     output_path = Path(args.out_csv)
     output.to_csv(output_path, index=False)
 
@@ -175,10 +184,11 @@ def main() -> None:
     # Evaluate only when labels exist in the input data.
     labeled = output.dropna(subset=["story_point"]).copy()
     if not labeled.empty:
-        metrics = evaluate_regression(
-            labeled["story_point"].to_numpy(dtype=np.float64),
-            labeled["predicted_story_point"].to_numpy(dtype=np.float64),
+        y_true = np.array(
+            [story_point_to_label(sp) for sp in labeled["story_point"].tolist()], dtype=np.int64
         )
+        y_pred = labeled["predicted_class"].to_numpy(dtype=np.int64)
+        metrics = evaluate_classification(y_true, y_pred, num_classes=metadata["num_classes"])
         print(format_metrics("Loaded model eval", metrics))
     else:
         print("No story_point labels found in input data. Skipped evaluation.")

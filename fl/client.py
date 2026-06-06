@@ -9,7 +9,7 @@ from torch.optim import AdamW
 from torch.utils.data import DataLoader, Subset
 from transformers import AutoTokenizer
 
-from fl.data import IssueDataset
+from fl.data import IssueDataset, compute_class_weights
 
 
 @dataclass
@@ -29,16 +29,16 @@ class FederatedClient:
         tokenizer: AutoTokenizer,
         type_to_id: Dict[str, int],
         priority_to_id: Dict[str, int],
-        use_log_target: bool,
+        num_classes: int,
         max_length: int,
         batch_size: int,
     ) -> None:
         self.client_id = client_id
+        self.num_classes = num_classes
         self.dataset = IssueDataset(
             frame=client_df,
             type_to_id=type_to_id,
             priority_to_id=priority_to_id,
-            use_log_target=use_log_target,
         )
         self.tokenizer = tokenizer
         self.max_length = max_length
@@ -102,8 +102,16 @@ class FederatedClient:
         model.train()
 
         optimizer = AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-        criterion = nn.MSELoss()
-        global_params = {name: tensor.to(device) for name, tensor in global_state.items()}
+        # Per-client inverse-frequency weights — computed once from full local data.
+        class_weights = compute_class_weights(self.dataset.labels, self.num_classes).to(device)
+        criterion = nn.CrossEntropyLoss(weight=class_weights)
+        # Only load trainable params for the proximal term — avoids double-loading the
+        # frozen backbone (~264MB for DistilBERT) that is already on device via model.to(device).
+        global_params = {
+            name: global_state[name].to(device)
+            for name, param in model.named_parameters()
+            if param.requires_grad
+        }
 
         running_loss = 0.0
         num_batches = 0
@@ -127,7 +135,7 @@ class FederatedClient:
                 flush=True,
             )
 
-            for batch in loader:
+            for batch_idx, batch in enumerate(loader):
                 batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
                 optimizer.zero_grad(set_to_none=True)
@@ -137,7 +145,8 @@ class FederatedClient:
                 if prox_mu > 0.0:
                     prox_term = torch.zeros((), device=device)
                     for name, param in model.named_parameters():
-                        prox_term += torch.sum((param - global_params[name]) ** 2)
+                        if param.requires_grad:  # B + head only when FFA-LoRA on
+                            prox_term += torch.sum((param - global_params[name]) ** 2)
                     loss = loss + 0.5 * prox_mu * prox_term
 
                 loss.backward()
@@ -146,8 +155,23 @@ class FederatedClient:
                 running_loss += float(loss.item())
                 num_batches += 1
 
+                if (batch_idx + 1) % 100 == 0:
+                    print(
+                        f"      [Client {self.client_id}][Epoch {epoch_idx + 1}] "
+                        f"batch {batch_idx + 1}/{len(loader)} "
+                        f"loss={loss.item():.4f}",
+                        flush=True,
+                    )
+
         avg_loss = running_loss / max(num_batches, 1)
         state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+
+        # Explicitly release GPU tensors so the CUDA allocator can defragment before
+        # the next client's model is loaded; without this, sequential client training
+        # accumulates fragmentation and causes OOM mid-round.
+        del model, global_params
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         effective_examples = max(sampled_examples_total, 1)
         return ClientOutput(state_dict=state, num_examples=effective_examples, loss=avg_loss)

@@ -10,6 +10,35 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 
 
+# ---------------------------------------------------------------------------
+# Story-point label mapping — single source of truth for the whole codebase.
+# ---------------------------------------------------------------------------
+STORY_POINT_CLASSES = (1, 2, 3, 5, 8)
+LABEL_MAP: Dict[int, int] = {1: 0, 2: 1, 3: 2, 5: 3, 8: 4}
+INV_LABEL_MAP: Dict[int, int] = {v: k for k, v in LABEL_MAP.items()}
+NUM_CLASSES = len(LABEL_MAP)
+
+
+def story_point_to_label(sp: float) -> int:
+    """Map a Fibonacci story-point value to a class index (0-4)."""
+    return LABEL_MAP[int(sp)]
+
+
+def compute_class_weights(labels: np.ndarray, num_classes: int) -> torch.Tensor:
+    """
+    Inverse-frequency class weights for CrossEntropyLoss, computed per-client.
+    Uses sklearn's balanced formula for present classes; absent classes get weight 0.
+    """
+    counts = np.bincount(labels, minlength=num_classes).astype(np.float64)
+    n_present = float((counts > 0).sum())
+    n_samples = float(counts.sum())
+    if n_present == 0:
+        return torch.ones(num_classes, dtype=torch.float32)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        weights = np.where(counts > 0, n_samples / (n_present * counts), 0.0)
+    return torch.tensor(weights, dtype=torch.float32)
+
+
 COLUMN_CANDIDATES = {
     "title": ["title", "summary", "issue_title"],
     "description": ["description", "description_text", "issue_description"],
@@ -137,6 +166,17 @@ def load_dataset_by_project(data_dir: Path) -> pd.DataFrame:
     data = data.dropna(subset=["story_point"]).copy()
     data = data[data["story_point"] >= 0].copy()
 
+    # Filter to valid Fibonacci story points; log drops per project.
+    valid_mask = data["story_point"].isin(STORY_POINT_CLASSES)
+    if not valid_mask.all():
+        dropped_per_project = data[~valid_mask].groupby("client_id").size()
+        for project, count in dropped_per_project.items():
+            print(
+                f"  [Data] {project}: dropped {count} row(s) with Story_Point not in {STORY_POINT_CLASSES}",
+                flush=True,
+            )
+    data = data[valid_mask].copy()
+
     data["title"] = data["title"].map(clean_text_value)
     data["description"] = data["description"].map(clean_text_value)
     data["type"] = data["type"].map(clean_category_value)
@@ -208,7 +248,6 @@ class IssueDataset(Dataset):
         frame: pd.DataFrame,
         type_to_id: Dict[str, int],
         priority_to_id: Dict[str, int],
-        use_log_target: bool,
     ) -> None:
         self.text = [clean_text_value(value) for value in frame["text"].tolist()]
 
@@ -220,11 +259,10 @@ class IssueDataset(Dataset):
             for value in frame["priority"].tolist()
         ]
 
-        target = frame["story_point"].to_numpy(dtype=np.float32)
-        self.target_raw = target
-        if use_log_target:
-            target = np.log1p(np.clip(target, a_min=0.0, a_max=None)).astype(np.float32)
-        self.target_train = target
+        self.labels = np.array(
+            [story_point_to_label(sp) for sp in frame["story_point"].tolist()],
+            dtype=np.int64,
+        )
 
     def __len__(self) -> int:
         return len(self.text)
@@ -234,5 +272,5 @@ class IssueDataset(Dataset):
             "text": self.text[idx],
             "type_id": torch.tensor(self.type_ids[idx], dtype=torch.long),
             "priority_id": torch.tensor(self.priority_ids[idx], dtype=torch.long),
-            "target": torch.tensor(self.target_train[idx], dtype=torch.float32),
+            "target": torch.tensor(self.labels[idx], dtype=torch.long),
         }

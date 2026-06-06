@@ -1,12 +1,13 @@
-from typing import Dict
+from typing import Dict, Sequence
 
 import torch
 from torch import nn
 from transformers import AutoModel
+from peft import LoraConfig, get_peft_model
 
 
 class StoryPointRegressor(nn.Module):
-    """Hybrid regressor using transformer text encoding and categorical embeddings."""
+    """Transformer encoder + categorical embeddings + classification head."""
 
     def __init__(
         self,
@@ -17,15 +18,39 @@ class StoryPointRegressor(nn.Module):
         hidden_dim: int,
         dropout: float,
         freeze_encoder: bool,
+        num_classes: int = 5,
+        use_lora: bool = True,
+        lora_r: int = 8,
+        lora_alpha: int = 16,
+        lora_dropout: float = 0.05,
+        lora_target_modules: Sequence[str] = ("query", "value"),
+        ffa_lora: bool = True,
     ) -> None:
         super().__init__()
         self.encoder = AutoModel.from_pretrained(model_name)
 
-        if freeze_encoder:
+        # Capture hidden_size before peft potentially rewraps the encoder.
+        text_dim = self.encoder.config.hidden_size
+
+        if use_lora:
+            lora_cfg = LoraConfig(
+                r=lora_r,
+                lora_alpha=lora_alpha,
+                lora_dropout=lora_dropout,
+                target_modules=list(lora_target_modules),
+                bias="none",
+            )
+            # Wrap only the encoder so the head + embeddings stay trainable.
+            self.encoder = get_peft_model(self.encoder, lora_cfg)
+            if ffa_lora:
+                # FFA-LoRA: freeze A so only B is trained and aggregated.
+                for name, param in self.encoder.named_parameters():
+                    if "lora_A" in name:
+                        param.requires_grad_(False)
+        elif freeze_encoder:
             for parameter in self.encoder.parameters():
                 parameter.requires_grad = False
 
-        text_dim = self.encoder.config.hidden_size
         self.type_emb = nn.Embedding(num_types, categorical_emb_dim)
         self.priority_emb = nn.Embedding(num_priorities, categorical_emb_dim)
 
@@ -36,7 +61,7 @@ class StoryPointRegressor(nn.Module):
             nn.Linear(fusion_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim, 1),
+            nn.Linear(hidden_dim, num_classes),
         )
 
     def encode_text(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
@@ -57,6 +82,11 @@ class StoryPointRegressor(nn.Module):
         priority_vector = self.priority_emb(batch["priority_id"])
 
         fused = torch.cat([text_vector, type_vector, priority_vector], dim=1)
-        prediction = self.head(fused).squeeze(1)
+        return self.head(fused)  # (batch, num_classes) logits
 
-        return prediction
+
+def log_trainable_params(model: nn.Module) -> None:
+    total = sum(p.numel() for p in model.parameters())
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    pct = 100.0 * trainable / max(total, 1)
+    print(f"[Model] Trainable: {trainable:,} / {total:,} params ({pct:.2f}%)", flush=True)

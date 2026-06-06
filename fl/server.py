@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 import time
 
 import numpy as np
@@ -24,14 +24,17 @@ class FedProxServer:
     def _weighted_average_states(
         states: List[Dict[str, torch.Tensor]],
         weights: List[int],
+        aggregatable_keys: frozenset,
+        base_state: Dict[str, torch.Tensor],
     ) -> Dict[str, torch.Tensor]:
         total = float(sum(weights))
-        avg_state: Dict[str, torch.Tensor] = {}
 
-        for key in states[0].keys():
+        # Preserve frozen params and buffers unchanged from the current global state.
+        avg_state: Dict[str, torch.Tensor] = {k: v.clone() for k, v in base_state.items()}
+
+        # Overwrite only trainable (aggregatable) keys with the weighted average.
+        for key in aggregatable_keys:
             first_tensor = states[0][key]
-
-            # Float tensors are averaged. Non-float tensors are copied from the first client.
             if first_tensor.is_floating_point():
                 combined = torch.zeros_like(first_tensor)
                 for state, weight in zip(states, weights):
@@ -53,9 +56,23 @@ class FedProxServer:
         weight_decay: float,
         prox_mu: float,
         device: torch.device,
+        initial_state: Optional[Dict[str, torch.Tensor]] = None,
     ) -> Tuple[Dict[str, torch.Tensor], List[float]]:
         global_model = self.model_factory().to(device)
+        if initial_state is not None:
+            global_model.load_state_dict(initial_state)
+            print("[FedProx] Initialized from warm-start checkpoint.", flush=True)
         global_state = {k: v.detach().cpu().clone() for k, v in global_model.state_dict().items()}
+
+        # Derive which keys to aggregate from trainable params — single source of truth.
+        # Frozen backbone and (when FFA-LoRA is on) frozen A matrices are excluded.
+        aggregatable_keys = frozenset(
+            name for name, param in global_model.named_parameters() if param.requires_grad
+        )
+        n_agg = len(aggregatable_keys)
+        n_total = sum(1 for _ in global_model.parameters())
+        print(f"[FedProx] Aggregating {n_agg}/{n_total} param tensors per round.", flush=True)
+        del global_model
 
         history: List[float] = []
 
@@ -109,7 +126,11 @@ class FedProxServer:
                     flush=True,
                 )
 
-            global_state = self._weighted_average_states(client_states, client_weights)
+            global_state = self._weighted_average_states(
+                client_states, client_weights, aggregatable_keys, global_state
+            )
+            # Free ~(clients_per_round × model_size) of CPU RAM held by state dicts.
+            del client_states
             round_mean_loss = float(np.mean(client_losses))
             weighted_round_loss = float(np.average(client_losses, weights=client_weights))
             history.append(round_mean_loss)

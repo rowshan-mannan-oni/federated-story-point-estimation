@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -16,7 +16,25 @@ class FLConfig:
     categorical_emb_dim: int = 16
     hidden_dim: int = 128
     dropout: float = 0.2
-    freeze_encoder: bool = False
+    freeze_encoder: bool = False  # only used when use_lora=False
+
+    # LoRA config.
+    use_lora: bool = True
+    lora_r: int = 8                # rank; r=8 is standard for NLP classification fine-tuning
+    lora_alpha: int = 16           # scaling = alpha/r = 2.0; mild amplification of adapter update
+    lora_dropout: float = 0.05     # light regularization on adapter weights
+    lora_target_modules: tuple = field(default_factory=lambda: ("query", "value"))  # BERT Q+V; use ("q_lin","v_lin") for DistilBERT
+    ffa_lora: bool = True  # FFA-LoRA: freeze A, train+aggregate B only — principled for non-IID FL
+
+    # Warm-start (centralized pre-training on one large project before FL).
+    warmstart_project: str = "lsstcorp"   # matched case-insensitively against client_id
+    warmstart_val_size: float = 0.15      # stratified val fraction for early-stopping signal
+    warmstart_epochs: int = 10            # max pre-training epochs
+    warmstart_patience: int = 3           # stop after this many epochs without val macro-F1 gain
+    warmstart_lr: float = 2e-5            # pre-training LR; independent of FL learning_rate
+
+    # Training toggles.
+    skip_centralized: bool = False  # skip centralized baseline training to save time
 
     # Optimization controls.
     batch_size: int = 16
@@ -29,8 +47,7 @@ class FLConfig:
     weight_decay: float = 1e-4
     prox_mu: float = 1e-2
 
-    # Label processing.
-    use_log_target: bool = True
+    num_classes: int = 5  # fixed: Fibonacci {1,2,3,5,8} → labels {0..4}
 
     # Device.
     device: str = "cuda"
