@@ -98,6 +98,54 @@ def read_table(path: Path) -> pd.DataFrame:
     return pd.read_excel(path)
 
 
+def validate_cleaned_dataframe(df: pd.DataFrame, source_name: str) -> None:
+    """
+    Assert that df was produced by export_issues.py and is ready for training.
+    Raises ValueError (with file name + pointer to export_issues.py) if any
+    raw/uncleaned data is detected. All checks are vectorised; no mutation.
+    """
+    from export_issues import CANONICAL_PRIORITIES, VALID_STORY_POINTS as _VALID_SP
+
+    def _fail(msg: str) -> None:
+        raise ValueError(
+            f"[{source_name}] {msg}. Re-export the data via export_issues.py."
+        )
+
+    col_lookup = {normalize_col_name(c): c for c in df.columns}
+    title_col    = col_lookup.get("title")
+    desc_col     = col_lookup.get("description")
+    priority_col = col_lookup.get("priority")
+    sp_col       = col_lookup.get("story_point")
+
+    # Raw Jira markup that export_issues.py should have replaced with [CODE]
+    for raw_col in filter(None, [title_col, desc_col]):
+        series = df[raw_col].dropna().astype(str)
+        if series.str.contains(r"\{code", case=False, regex=True).any():
+            _fail(f"Column '{raw_col}' contains uncleaned '{{code' Jira markup")
+        if series.str.contains(r"\{noformat", case=False, regex=True).any():
+            _fail(f"Column '{raw_col}' contains uncleaned '{{noformat' Jira markup")
+
+    # Export-quoting artifact: titles wrapped in literal double quotes
+    if title_col is not None:
+        if df[title_col].dropna().astype(str).str.match(r'^".*"$').any():
+            _fail(f"Column '{title_col}' contains quote-wrapped values (export artifact)")
+
+    # Priority must be one of the canonical values from export_issues.py
+    if priority_col is not None:
+        bad = ~df[priority_col].isin(CANONICAL_PRIORITIES)
+        if bad.any():
+            samples = df.loc[bad, priority_col].dropna().unique()[:3].tolist()
+            _fail(f"Column '{priority_col}' has non-canonical priorities {samples}")
+
+    # Story_Point must be one of the valid Fibonacci values
+    if sp_col is not None:
+        sp_series = pd.to_numeric(df[sp_col], errors="coerce").dropna()
+        bad_sp = ~sp_series.isin(_VALID_SP)
+        if bad_sp.any():
+            samples = sp_series[bad_sp].unique()[:3].tolist()
+            _fail(f"Column '{sp_col}' has invalid story points {samples}")
+
+
 def map_input_columns(df: pd.DataFrame) -> Dict[str, str]:
     normalized = {normalize_col_name(col): col for col in df.columns}
     mapped: Dict[str, str] = {}
@@ -147,6 +195,7 @@ def load_dataset_by_project(data_dir: Path) -> pd.DataFrame:
     frames: List[pd.DataFrame] = []
     for file_path in files:
         raw = read_table(file_path)
+        validate_cleaned_dataframe(raw, file_path.name)
         col_map = map_required_columns(raw)
 
         frame = pd.DataFrame(

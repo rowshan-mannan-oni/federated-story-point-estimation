@@ -39,6 +39,7 @@ saved_models_*/
 *.bin
 *.safetensors
 *.ckpt
+*.zip
 
 # Predictions and logs
 predictions*.csv
@@ -51,3 +52,9 @@ pre_training_data/
 papers to read/
 # Jupyter
 *.ipynb
+
+#figures
+analysis_figures/
+
+#claude md
+claude.md
