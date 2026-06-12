@@ -24,7 +24,7 @@
 & "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
 	--data-dir "D:\Federated Learning using DL\data_to_train_on" `
 	--device cuda `
-	--model-name "distilbert-base-uncased" `
+	--model-name "microsoft/codebert-base" `
 	--max-length 384 `
 	--rounds 20 `
 	--local-epochs 1 `
@@ -37,7 +37,7 @@
 	--lora-r 8 `
 	--lora-alpha 16 `
 	--lora-dropout 0.05 `
-	--lora-target-modules q_lin v_lin `
+	--lora-target-modules query value `
 	--warmstart-project lsstcorp `
 	--warmstart-epochs 10 `
 	--warmstart-patience 3 `

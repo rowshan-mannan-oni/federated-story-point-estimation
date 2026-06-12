@@ -1,9 +1,15 @@
 import argparse
 import dataclasses
 import json
+import os
 from pathlib import Path
 import time
 from typing import Any, Dict, List, Optional, Tuple
+
+# Must be set before CUDA is initialized (i.e. before torch is imported) to take
+# effect. Reduces allocator fragmentation across the many client trainings in a
+# federated run, which can otherwise cause spurious OOMs.
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 import pandas as pd
 
@@ -349,6 +355,7 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--max-length", type=int, default=128)
     parser.add_argument("--test-size", type=float, default=0.2)
+    parser.add_argument("--split-mode", type=str, default="random", choices=["random", "temporal"])
     parser.add_argument("--lr", type=float, default=2e-5)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--prox-mu", type=float, default=1e-2)
@@ -384,6 +391,7 @@ def main() -> None:
         data_dir=Path(args.data_dir),
         random_state=args.seed,
         test_size=args.test_size,
+        split_mode=args.split_mode,
         model_name=args.model_name,
         max_length=args.max_length,
         batch_size=args.batch_size,
@@ -419,17 +427,34 @@ def main() -> None:
 
     data = load_dataset_by_project(config.data_dir)
 
-    # Split warmstart project out before building FL bundle.
-    warmstart_mask = data["client_id"].str.lower() == config.warmstart_project.lower()
+    # Split warmstart project out before building FL bundle. Resolve the
+    # configured name against client_id by exact match first, falling back
+    # to a case-insensitive substring match (e.g. "lsstcorp" ->
+    # "Lsstcorp_Data_management") so users don't need the full client_id.
+    available = sorted(data["client_id"].unique())
+    needle = config.warmstart_project.lower()
+    exact = [c for c in available if c.lower() == needle]
+    if exact:
+        resolved_project = exact[0]
+    else:
+        substring_matches = [c for c in available if needle in c.lower()]
+        if len(substring_matches) == 1:
+            resolved_project = substring_matches[0]
+        elif len(substring_matches) > 1:
+            raise ValueError(
+                f"Warmstart project '{config.warmstart_project}' is ambiguous. "
+                f"Matching client IDs: {substring_matches}"
+            )
+        else:
+            raise ValueError(
+                f"Warmstart project '{config.warmstart_project}' not found in data. "
+                f"Available client IDs: {available}"
+            )
+
+    warmstart_mask = data["client_id"] == resolved_project
     warmstart_data = data[warmstart_mask].reset_index(drop=True)
     fl_data = data[~warmstart_mask].reset_index(drop=True)
-
-    if warmstart_data.empty:
-        available = sorted(data["client_id"].unique())
-        raise ValueError(
-            f"Warmstart project '{config.warmstart_project}' not found in data. "
-            f"Available client IDs: {available}"
-        )
+    config.warmstart_project = resolved_project
     print(
         f"[Data] Warmstart '{config.warmstart_project}': {len(warmstart_data)} rows | "
         f"FL projects: {fl_data['client_id'].nunique()} | {len(fl_data)} rows",
@@ -437,7 +462,10 @@ def main() -> None:
     )
 
     # Category maps and train/test split built from FL data only.
-    bundle = prepare_tabular_bundle(fl_data, test_size=config.test_size, random_state=config.random_state)
+    bundle = prepare_tabular_bundle(
+        fl_data, test_size=config.test_size, random_state=config.random_state, split_mode=config.split_mode
+    )
+    print(f"[Data] Split mode: {config.split_mode}", flush=True)
 
     if bundle.test_df.empty:
         raise ValueError("No test split generated. Increase data volume or reduce project fragmentation.")

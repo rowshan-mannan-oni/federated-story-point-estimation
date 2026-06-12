@@ -9,6 +9,7 @@ class FLConfig:
     # Reproducibility and split controls.
     random_state: int = 42
     test_size: float = 0.2
+    split_mode: str = "random"  # "random" or "temporal" (train on earlier issues, test on later ones)
 
     # Model controls.
     model_name: str = "prajjwal1/bert-tiny"

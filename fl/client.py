@@ -168,8 +168,10 @@ class FederatedClient:
 
         # Explicitly release GPU tensors so the CUDA allocator can defragment before
         # the next client's model is loaded; without this, sequential client training
-        # accumulates fragmentation and causes OOM mid-round.
-        del model, global_params
+        # accumulates fragmentation and causes OOM mid-round. The optimizer holds its
+        # own GPU-resident state (momentum/variance buffers) independent of the model,
+        # so it must be deleted too or empty_cache() can't reclaim that memory.
+        del model, optimizer, global_params
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 

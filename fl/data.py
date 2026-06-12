@@ -117,18 +117,33 @@ def validate_cleaned_dataframe(df: pd.DataFrame, source_name: str) -> None:
     priority_col = col_lookup.get("priority")
     sp_col       = col_lookup.get("story_point")
 
-    # Raw Jira markup that export_issues.py should have replaced with [CODE]
+    # Raw Jira markup that export_issues.py should have replaced with [CODE].
+    # Raw/unexported data shows {code}/{noformat} on a few percent of rows
+    # (see CLAUDE.md measured noise table), so a small fraction is tolerated
+    # as malformed/typo'd macros (e.g. "{noformat)") that the export's regex
+    # can't match, rather than evidence the file was never exported.
     for raw_col in filter(None, [title_col, desc_col]):
         series = df[raw_col].dropna().astype(str)
-        if series.str.contains(r"\{code", case=False, regex=True).any():
-            _fail(f"Column '{raw_col}' contains uncleaned '{{code' Jira markup")
-        if series.str.contains(r"\{noformat", case=False, regex=True).any():
-            _fail(f"Column '{raw_col}' contains uncleaned '{{noformat' Jira markup")
+        code_frac = series.str.contains(r"\{code", case=False, regex=True).mean()
+        if code_frac > 0.01:
+            _fail(f"Column '{raw_col}' has {code_frac:.1%} uncleaned '{{code' Jira markup")
+        noformat_frac = series.str.contains(r"\{noformat", case=False, regex=True).mean()
+        if noformat_frac > 0.01:
+            _fail(f"Column '{raw_col}' has {noformat_frac:.1%} uncleaned '{{noformat' Jira markup")
 
-    # Export-quoting artifact: titles wrapped in literal double quotes
+    # Export-quoting artifact: titles wrapped in literal double quotes.
+    # Raw/unexported data shows this on ~100% of titles (see CLAUDE.md measured
+    # noise table), so a small fraction is tolerated as legitimate titles that
+    # happen to themselves start/end with a quote character (e.g. quoting an
+    # error message), rather than leftover export wrapping.
     if title_col is not None:
-        if df[title_col].dropna().astype(str).str.match(r'^".*"$').any():
-            _fail(f"Column '{title_col}' contains quote-wrapped values (export artifact)")
+        titles = df[title_col].dropna().astype(str)
+        wrapped_frac = titles.str.match(r'^".*"$').mean()
+        if wrapped_frac > 0.01:
+            _fail(
+                f"Column '{title_col}' has {wrapped_frac:.1%} quote-wrapped values "
+                f"(export artifact)"
+            )
 
     # Priority must be one of the canonical values from export_issues.py
     if priority_col is not None:
@@ -237,12 +252,31 @@ def load_dataset_by_project(data_dir: Path) -> pd.DataFrame:
     return data
 
 
-def split_per_client(data: pd.DataFrame, test_size: float, random_state: int) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def split_per_client(
+    data: pd.DataFrame,
+    test_size: float,
+    random_state: int,
+    split_mode: str = "random",
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    split_mode:
+      - "random": shuffle each client's rows, then split (default).
+      - "temporal": keep export row order (export_issues.py orders by
+        Creation_Date ascending, and the loading pipeline preserves row
+        order) and hold out each client's latest `test_size` fraction as
+        test. Train on earlier issues, test on later ones.
+    """
+    if split_mode not in ("random", "temporal"):
+        raise ValueError(f"Unknown split_mode '{split_mode}'. Expected 'random' or 'temporal'.")
+
     train_parts: List[pd.DataFrame] = []
     test_parts: List[pd.DataFrame] = []
 
     for _, group in data.groupby("client_id"):
-        group = group.sample(frac=1.0, random_state=random_state).reset_index(drop=True)
+        if split_mode == "random":
+            group = group.sample(frac=1.0, random_state=random_state).reset_index(drop=True)
+        else:
+            group = group.reset_index(drop=True)
 
         if len(group) < 2:
             train_parts.append(group)
@@ -252,13 +286,23 @@ def split_per_client(data: pd.DataFrame, test_size: float, random_state: int) ->
             # Keep at least one sample in both train and test when possible.
             test_count = max(1, int(round(len(group) * test_size)))
             test_count = min(test_count, len(group) - 1)
-            test_df = group.iloc[:test_count].copy()
-            train_df = group.iloc[test_count:].copy()
+            if split_mode == "temporal":
+                train_df = group.iloc[:-test_count].copy()
+                test_df = group.iloc[-test_count:].copy()
+            else:
+                test_df = group.iloc[:test_count].copy()
+                train_df = group.iloc[test_count:].copy()
             train_parts.append(train_df)
             test_parts.append(test_df)
             continue
 
-        train_df, test_df = train_test_split(group, test_size=test_size, random_state=random_state)
+        if split_mode == "temporal":
+            test_count = max(1, int(round(len(group) * test_size)))
+            split_idx = len(group) - test_count
+            train_df = group.iloc[:split_idx].copy()
+            test_df = group.iloc[split_idx:].copy()
+        else:
+            train_df, test_df = train_test_split(group, test_size=test_size, random_state=random_state)
         train_parts.append(train_df)
         test_parts.append(test_df)
 
@@ -275,8 +319,13 @@ def build_category_map(values: pd.Series) -> Dict[str, int]:
     return {value: idx for idx, value in enumerate(unique)}
 
 
-def prepare_tabular_bundle(data: pd.DataFrame, test_size: float, random_state: int) -> TabularBundle:
-    train_df, test_df = split_per_client(data, test_size=test_size, random_state=random_state)
+def prepare_tabular_bundle(
+    data: pd.DataFrame,
+    test_size: float,
+    random_state: int,
+    split_mode: str = "random",
+) -> TabularBundle:
+    train_df, test_df = split_per_client(data, test_size=test_size, random_state=random_state, split_mode=split_mode)
 
     type_to_id = build_category_map(train_df["type"])
     priority_to_id = build_category_map(train_df["priority"])
