@@ -23,6 +23,222 @@
 #   "<save-dir>/federated_no_warmstart" artifact.
 
 
+
+
+
+
+
+
+
+
+
+# ==========================================================
+#  ARGUMENT REFERENCE — what every flag does
+# ==========================================================
+#
+# ---- train_federated_dl.py -------------------------------------------
+#
+# Data & splits
+#   --data-dir (required, path)
+#       Folder with one CSV/XLSX per project, including the warm-start
+#       project (e.g. lsstcorp.csv). Each non-warm-start project becomes
+#       one FL client.
+#   --test-size (float, default 0.2)
+#       Fraction of each client's rows held out as the final test split.
+#       Never used for training or validation; evaluated exactly once at
+#       the end of the run. Written verbatim to results/test_split.csv.
+#   --val-size (float, default 0.1)
+#       Fraction of the remaining (non-test) rows carved out per client
+#       as the FL validation split. Used after every round to track
+#       {val_macro_f1, val_accuracy} and to pick the best-on-val global
+#       model (results/federated_round_history.json).
+#   --split-mode {random, temporal} (default random)
+#       "random"   = stratified random per-client split by story_point.
+#       "temporal" = chronological split using Creation_Date — train on
+#                     each client's earliest issues, val/test on the
+#                     latest. Robustness check against the "model just
+#                     memorized recency" critique (CLAUDE.md gap #9).
+#
+# Model / encoder
+#   --model-name (str, default "prajjwal1/bert-tiny")
+#       HuggingFace encoder. bert-tiny for dev/smoke tests;
+#       distilroberta-base / distilbert-base-uncased /
+#       microsoft/codebert-base for final results.
+#   --max-length (int, default 128)
+#       Max token length for tokenized title+description. p90 of
+#       combined text is ~164 tokens, so 128 truncates the longest
+#       ~10-15% of issues. Try 256 for the encoder ablation (gap #8).
+#   --freeze-encoder (flag)
+#       Freeze the entire backbone. Only meaningful when --no-lora is
+#       also set — LoRA already keeps the backbone frozen by
+#       construction.
+#
+# LoRA / FFA-LoRA
+#   --no-lora (flag)
+#       Disable LoRA adapters entirely. Falls back to full or frozen
+#       (--freeze-encoder) fine-tuning of the backbone.
+#   --no-ffa-lora (flag)
+#       Disable FFA-LoRA. Both LoRA A and B matrices become trainable
+#       and are aggregated independently, reintroducing the
+#       avg(B)*A != avg(B*A) aggregation error FFA-LoRA exists to avoid
+#       (see CLAUDE.md "Why FFA-LoRA specifically").
+#   --lora-r (int, default 8)
+#       LoRA rank.
+#   --lora-alpha (int, default 16)
+#       LoRA scaling numerator; effective scale = alpha / r (default 2.0).
+#   --lora-dropout (float, default 0.05)
+#       Dropout applied inside the LoRA adapter path.
+#   --lora-target-modules (list of str, default: query value)
+#       Attention sub-modules that get LoRA adapters.
+#       "query value"  -> BERT/RoBERTa-family (bert-tiny,
+#                          distilroberta-base, microsoft/codebert-base).
+#       "q_lin v_lin"  -> distilbert-base-uncased.
+#
+# Federated optimization (FedProx / FedAvg)
+#   --rounds (int, default 8)
+#       Number of global FL communication rounds.
+#   --local-epochs (int, default 1)
+#       Local epochs each selected client trains per round.
+#   --clients-per-round-fraction / --fraction (float, default 1.0)
+#       Fraction of clients sampled each round, in (0, 1]. 1.0 = full
+#       participation.
+#   --local-sample-ratio-per-epoch (float, default 1.0)
+#       Fraction of each client's local train set sampled per local
+#       epoch, in (0, 1].
+#   --sample-with-replacement (flag)
+#       Sample each client's local training batches with replacement
+#       instead of without.
+#   --prox-mu (float, default 0.01)
+#       FedProx proximal term strength: (mu/2) * ||w - w_global||^2 over
+#       trainable params. mu=0 mathematically degrades to FedAvg and is
+#       auto-labeled "FedAvg"; mu>0 is labeled "FedProx (mu=X)" (both in
+#       console output, results/summary.md, and results/config.json).
+#   --lr (float, default 2e-5)
+#       Learning rate for federated local training and for centralized
+#       training.
+#   --weight-decay (float, default 1e-4)
+#       AdamW weight decay for federated local training, centralized
+#       training, and warm-start pre-training.
+#
+# Warm-start (pre-training on one large project)
+#   --warmstart-project (str, default "lsstcorp")
+#       Project matched case-insensitively/substring against client_id,
+#       used for warm-start pre-training and excluded from the FL client
+#       pool.
+#   --warmstart-val-size (float, default 0.15)
+#       Stratified validation fraction carved from the warm-start
+#       project, used for early stopping.
+#   --warmstart-epochs (int, default 10)
+#       Max warm-start pre-training epochs.
+#   --warmstart-patience (int, default 3)
+#       Stop warm-start early after this many epochs without val
+#       macro-F1 improvement.
+#   --warmstart-lr (float, default 2e-5)
+#       Learning rate for warm-start pre-training only (independent of
+#       --lr).
+#   --run-no-warmstart-fl (flag)
+#       Also run a second federated training from random init
+#       (initial_state=None), using a fresh server seeded the same as
+#       the warm-started run so both pick identical per-round clients.
+#       Warm-start ablation (gap #7); roughly doubles federated training
+#       time. Results: federated_no_warmstart_per_project.json,
+#       federated_no_warmstart_round_history.json, and the
+#       federated_no_warmstart artifact.
+#
+# Baseline conditions / toggles
+#   --skip-centralized (flag)
+#       Skip the centralized (pooled-data, privacy-ignored) upper-bound
+#       baseline.
+#   --skip-local-only (flag)
+#       Skip the local-only (no-federation) baseline condition.
+#
+# Output, reproducibility & device
+#   --seed (int, default 42)
+#       Random seed for splits, model init, and client sampling. Use
+#       42-51 for the thesis's 10-seed statistical runs.
+#   --device {cuda, cpu} (default cuda)
+#       Falls back to CPU automatically if CUDA isn't available.
+#   --batch-size (int, default 16)
+#       Batch size for all dataloaders (train/val/test, warm-start,
+#       centralized, and federated clients).
+#   --central-log-every (int, default 1)
+#       Print a centralized-training progress line every N epochs.
+#   --save-dir (str, default "artifacts")
+#       Root output folder. Model artifacts go to
+#       <save-dir>/{warmstart,centralized,local_only,federated,
+#       federated_no_warmstart}; all metrics/JSON/CSV/markdown results
+#       (including test_split.csv) go to <save-dir>/results/.
+#
+# ---- predict_saved_model.py --------------------------------------------
+#
+#   --artifact-dir (required, path)
+#       A saved model folder produced by train_federated_dl.py, e.g.
+#       artifacts/federated, artifacts/centralized, artifacts/warmstart,
+#       or artifacts/federated_no_warmstart. Must contain model_state.pt,
+#       tokenizer/, and metadata.json.
+#   --data-dir (required, path)
+#       Folder of CSV/XLSX files to run inference on (same schema as
+#       training data). If a story_point column is present, metrics
+#       (accuracy, macro-F1, MAE, Cohen's kappa, per-class F1) are also
+#       printed; otherwise only predictions are written.
+#   --batch-size (int, default 16)
+#       Inference batch size.
+#   --device {cuda, cpu} (default cuda)
+#       Falls back to CPU automatically if CUDA isn't available.
+#   --out-csv (str, default "predictions.csv")
+#       Output path. Adds predicted_class (0-4) and
+#       predicted_story_point (1/2/3/5/8) columns to the input data.
+#
+# ---- run_experiments.py (gap #4) ---------------------------------------
+#
+#   --seeds (str, default "42-51")
+#       Seed list/range, e.g. "42-51" or "42,43,44". For each seed, runs
+#       train_federated_dl.py once for "fedprox" and once for "fedavg".
+#   --prox-mu (float, default 0.01)
+#       FedProx mu for the "fedprox" run. The "fedavg" run always uses
+#       mu=0, regardless of this value.
+#   --results-root (str, default "experiments")
+#       Output root. Results land in
+#       <results-root>/seed_<N>/{fedprox,fedavg}/results/*.json and
+#       <results-root>/manifest.json.
+#   --skip-fedavg (flag)
+#       Only run the "fedprox" (+ baselines) condition per seed.
+#   --force (flag)
+#       Re-run a seed/condition even if its results/federated_per_project.json
+#       already exists (default: skip and resume).
+#   --dry-run (flag)
+#       Print the commands that would run without executing them.
+#   (any other flag)
+#       Forwarded verbatim to train_federated_dl.py for BOTH runs (e.g.
+#       --data-dir, --model-name, --rounds, --max-length, --lora-*,
+#       --warmstart-*, --device, --batch-size). Do NOT pass --seed,
+#       --prox-mu, --save-dir, --skip-centralized, or --skip-local-only —
+#       the runner sets these itself per run.
+#
+# ---- compute_statistics.py (gap #5) -------------------------------------
+#
+#   --experiments-root (str, default "experiments")
+#       Root directory written by run_experiments.py
+#       (<experiments-root>/seed_<N>/{fedprox,fedavg}/results/*.json).
+#   --seeds (str, default: auto-discover seed_* dirs)
+#       Seed list/range, e.g. "42-51". If omitted, every seed_<N> directory
+#       under --experiments-root is used.
+#   --metric {macro_f1, accuracy, cohen_kappa, mae} (default macro_f1)
+#       Metric to compare across conditions (Local-only, Centralized,
+#       FedAvg, FedProx). mae is "lower is better"; the others are
+#       "higher is better".
+#   --alpha (float, default 0.05)
+#       Significance threshold for the Friedman test and the
+#       Wilcoxon-significance marker in the console output.
+#   --out-dir (str, default "<experiments-root>/statistics")
+#       Output directory for results_long.csv, pairwise_vs_fedprox.csv,
+#       friedman.json, nemenyi.csv, and summary_table.tex.
+
+
+
+
+
+
 # ==========================================================
 # 1) BASELINE — FedProx + FFA-LoRA + warm-start (random split)
 # ==========================================================
@@ -408,158 +624,60 @@
 
 
 # ==========================================================
-# 12) ARGUMENT REFERENCE — what every flag does
+# 12) MULTI-SEED RUNNER + STATISTICS — gaps #4/#5
 # ==========================================================
-#
-# ---- train_federated_dl.py -------------------------------------------
-#
-# Data & splits
-#   --data-dir (required, path)
-#       Folder with one CSV/XLSX per project, including the warm-start
-#       project (e.g. lsstcorp.csv). Each non-warm-start project becomes
-#       one FL client.
-#   --test-size (float, default 0.2)
-#       Fraction of each client's rows held out as the final test split.
-#       Never used for training or validation; evaluated exactly once at
-#       the end of the run. Written verbatim to results/test_split.csv.
-#   --val-size (float, default 0.1)
-#       Fraction of the remaining (non-test) rows carved out per client
-#       as the FL validation split. Used after every round to track
-#       {val_macro_f1, val_accuracy} and to pick the best-on-val global
-#       model (results/federated_round_history.json).
-#   --split-mode {random, temporal} (default random)
-#       "random"   = stratified random per-client split by story_point.
-#       "temporal" = chronological split using Creation_Date — train on
-#                     each client's earliest issues, val/test on the
-#                     latest. Robustness check against the "model just
-#                     memorized recency" critique (CLAUDE.md gap #9).
-#
-# Model / encoder
-#   --model-name (str, default "prajjwal1/bert-tiny")
-#       HuggingFace encoder. bert-tiny for dev/smoke tests;
-#       distilroberta-base / distilbert-base-uncased /
-#       microsoft/codebert-base for final results.
-#   --max-length (int, default 128)
-#       Max token length for tokenized title+description. p90 of
-#       combined text is ~164 tokens, so 128 truncates the longest
-#       ~10-15% of issues. Try 256 for the encoder ablation (gap #8).
-#   --freeze-encoder (flag)
-#       Freeze the entire backbone. Only meaningful when --no-lora is
-#       also set — LoRA already keeps the backbone frozen by
-#       construction.
-#
-# LoRA / FFA-LoRA
-#   --no-lora (flag)
-#       Disable LoRA adapters entirely. Falls back to full or frozen
-#       (--freeze-encoder) fine-tuning of the backbone.
-#   --no-ffa-lora (flag)
-#       Disable FFA-LoRA. Both LoRA A and B matrices become trainable
-#       and are aggregated independently, reintroducing the
-#       avg(B)*A != avg(B*A) aggregation error FFA-LoRA exists to avoid
-#       (see CLAUDE.md "Why FFA-LoRA specifically").
-#   --lora-r (int, default 8)
-#       LoRA rank.
-#   --lora-alpha (int, default 16)
-#       LoRA scaling numerator; effective scale = alpha / r (default 2.0).
-#   --lora-dropout (float, default 0.05)
-#       Dropout applied inside the LoRA adapter path.
-#   --lora-target-modules (list of str, default: query value)
-#       Attention sub-modules that get LoRA adapters.
-#       "query value"  -> BERT/RoBERTa-family (bert-tiny,
-#                          distilroberta-base, microsoft/codebert-base).
-#       "q_lin v_lin"  -> distilbert-base-uncased.
-#
-# Federated optimization (FedProx / FedAvg)
-#   --rounds (int, default 8)
-#       Number of global FL communication rounds.
-#   --local-epochs (int, default 1)
-#       Local epochs each selected client trains per round.
-#   --clients-per-round-fraction / --fraction (float, default 1.0)
-#       Fraction of clients sampled each round, in (0, 1]. 1.0 = full
-#       participation.
-#   --local-sample-ratio-per-epoch (float, default 1.0)
-#       Fraction of each client's local train set sampled per local
-#       epoch, in (0, 1].
-#   --sample-with-replacement (flag)
-#       Sample each client's local training batches with replacement
-#       instead of without.
-#   --prox-mu (float, default 0.01)
-#       FedProx proximal term strength: (mu/2) * ||w - w_global||^2 over
-#       trainable params. mu=0 mathematically degrades to FedAvg and is
-#       auto-labeled "FedAvg"; mu>0 is labeled "FedProx (mu=X)" (both in
-#       console output, results/summary.md, and results/config.json).
-#   --lr (float, default 2e-5)
-#       Learning rate for federated local training and for centralized
-#       training.
-#   --weight-decay (float, default 1e-4)
-#       AdamW weight decay for federated local training, centralized
-#       training, and warm-start pre-training.
-#
-# Warm-start (pre-training on one large project)
-#   --warmstart-project (str, default "lsstcorp")
-#       Project matched case-insensitively/substring against client_id,
-#       used for warm-start pre-training and excluded from the FL client
-#       pool.
-#   --warmstart-val-size (float, default 0.15)
-#       Stratified validation fraction carved from the warm-start
-#       project, used for early stopping.
-#   --warmstart-epochs (int, default 10)
-#       Max warm-start pre-training epochs.
-#   --warmstart-patience (int, default 3)
-#       Stop warm-start early after this many epochs without val
-#       macro-F1 improvement.
-#   --warmstart-lr (float, default 2e-5)
-#       Learning rate for warm-start pre-training only (independent of
-#       --lr).
-#   --run-no-warmstart-fl (flag)
-#       Also run a second federated training from random init
-#       (initial_state=None), using a fresh server seeded the same as
-#       the warm-started run so both pick identical per-round clients.
-#       Warm-start ablation (gap #7); roughly doubles federated training
-#       time. Results: federated_no_warmstart_per_project.json,
-#       federated_no_warmstart_round_history.json, and the
-#       federated_no_warmstart artifact.
-#
-# Baseline conditions / toggles
-#   --skip-centralized (flag)
-#       Skip the centralized (pooled-data, privacy-ignored) upper-bound
-#       baseline.
-#   --skip-local-only (flag)
-#       Skip the local-only (no-federation) baseline condition.
-#
-# Output, reproducibility & device
-#   --seed (int, default 42)
-#       Random seed for splits, model init, and client sampling. Use
-#       42-51 for the thesis's 10-seed statistical runs.
-#   --device {cuda, cpu} (default cuda)
-#       Falls back to CPU automatically if CUDA isn't available.
-#   --batch-size (int, default 16)
-#       Batch size for all dataloaders (train/val/test, warm-start,
-#       centralized, and federated clients).
-#   --central-log-every (int, default 1)
-#       Print a centralized-training progress line every N epochs.
-#   --save-dir (str, default "artifacts")
-#       Root output folder. Model artifacts go to
-#       <save-dir>/{warmstart,centralized,local_only,federated,
-#       federated_no_warmstart}; all metrics/JSON/CSV/markdown results
-#       (including test_split.csv) go to <save-dir>/results/.
-#
-# ---- predict_saved_model.py --------------------------------------------
-#
-#   --artifact-dir (required, path)
-#       A saved model folder produced by train_federated_dl.py, e.g.
-#       artifacts/federated, artifacts/centralized, artifacts/warmstart,
-#       or artifacts/federated_no_warmstart. Must contain model_state.pt,
-#       tokenizer/, and metadata.json.
-#   --data-dir (required, path)
-#       Folder of CSV/XLSX files to run inference on (same schema as
-#       training data). If a story_point column is present, metrics
-#       (accuracy, macro-F1, MAE, Cohen's kappa, per-class F1) are also
-#       printed; otherwise only predictions are written.
-#   --batch-size (int, default 16)
-#       Inference batch size.
-#   --device {cuda, cpu} (default cuda)
-#       Falls back to CPU automatically if CUDA isn't available.
-#   --out-csv (str, default "predictions.csv")
-#       Output path. Adds predicted_class (0-4) and
-#       predicted_story_point (1/2/3/5/8) columns to the input data.
+# Step 1: run 10 seeds. For each seed this runs train_federated_dl.py
+# twice — "fedprox" (includes majority/local-only/centralized baselines)
+# and "fedavg" (prox_mu=0, reuses the fedprox run's baselines for that
+# seed). Any flags not recognized by run_experiments.py (e.g. --data-dir,
+# --model-name, --rounds, --max-length, --lora-*, --warmstart-*, --device)
+# are forwarded verbatim to BOTH runs. Do not pass --seed, --prox-mu,
+# --save-dir, --skip-centralized, or --skip-local-only here — the runner
+# sets those itself.
+
+& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/run_experiments.py" `
+	--seeds 42-51 `
+	--results-root "D:\Federated Learning using DL\experiments" `
+	--data-dir "D:\Federated Learning using DL\data_to_train_on" `
+	--device cuda `
+	--model-name "microsoft/codebert-base" `
+	--max-length 384 `
+	--rounds 20 `
+	--local-epochs 1 `
+	--batch-size 8 `
+	--lr 3e-5 `
+	--weight-decay 1e-4 `
+	--prox-mu 1e-2 `
+	--lora-r 8 `
+	--lora-alpha 16 `
+	--lora-dropout 0.05 `
+	--lora-target-modules query value `
+	--warmstart-project lsstcorp `
+	--warmstart-epochs 10 `
+	--warmstart-patience 3 `
+	--warmstart-lr 3e-5 `
+	--central-log-every 1
+
+# Resume an interrupted multi-seed run (skips seed/condition pairs that
+# already have a results/federated_per_project.json):
+#   ... same command as above, unchanged — already-finished runs are
+#   skipped automatically. Add --force to re-run everything anyway, or
+#   --dry-run to preview the commands without executing them.
+
+# Step 2: compute statistics across the 10 seeds. Repeat for each
+# --metric of interest (macro_f1, accuracy, mae, cohen_kappa).
+
+& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/compute_statistics.py" `
+	--experiments-root "D:\Federated Learning using DL\experiments" `
+	--metric macro_f1
+
+& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/compute_statistics.py" `
+	--experiments-root "D:\Federated Learning using DL\experiments" `
+	--metric mae
+
+# Output: <results-root>/statistics/{results_long.csv, pairwise_vs_fedprox.csv,
+# friedman.json, nemenyi.csv, summary_table.tex}. summary_table.tex is
+# LaTeX-ready for the thesis results chapter.
+
+
+
