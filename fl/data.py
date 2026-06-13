@@ -54,6 +54,7 @@ MISSING_CATEGORY_TOKENS = {"", "nan", "none", "null", "na", "n/a", "unknown"}
 @dataclass
 class TabularBundle:
     train_df: pd.DataFrame
+    val_df: pd.DataFrame
     test_df: pd.DataFrame
     type_to_id: Dict[str, int]
     priority_to_id: Dict[str, int]
@@ -252,6 +253,70 @@ def load_dataset_by_project(data_dir: Path) -> pd.DataFrame:
     return data
 
 
+def _carve_fraction(
+    group: pd.DataFrame,
+    fraction: float,
+    random_state: int,
+    split_mode: str,
+    stratify: bool = False,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Split one client's rows into (remainder, carved), where `carved` is
+    approximately `fraction` of the group.
+
+    split_mode:
+      - "random": shuffle the group, then split. If `stratify` is set, the
+        carve is stratified by story_point (falling back to unstratified if
+        any class has fewer than 2 examples).
+      - "temporal": keep row order and carve the latest `fraction` of rows
+        (i.e. `remainder` is earlier, `carved` is later).
+
+    Groups with <2 rows are returned unsplit (nothing carved). Groups with
+    <5 rows use an index-based slice, keeping at least one row on each side.
+    """
+    if split_mode == "random":
+        group = group.sample(frac=1.0, random_state=random_state).reset_index(drop=True)
+    else:
+        group = group.reset_index(drop=True)
+
+    if len(group) < 2:
+        return group, group.iloc[0:0]
+
+    if len(group) < 5:
+        carve_count = max(1, int(round(len(group) * fraction)))
+        carve_count = min(carve_count, len(group) - 1)
+        if split_mode == "temporal":
+            remainder = group.iloc[:-carve_count].copy()
+            carved = group.iloc[-carve_count:].copy()
+        else:
+            carved = group.iloc[:carve_count].copy()
+            remainder = group.iloc[carve_count:].copy()
+        return remainder, carved
+
+    if split_mode == "temporal":
+        carve_count = max(1, int(round(len(group) * fraction)))
+        split_idx = len(group) - carve_count
+        remainder = group.iloc[:split_idx].copy()
+        carved = group.iloc[split_idx:].copy()
+        return remainder, carved
+
+    stratify_col = group["story_point"] if stratify else None
+    if stratify_col is not None and (stratify_col.value_counts() < 2).any():
+        stratify_col = None
+    try:
+        remainder, carved = train_test_split(
+            group, test_size=fraction, random_state=random_state, stratify=stratify_col
+        )
+    except ValueError:
+        # Stratification can fail even when every class has >=2 examples, if the
+        # carved fraction is smaller than the number of classes. Fall back to an
+        # unstratified split rather than dropping the val carve entirely.
+        remainder, carved = train_test_split(
+            group, test_size=fraction, random_state=random_state, stratify=None
+        )
+    return remainder, carved
+
+
 def split_per_client(
     data: pd.DataFrame,
     test_size: float,
@@ -273,43 +338,49 @@ def split_per_client(
     test_parts: List[pd.DataFrame] = []
 
     for _, group in data.groupby("client_id"):
-        if split_mode == "random":
-            group = group.sample(frac=1.0, random_state=random_state).reset_index(drop=True)
-        else:
-            group = group.reset_index(drop=True)
-
-        if len(group) < 2:
-            train_parts.append(group)
-            continue
-
-        if len(group) < 5:
-            # Keep at least one sample in both train and test when possible.
-            test_count = max(1, int(round(len(group) * test_size)))
-            test_count = min(test_count, len(group) - 1)
-            if split_mode == "temporal":
-                train_df = group.iloc[:-test_count].copy()
-                test_df = group.iloc[-test_count:].copy()
-            else:
-                test_df = group.iloc[:test_count].copy()
-                train_df = group.iloc[test_count:].copy()
-            train_parts.append(train_df)
-            test_parts.append(test_df)
-            continue
-
-        if split_mode == "temporal":
-            test_count = max(1, int(round(len(group) * test_size)))
-            split_idx = len(group) - test_count
-            train_df = group.iloc[:split_idx].copy()
-            test_df = group.iloc[split_idx:].copy()
-        else:
-            train_df, test_df = train_test_split(group, test_size=test_size, random_state=random_state)
-        train_parts.append(train_df)
-        test_parts.append(test_df)
+        remainder, carved = _carve_fraction(group, test_size, random_state, split_mode)
+        train_parts.append(remainder)
+        if len(carved):
+            test_parts.append(carved)
 
     train_data = pd.concat(train_parts, ignore_index=True)
     test_data = pd.concat(test_parts, ignore_index=True) if test_parts else pd.DataFrame(columns=data.columns)
 
     return train_data, test_data
+
+
+def split_train_val(
+    train_data: pd.DataFrame,
+    val_size: float,
+    random_state: int,
+    split_mode: str = "random",
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Carve a per-client validation split out of the train portion returned by
+    split_per_client, using the same edge-case handling. In "random" mode the
+    carve is stratified by story_point so rare classes still appear in val
+    for per-round macro-F1 tracking; in "temporal" mode val is the latest
+    `val_size` slice of each client's train rows (chronologically between
+    train and test).
+    """
+    if val_size <= 0:
+        return train_data, train_data.iloc[0:0]
+
+    train_parts: List[pd.DataFrame] = []
+    val_parts: List[pd.DataFrame] = []
+
+    for _, group in train_data.groupby("client_id"):
+        remainder, carved = _carve_fraction(
+            group, val_size, random_state, split_mode, stratify=(split_mode == "random")
+        )
+        train_parts.append(remainder)
+        if len(carved):
+            val_parts.append(carved)
+
+    train_out = pd.concat(train_parts, ignore_index=True)
+    val_out = pd.concat(val_parts, ignore_index=True) if val_parts else pd.DataFrame(columns=train_data.columns)
+
+    return train_out, val_out
 
 
 def build_category_map(values: pd.Series) -> Dict[str, int]:
@@ -324,14 +395,17 @@ def prepare_tabular_bundle(
     test_size: float,
     random_state: int,
     split_mode: str = "random",
+    val_size: float = 0.0,
 ) -> TabularBundle:
     train_df, test_df = split_per_client(data, test_size=test_size, random_state=random_state, split_mode=split_mode)
+    train_df, val_df = split_train_val(train_df, val_size=val_size, random_state=random_state, split_mode=split_mode)
 
     type_to_id = build_category_map(train_df["type"])
     priority_to_id = build_category_map(train_df["priority"])
 
     return TabularBundle(
         train_df=train_df,
+        val_df=val_df,
         test_df=test_df,
         type_to_id=type_to_id,
         priority_to_id=priority_to_id,

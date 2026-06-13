@@ -6,7 +6,7 @@ from transformers import AutoModel
 from peft import LoraConfig, get_peft_model
 
 
-class StoryPointRegressor(nn.Module):
+class StoryPointClassifier(nn.Module):
     """Transformer encoder + categorical embeddings + classification head."""
 
     def __init__(

@@ -20,7 +20,7 @@ from fl.data import (
 )
 from fl.data import story_point_to_label
 from fl.metrics import evaluate_classification, format_metrics
-from fl.model import StoryPointRegressor
+from fl.model import StoryPointClassifier
 
 
 def choose_device(device_name: str) -> torch.device:
@@ -128,7 +128,7 @@ def main() -> None:
     type_to_id: Dict[str, int] = metadata["type_to_id"]
     priority_to_id: Dict[str, int] = metadata["priority_to_id"]
 
-    model = StoryPointRegressor(
+    model = StoryPointClassifier(
         model_name=metadata["model_name"],
         num_types=metadata["num_types"],
         num_priorities=metadata["num_priorities"],

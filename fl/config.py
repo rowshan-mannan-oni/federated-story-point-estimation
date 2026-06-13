@@ -9,6 +9,7 @@ class FLConfig:
     # Reproducibility and split controls.
     random_state: int = 42
     test_size: float = 0.2
+    val_size: float = 0.1   # per-client validation fraction carved from the train split (FL convergence tracking)
     split_mode: str = "random"  # "random" or "temporal" (train on earlier issues, test on later ones)
 
     # Model controls.
@@ -36,6 +37,8 @@ class FLConfig:
 
     # Training toggles.
     skip_centralized: bool = False  # skip centralized baseline training to save time
+    skip_local_only: bool = False  # skip the local-only (no-federation) baseline condition
+    run_no_warmstart_fl: bool = False  # also run federated training from random init (warm-start ablation, gap #7)
 
     # Optimization controls.
     batch_size: int = 16

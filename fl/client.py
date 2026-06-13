@@ -164,7 +164,14 @@ class FederatedClient:
                     )
 
         avg_loss = running_loss / max(num_batches, 1)
-        state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+        # Only trainable params are aggregated server-side — frozen backbone weights
+        # are identical to global_state and would otherwise be cloned/transferred for nothing
+        # (~500MB/client for a 125M-param encoder, vs ~1MB for LoRA-B + embeddings + head).
+        state = {
+            name: param.detach().cpu().clone()
+            for name, param in model.named_parameters()
+            if param.requires_grad
+        }
 
         # Explicitly release GPU tensors so the CUDA allocator can defragment before
         # the next client's model is loaded; without this, sequential client training

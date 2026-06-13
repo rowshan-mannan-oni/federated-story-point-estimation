@@ -1,10 +1,12 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import time
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 
 from fl.client import FederatedClient
+from fl.metrics import evaluate_classification, run_prediction
 
 
 class FedProxServer:
@@ -20,31 +22,6 @@ class FedProxServer:
         all_indices = np.arange(total_clients)
         return rng.choice(all_indices, size=per_round, replace=False)
 
-    @staticmethod
-    def _weighted_average_states(
-        states: List[Dict[str, torch.Tensor]],
-        weights: List[int],
-        aggregatable_keys: frozenset,
-        base_state: Dict[str, torch.Tensor],
-    ) -> Dict[str, torch.Tensor]:
-        total = float(sum(weights))
-
-        # Preserve frozen params and buffers unchanged from the current global state.
-        avg_state: Dict[str, torch.Tensor] = {k: v.clone() for k, v in base_state.items()}
-
-        # Overwrite only trainable (aggregatable) keys with the weighted average.
-        for key in aggregatable_keys:
-            first_tensor = states[0][key]
-            if first_tensor.is_floating_point():
-                combined = torch.zeros_like(first_tensor)
-                for state, weight in zip(states, weights):
-                    combined += state[key] * (weight / total)
-                avg_state[key] = combined
-            else:
-                avg_state[key] = first_tensor.clone()
-
-        return avg_state
-
     def train(
         self,
         rounds: int,
@@ -57,7 +34,10 @@ class FedProxServer:
         prox_mu: float,
         device: torch.device,
         initial_state: Optional[Dict[str, torch.Tensor]] = None,
-    ) -> Tuple[Dict[str, torch.Tensor], List[float]]:
+        val_loader: Optional[DataLoader] = None,
+        val_labels: Optional[np.ndarray] = None,
+        num_classes: int = 5,
+    ) -> Tuple[Dict[str, torch.Tensor], List[Dict[str, Any]]]:
         global_model = self.model_factory().to(device)
         if initial_state is not None:
             global_model.load_state_dict(initial_state)
@@ -74,7 +54,12 @@ class FedProxServer:
         print(f"[FedProx] Aggregating {n_agg}/{n_total} param tensors per round.", flush=True)
         del global_model
 
-        history: List[float] = []
+        track_val = val_loader is not None and val_labels is not None
+        best_state: Optional[Dict[str, torch.Tensor]] = None
+        best_val_macro_f1 = -1.0
+        best_round = 0
+
+        history: List[Dict[str, Any]] = []
 
         per_round = max(1, int(round(len(self.clients) * clients_per_round_fraction)))
 
@@ -98,7 +83,10 @@ class FedProxServer:
                 flush=True,
             )
 
-            client_states: List[Dict[str, torch.Tensor]] = []
+            # Running weighted sum over aggregatable params, accumulated as each client
+            # finishes so only one client's (tiny, trainable-only) state dict exists at a time.
+            accum: Dict[str, torch.Tensor] = {}
+            total_weight = 0.0
             client_weights: List[int] = []
             client_losses: List[float] = []
 
@@ -116,7 +104,16 @@ class FedProxServer:
                     prox_mu=prox_mu,
                     seed=client_seed,
                 )
-                client_states.append(result.state_dict)
+
+                weight = float(result.num_examples)
+                for key, tensor in result.state_dict.items():
+                    contribution = tensor * weight
+                    if key in accum:
+                        accum[key] += contribution
+                    else:
+                        accum[key] = contribution
+                total_weight += weight
+
                 client_weights.append(result.num_examples)
                 client_losses.append(result.loss)
 
@@ -125,15 +122,47 @@ class FedProxServer:
                     f"examples={result.num_examples} local_loss={result.loss:.6f}",
                     flush=True,
                 )
+                del result
 
-            global_state = self._weighted_average_states(
-                client_states, client_weights, aggregatable_keys, global_state
-            )
-            # Free ~(clients_per_round × model_size) of CPU RAM held by state dicts.
-            del client_states
+            # Apply the aggregated update to the global state in place.
+            for key, summed in accum.items():
+                global_state[key] = summed / total_weight
+            del accum
             round_mean_loss = float(np.mean(client_losses))
             weighted_round_loss = float(np.average(client_losses, weights=client_weights))
-            history.append(round_mean_loss)
+
+            round_entry: Dict[str, Any] = {
+                "round": round_idx + 1,
+                "mean_local_loss": round_mean_loss,
+                "weighted_local_loss": weighted_round_loss,
+            }
+
+            val_msg = ""
+            if track_val:
+                eval_model = self.model_factory().to(device)
+                eval_model.load_state_dict(global_state)
+                val_pred = run_prediction(eval_model, val_loader, device)
+                val_metrics = evaluate_classification(val_labels, val_pred, num_classes)
+                del eval_model
+                if device.type == "cuda":
+                    torch.cuda.empty_cache()
+
+                val_macro_f1 = val_metrics["macro_f1"]
+                round_entry["val_macro_f1"] = val_macro_f1
+                round_entry["val_accuracy"] = val_metrics["accuracy"]
+
+                is_best = val_macro_f1 > best_val_macro_f1
+                if is_best:
+                    best_val_macro_f1 = val_macro_f1
+                    best_round = round_idx + 1
+                    best_state = {k: v.clone() for k, v in global_state.items()}
+
+                val_msg = (
+                    f" val_acc={val_metrics['accuracy']:.4f} val_macro_f1={val_macro_f1:.4f}"
+                    f"{' (best)' if is_best else ''}"
+                )
+
+            history.append(round_entry)
 
             completed_rounds = round_idx + 1
             round_elapsed = time.perf_counter() - round_start
@@ -148,7 +177,8 @@ class FedProxServer:
 
             print(
                 f"[FedProx][Round {round_idx + 1}/{rounds}] "
-                f"mean_local_loss={round_mean_loss:.6f} weighted_local_loss={weighted_round_loss:.6f}",
+                f"mean_local_loss={round_mean_loss:.6f} weighted_local_loss={weighted_round_loss:.6f}"
+                f"{val_msg}",
                 flush=True,
             )
             print(
@@ -156,5 +186,13 @@ class FedProxServer:
                 f"round_time={round_elapsed:.1f}s elapsed={total_elapsed:.1f}s eta={eta_seconds:.1f}s",
                 flush=True,
             )
+
+        if track_val and best_state is not None:
+            print(
+                f"[FedProx] Selected global model from round {best_round} "
+                f"(best val macro-F1={best_val_macro_f1:.4f}).",
+                flush=True,
+            )
+            return best_state, history
 
         return global_state, history

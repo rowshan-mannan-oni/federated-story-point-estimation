@@ -25,8 +25,8 @@ from fl.config import FLConfig
 from sklearn.model_selection import train_test_split
 
 from fl.data import IssueDataset, compute_class_weights, load_dataset_by_project, prepare_tabular_bundle, LABEL_MAP, INV_LABEL_MAP
-from fl.metrics import evaluate_classification, format_metrics
-from fl.model import StoryPointRegressor, log_trainable_params
+from fl.metrics import compute_communication_cost, evaluate_classification, format_metrics, run_prediction
+from fl.model import StoryPointClassifier, log_trainable_params
 from fl.server import FedProxServer
 
 
@@ -34,6 +34,18 @@ def choose_device(device_name: str) -> torch.device:
     if device_name == "cuda" and torch.cuda.is_available():
         return torch.device("cuda")
     return torch.device("cpu")
+
+
+def federated_condition_name(prox_mu: float) -> str:
+    """
+    Human-readable label for the federated condition, derived from prox_mu.
+    prox_mu=0 degrades FedProx to plain FedAvg (CLAUDE.md gap #2) — name it
+    explicitly so results/config.json and printed output don't require the
+    reader to know this equivalence.
+    """
+    if prox_mu == 0.0:
+        return "FedAvg"
+    return f"FedProx (mu={prox_mu:g})"
 
 
 def collate_fn_builder(tokenizer: AutoTokenizer, max_length: int):
@@ -53,20 +65,6 @@ def collate_fn_builder(tokenizer: AutoTokenizer, max_length: int):
         return encoded
 
     return collate
-
-
-def run_prediction(model: nn.Module, loader: DataLoader, device: torch.device) -> np.ndarray:
-    """Return predicted class indices (argmax over logits)."""
-    model.eval()
-    preds: List[np.ndarray] = []
-
-    with torch.no_grad():
-        for batch in loader:
-            batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
-            logits = model(batch).detach().cpu()
-            preds.append(logits.argmax(dim=1).numpy())
-
-    return np.concatenate(preds, axis=0)
 
 
 def train_centralized(
@@ -282,9 +280,102 @@ def evaluate_per_project(
     return results
 
 
+def train_local_only(
+    clients: List[FederatedClient],
+    model_factory,
+    initial_state: Dict[str, torch.Tensor],
+    device: torch.device,
+    epochs: int,
+    learning_rate: float,
+    weight_decay: float,
+    random_state: int,
+) -> Dict[str, Dict[str, torch.Tensor]]:
+    """
+    Train each client independently on its own data only — no server, no aggregation.
+    Every client starts from the same `initial_state` (the warm-start checkpoint, same
+    as the federated run) so the only difference vs. federated is the absence of
+    cross-client aggregation. Returns client_id -> full state dict.
+    """
+    local_states: Dict[str, Dict[str, torch.Tensor]] = {}
+
+    print(f"\n[LocalOnly] Training {len(clients)} clients independently for {epochs} epoch(s) each ...", flush=True)
+    start = time.perf_counter()
+
+    for i, client in enumerate(clients):
+        result = client.train_local(
+            global_state=initial_state,
+            model_factory=model_factory,
+            device=device,
+            epochs=epochs,
+            sample_ratio_per_epoch=1.0,
+            sample_with_replacement=False,
+            learning_rate=learning_rate,
+            weight_decay=weight_decay,
+            prox_mu=0.0,
+            seed=random_state + i,
+        )
+        # Trainable params come from local training; frozen backbone is shared with initial_state.
+        local_states[str(client.client_id)] = {**initial_state, **result.state_dict}
+        print(
+            f"  - client={client.client_id} examples={result.num_examples} final_loss={result.loss:.6f}",
+            flush=True,
+        )
+
+    print(f"[LocalOnly] Done in {time.perf_counter() - start:.1f}s", flush=True)
+    return local_states
+
+
+def evaluate_local_only(
+    local_states: Dict[str, Dict[str, torch.Tensor]],
+    model_factory,
+    test_df: pd.DataFrame,
+    type_to_id: Dict[str, int],
+    priority_to_id: Dict[str, int],
+    collate_fn,
+    device: torch.device,
+    batch_size: int,
+    num_classes: int,
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Each client's locally-trained model is evaluated on that client's own test split.
+    Returns per-client metrics (evaluate_classification output + n_test) plus a
+    "global" entry pooling every client's predictions on its own test set.
+    """
+    results: Dict[str, Dict[str, Any]] = {}
+    all_true: List[np.ndarray] = []
+    all_pred: List[np.ndarray] = []
+
+    for client_id, group in test_df.groupby("client_id"):
+        client_id_str = str(client_id)
+        model = model_factory().to(device)
+        model.load_state_dict(local_states[client_id_str])
+        model.eval()
+
+        dataset = IssueDataset(group.reset_index(drop=True), type_to_id, priority_to_id)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+        pred = run_prediction(model, loader, device)
+        true = dataset.labels
+
+        metrics = evaluate_classification(true, pred, num_classes)
+        metrics["n_test"] = int(len(true))
+        results[client_id_str] = metrics
+        all_true.append(true)
+        all_pred.append(pred)
+
+        del model
+
+    global_true = np.concatenate(all_true)
+    global_pred = np.concatenate(all_pred)
+    global_metrics = evaluate_classification(global_true, global_pred, num_classes)
+    global_metrics["n_test"] = int(len(global_true))
+    results["global"] = global_metrics
+    return results
+
+
 def build_summary_df(
     fed_results: Dict[str, Dict[str, Any]],
     central_results: Optional[Dict[str, Dict[str, Any]]],
+    local_results: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> pd.DataFrame:
     sp_labels = [1, 2, 3, 5, 8]
     project_ids = sorted(k for k in fed_results if k != "global") + ["global"]
@@ -305,6 +396,12 @@ def build_summary_df(
             row["cen_macro_f1"] = round(cen["macro_f1"], 4)
             for i, sp in enumerate(sp_labels):
                 row[f"cen_f1_sp{sp}"] = round(cen["per_class_f1"][i], 4)
+        if local_results is not None:
+            loc = local_results[pid]
+            row["local_acc"] = round(loc["accuracy"], 4)
+            row["local_macro_f1"] = round(loc["macro_f1"], 4)
+            for i, sp in enumerate(sp_labels):
+                row[f"local_f1_sp{sp}"] = round(loc["per_class_f1"][i], 4)
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -326,20 +423,50 @@ def save_evaluation_results(
     central_results: Optional[Dict[str, Dict[str, Any]]],
     summary_df: pd.DataFrame,
     config: FLConfig,
+    local_results: Optional[Dict[str, Dict[str, Any]]] = None,
+    fed_history: Optional[List[Dict[str, Any]]] = None,
+    communication_cost: Optional[Dict[str, Any]] = None,
+    federated_condition: Optional[str] = None,
+    test_df: Optional[pd.DataFrame] = None,
+    no_warmstart_results: Optional[Dict[str, Dict[str, Any]]] = None,
+    no_warmstart_history: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     results_dir.mkdir(parents=True, exist_ok=True)
+
+    if test_df is not None:
+        test_df.to_csv(results_dir / "test_split.csv", index=False)
 
     with (results_dir / "federated_per_project.json").open("w", encoding="utf-8") as fh:
         json.dump(fed_results, fh, indent=2)
     if central_results is not None:
         with (results_dir / "centralized_per_project.json").open("w", encoding="utf-8") as fh:
             json.dump(central_results, fh, indent=2)
+    if local_results is not None:
+        with (results_dir / "local_only_per_project.json").open("w", encoding="utf-8") as fh:
+            json.dump(local_results, fh, indent=2)
+    if fed_history is not None:
+        with (results_dir / "federated_round_history.json").open("w", encoding="utf-8") as fh:
+            json.dump(fed_history, fh, indent=2)
+    if communication_cost is not None:
+        with (results_dir / "communication_cost.json").open("w", encoding="utf-8") as fh:
+            json.dump(communication_cost, fh, indent=2)
+    if no_warmstart_results is not None:
+        with (results_dir / "federated_no_warmstart_per_project.json").open("w", encoding="utf-8") as fh:
+            json.dump(no_warmstart_results, fh, indent=2)
+    if no_warmstart_history is not None:
+        with (results_dir / "federated_no_warmstart_round_history.json").open("w", encoding="utf-8") as fh:
+            json.dump(no_warmstart_history, fh, indent=2)
 
     summary_df.to_csv(results_dir / "summary.csv", index=False)
-    (results_dir / "summary.md").write_text(_df_to_markdown(summary_df), encoding="utf-8")
+    summary_md = _df_to_markdown(summary_df)
+    if federated_condition is not None:
+        summary_md = f"**Federated condition:** {federated_condition} (prox_mu={config.prox_mu:g})\n\n{summary_md}"
+    (results_dir / "summary.md").write_text(summary_md, encoding="utf-8")
 
     config_dict = dataclasses.asdict(config)
     config_dict["data_dir"] = str(config_dict["data_dir"])
+    if federated_condition is not None:
+        config_dict["federated_condition"] = federated_condition
     with (results_dir / "config.json").open("w", encoding="utf-8") as fh:
         json.dump(config_dict, fh, indent=2)
 
@@ -355,6 +482,7 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--max-length", type=int, default=128)
     parser.add_argument("--test-size", type=float, default=0.2)
+    parser.add_argument("--val-size", type=float, default=0.1)
     parser.add_argument("--split-mode", type=str, default="random", choices=["random", "temporal"])
     parser.add_argument("--lr", type=float, default=2e-5)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
@@ -376,6 +504,8 @@ def main() -> None:
     parser.add_argument("--warmstart-patience", type=int, default=3)
     parser.add_argument("--warmstart-lr", type=float, default=2e-5)
     parser.add_argument("--skip-centralized", action="store_true")
+    parser.add_argument("--skip-local-only", action="store_true")
+    parser.add_argument("--run-no-warmstart-fl", action="store_true")
     parser.add_argument("--central-log-every", type=int, default=1)
     parser.add_argument("--save-dir", type=str, default="artifacts")
     parser.add_argument("--seed", type=int, default=42)
@@ -391,6 +521,7 @@ def main() -> None:
         data_dir=Path(args.data_dir),
         random_state=args.seed,
         test_size=args.test_size,
+        val_size=args.val_size,
         split_mode=args.split_mode,
         model_name=args.model_name,
         max_length=args.max_length,
@@ -411,6 +542,8 @@ def main() -> None:
         lora_target_modules=tuple(args.lora_target_modules),
         ffa_lora=args.ffa_lora,
         skip_centralized=args.skip_centralized,
+        skip_local_only=args.skip_local_only,
+        run_no_warmstart_fl=args.run_no_warmstart_fl,
         warmstart_project=args.warmstart_project,
         warmstart_val_size=args.warmstart_val_size,
         warmstart_epochs=args.warmstart_epochs,
@@ -418,6 +551,7 @@ def main() -> None:
         warmstart_lr=args.warmstart_lr,
         device=args.device,
     )
+    fl_condition = federated_condition_name(config.prox_mu)
     save_dir = Path(args.save_dir)
 
     torch.manual_seed(config.random_state)
@@ -461,14 +595,17 @@ def main() -> None:
         flush=True,
     )
 
-    # Category maps and train/test split built from FL data only.
+    # Category maps and train/val/test split built from FL data only.
     bundle = prepare_tabular_bundle(
-        fl_data, test_size=config.test_size, random_state=config.random_state, split_mode=config.split_mode
+        fl_data, test_size=config.test_size, random_state=config.random_state,
+        split_mode=config.split_mode, val_size=config.val_size,
     )
     print(f"[Data] Split mode: {config.split_mode}", flush=True)
 
     if bundle.test_df.empty:
         raise ValueError("No test split generated. Increase data volume or reduce project fragmentation.")
+    if bundle.val_df.empty:
+        raise ValueError("No FL validation split generated. Increase data volume or reduce project fragmentation.")
 
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
     collate_fn = collate_fn_builder(tokenizer, config.max_length)
@@ -479,13 +616,23 @@ def main() -> None:
         type_to_id=bundle.type_to_id,
         priority_to_id=bundle.priority_to_id,
     )
+    fl_val_dataset = IssueDataset(
+        frame=bundle.val_df,
+        type_to_id=bundle.type_to_id,
+        priority_to_id=bundle.priority_to_id,
+    )
     test_dataset = IssueDataset(
         frame=bundle.test_df,
         type_to_id=bundle.type_to_id,
         priority_to_id=bundle.priority_to_id,
     )
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, collate_fn=collate_fn)
+    fl_val_loader = DataLoader(fl_val_dataset, batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn)
+    print(
+        f"[Data] FL split: train={len(bundle.train_df)}, val={len(bundle.val_df)}, test={len(bundle.test_df)}",
+        flush=True,
+    )
 
     # Warmstart train/val split — stratified so rare classes appear in val.
     ws_train_df, ws_val_df = train_test_split(
@@ -505,8 +652,8 @@ def main() -> None:
 
     y_test_labels = test_dataset.labels  # integer class labels for evaluation
 
-    def model_factory() -> StoryPointRegressor:
-        return StoryPointRegressor(
+    def model_factory() -> StoryPointClassifier:
+        return StoryPointClassifier(
             model_name=config.model_name,
             num_types=len(bundle.type_to_id),
             num_priorities=len(bundle.priority_to_id),
@@ -525,6 +672,8 @@ def main() -> None:
 
     _probe = model_factory()
     log_trainable_params(_probe)
+    probe_trainable_params = sum(p.numel() for p in _probe.parameters() if p.requires_grad)
+    probe_total_params = sum(p.numel() for p in _probe.parameters())
     del _probe
 
     # Baseline: majority-class prediction.
@@ -604,6 +753,31 @@ def main() -> None:
             )
         )
 
+    communication_cost = compute_communication_cost(
+        trainable_params=probe_trainable_params,
+        total_params=probe_total_params,
+        rounds=config.rounds,
+        num_clients=len(clients),
+    )
+
+    # Local-only baseline: each client trains independently from the same warm-start
+    # checkpoint as federated, with no cross-client aggregation. Total local epochs
+    # match federated's per-client exposure (rounds x local_epochs) for a fair comparison.
+    local_states = None
+    if not config.skip_local_only:
+        local_states = train_local_only(
+            clients=clients,
+            model_factory=model_factory,
+            initial_state=warmstart_state,
+            device=device,
+            epochs=config.rounds * config.local_epochs,
+            learning_rate=config.learning_rate,
+            weight_decay=config.weight_decay,
+            random_state=config.random_state,
+        )
+    else:
+        print("[LocalOnly] Skipped (--skip-local-only).", flush=True)
+
     server = FedProxServer(model_factory=model_factory, clients=clients, random_state=config.random_state)
     fed_state, fed_history = server.train(
         rounds=config.rounds,
@@ -616,6 +790,9 @@ def main() -> None:
         prox_mu=config.prox_mu,
         device=device,
         initial_state=warmstart_state,
+        val_loader=fl_val_loader,
+        val_labels=fl_val_dataset.labels,
+        num_classes=config.num_classes,
     )
 
     federated_model = model_factory().to(device)
@@ -630,6 +807,51 @@ def main() -> None:
         type_to_id=bundle.type_to_id,
         priority_to_id=bundle.priority_to_id,
     )
+
+    # Warm-start ablation (gap #7): also run FL from random init, using a fresh
+    # server with the same random_state so both runs select the same per-round
+    # clients — isolating the effect of the warm-start checkpoint.
+    fed_results_nw = None
+    fed_history_nw = None
+    federated_artifact_nw = None
+    if config.run_no_warmstart_fl:
+        print("\n[FedProx] Running no-warmstart federated training (random init) ...", flush=True)
+        server_nw = FedProxServer(model_factory=model_factory, clients=clients, random_state=config.random_state)
+        fed_state_nw, fed_history_nw = server_nw.train(
+            rounds=config.rounds,
+            clients_per_round_fraction=config.clients_per_round_fraction,
+            local_epochs=config.local_epochs,
+            local_sample_ratio_per_epoch=config.local_sample_ratio_per_epoch,
+            sample_with_replacement=config.sample_with_replacement,
+            learning_rate=config.learning_rate,
+            weight_decay=config.weight_decay,
+            prox_mu=config.prox_mu,
+            device=device,
+            initial_state=None,
+            val_loader=fl_val_loader,
+            val_labels=fl_val_dataset.labels,
+            num_classes=config.num_classes,
+        )
+
+        federated_model_nw = model_factory().to(device)
+        federated_model_nw.load_state_dict(fed_state_nw)
+
+        federated_artifact_nw = save_model_artifact(
+            save_root=save_dir,
+            artifact_name="federated_no_warmstart",
+            model=federated_model_nw,
+            tokenizer=tokenizer,
+            config=config,
+            type_to_id=bundle.type_to_id,
+            priority_to_id=bundle.priority_to_id,
+        )
+
+        fed_results_nw = evaluate_per_project(
+            federated_model_nw, bundle.test_df,
+            bundle.type_to_id, bundle.priority_to_id,
+            collate_fn, device, config.batch_size, config.num_classes,
+        )
+        del federated_model_nw
 
     # Per-project evaluation — both models evaluated on each FL client's test split.
     print("\n[Eval] Running per-project evaluation ...", flush=True)
@@ -646,45 +868,106 @@ def main() -> None:
         )
         if centralized_model is not None else None
     )
+    local_results = (
+        evaluate_local_only(
+            local_states, model_factory, bundle.test_df,
+            bundle.type_to_id, bundle.priority_to_id,
+            collate_fn, device, config.batch_size, config.num_classes,
+        )
+        if local_states is not None else None
+    )
 
     federated_metrics = fed_results["global"]
     centralized_metrics = central_results["global"] if central_results is not None else None
+    local_metrics = local_results["global"] if local_results is not None else None
 
-    summary_df = build_summary_df(fed_results, central_results)
+    summary_df = build_summary_df(fed_results, central_results, local_results)
     results_dir = save_dir / "results"
-    save_evaluation_results(results_dir, fed_results, central_results, summary_df, config)
+    save_evaluation_results(
+        results_dir, fed_results, central_results, summary_df, config,
+        local_results, fed_history, communication_cost, fl_condition,
+        bundle.test_df, fed_results_nw, fed_history_nw,
+    )
 
     print("\nDataset summary")
     print(f"  Warmstart '{config.warmstart_project}': {len(warmstart_data)} rows (train={len(ws_train_df)}, val={len(ws_val_df)})")
-    print(f"  FL projects: {fl_data['client_id'].nunique()} | Train: {len(bundle.train_df)} | Test: {len(bundle.test_df)} | Clients: {len(clients)}")
+    print(f"  FL projects: {fl_data['client_id'].nunique()} | Train: {len(bundle.train_df)} | Val: {len(bundle.val_df)} | Test: {len(bundle.test_df)} | Clients: {len(clients)}")
     print(f"  Model: {config.model_name} | Device: {device}")
+    print(f"  Federated condition: {fl_condition} (prox_mu={config.prox_mu:g})")
 
     print("\nClassification metrics — global pooled (primary: Macro-F1)")
     print(format_metrics("Baseline (Majority)", baseline_metrics))
+    if local_metrics is not None:
+        print(format_metrics("Local-only DL", local_metrics))
     if centralized_metrics is not None:
         print(format_metrics("Centralized DL", centralized_metrics))
-    print(format_metrics("Federated DL", federated_metrics))
+    print(format_metrics(fl_condition, federated_metrics))
+    if fed_results_nw is not None:
+        print(format_metrics(f"{fl_condition} (no warmstart)", fed_results_nw["global"]))
     print(f"  Warmstart best val macro-F1: {warmstart_val_f1:.4f}")
 
-    print("\nPer-project summary (Federated vs Centralized):")
+    print(f"\nPer-project summary ({fl_condition} vs Centralized vs Local-only):")
     print(_df_to_markdown(summary_df))
 
     if fed_history:
         print(
-            f"Federated loss history: first={fed_history[0]:.6f}, "
-            f"last={fed_history[-1]:.6f}, rounds={len(fed_history)}"
+            f"{fl_condition} loss history: first={fed_history[0]['mean_local_loss']:.6f}, "
+            f"last={fed_history[-1]['mean_local_loss']:.6f}, rounds={len(fed_history)}"
         )
+        val_f1_history = [entry["val_macro_f1"] for entry in fed_history if "val_macro_f1" in entry]
+        if val_f1_history:
+            best_round = max(fed_history, key=lambda e: e.get("val_macro_f1", -1.0))["round"]
+            print(
+                f"{fl_condition} val Macro-F1 history: first={val_f1_history[0]:.4f}, "
+                f"last={val_f1_history[-1]:.4f}, best={max(val_f1_history):.4f} (round {best_round})"
+            )
+
+    if fed_history_nw:
+        val_f1_history_nw = [entry["val_macro_f1"] for entry in fed_history_nw if "val_macro_f1" in entry]
+        if val_f1_history_nw:
+            best_round_nw = max(fed_history_nw, key=lambda e: e.get("val_macro_f1", -1.0))["round"]
+            print(
+                f"{fl_condition} (no warmstart) val Macro-F1 history: first={val_f1_history_nw[0]:.4f}, "
+                f"last={val_f1_history_nw[-1]:.4f}, best={max(val_f1_history_nw):.4f} (round {best_round_nw})"
+            )
+
+    print("\nCommunication cost (per round, per client, float32)")
+    print(
+        f"  Trainable: {communication_cost['trainable_params']:,} / "
+        f"{communication_cost['total_params']:,} params "
+        f"({communication_cost['bytes_per_client_per_round']:,} bytes vs. "
+        f"{communication_cost['bytes_per_client_per_round_full_finetune']:,} bytes full fine-tune)"
+    )
+    print(
+        f"  Total upload over {communication_cost['rounds']} rounds x "
+        f"{communication_cost['num_clients']} clients: "
+        f"{communication_cost['total_upload_bytes']:,} bytes "
+        f"({communication_cost['reduction_factor']:.1f}x smaller than full fine-tuning)"
+    )
 
     print("\nSaved artifacts")
     print(f"  Warmstart:   {warmstart_artifact}")
     if centralized_artifact:
         print(f"  Centralized: {centralized_artifact}")
-    print(f"  Federated:   {federated_artifact}")
+    print(f"  {fl_condition}: {federated_artifact}")
+    if federated_artifact_nw:
+        print(f"  {fl_condition} (no warmstart): {federated_artifact_nw}")
 
     f1_improvement = 100.0 * (federated_metrics["macro_f1"] - baseline_metrics["macro_f1"]) / max(
         baseline_metrics["macro_f1"], 1e-9
     )
-    print(f"\nFederated Macro-F1 improvement vs baseline: {f1_improvement:.2f}%")
+    print(f"\n{fl_condition} Macro-F1 improvement vs baseline: {f1_improvement:.2f}%")
+
+    if local_metrics is not None:
+        f1_vs_local = 100.0 * (federated_metrics["macro_f1"] - local_metrics["macro_f1"]) / max(
+            local_metrics["macro_f1"], 1e-9
+        )
+        print(f"{fl_condition} Macro-F1 improvement vs local-only: {f1_vs_local:.2f}%")
+
+    if fed_results_nw is not None:
+        no_ws_macro_f1 = fed_results_nw["global"]["macro_f1"]
+        f1_warmstart_gain = 100.0 * (federated_metrics["macro_f1"] - no_ws_macro_f1) / max(no_ws_macro_f1, 1e-9)
+        print(f"{fl_condition} Macro-F1 improvement from warm-start: {f1_warmstart_gain:.2f}%")
 
 
 if __name__ == "__main__":
