@@ -127,8 +127,8 @@
 # ==========================================================
 
 
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
-    --data-dir "D:\Federated Learning using DL\data_to_train_on" `
+& ".venv/Scripts/python.exe" "train_federated_dl.py" `
+    --data-dir "data_to_train_on" `
     --device cuda `
     --model-name "distilbert-base-uncased" `
     --max-length 384 `
@@ -144,7 +144,7 @@
     --warmstart-project lsstcorp `
     --warmstart-epochs 10 `
     --warmstart-patience 3 `
-    --save-dir "D:\Federated Learning using DL\artifacts_std_lora" `
+    --save-dir "artifacts_std_lora" `
     --seed 42
 
 
