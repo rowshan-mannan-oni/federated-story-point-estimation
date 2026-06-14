@@ -1,0 +1,11 @@
+{
+  "trainable_params": 252613,
+  "total_params": 125045701,
+  "bytes_per_client_per_round": 1010452,
+  "bytes_per_client_per_round_full_finetune": 500182804,
+  "rounds": 20,
+  "num_clients": 18,
+  "total_upload_bytes": 363762720,
+  "total_upload_bytes_full_finetune": 180065809440,
+  "reduction_factor": 495.009
+}

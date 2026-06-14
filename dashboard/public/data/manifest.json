@@ -1,0 +1,9 @@
+{
+  "runs": [
+    {
+      "id": "demo",
+      "label": "Demo run (synthetic data)",
+      "path": "runs/demo"
+    }
+  ]
+}
