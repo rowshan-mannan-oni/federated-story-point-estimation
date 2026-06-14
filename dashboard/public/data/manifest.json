@@ -1,0 +1,9 @@
+{
+  "runs": [
+    {
+      "id": "fedprox-distilbert",
+      "label": "FedProx · DistilBERT + LoRA (μ=0.01)",
+      "path": "runs/fedprox-distilbert"
+    }
+  ]
+}
