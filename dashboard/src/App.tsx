@@ -7,6 +7,7 @@ import { ProjectBreakdown } from "./pages/ProjectBreakdown";
 import { ConditionCompare } from "./pages/ConditionCompare";
 import { ConfusionMatrixPage } from "./pages/ConfusionMatrixPage";
 import { CommunicationCostPage } from "./pages/CommunicationCostPage";
+import { ArchitecturePage } from "./pages/ArchitecturePage";
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
             <Route path="conditions" element={<ConditionCompare />} />
             <Route path="confusion" element={<ConfusionMatrixPage />} />
             <Route path="communication" element={<CommunicationCostPage />} />
+            <Route path="architecture" element={<ArchitecturePage />} />
           </Route>
         </Routes>
       </RunProvider>

@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, LineChart, Boxes, Grid3x3, Radio, GitCompareArrows, Activity } from "lucide-react";
+import { LayoutDashboard, LineChart, Boxes, Grid3x3, Radio, GitCompareArrows, Activity, Network } from "lucide-react";
 
 const NAV_ITEMS = [
   { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: "/conditions", label: "Condition Compare", icon: GitCompareArrows },
   { to: "/confusion", label: "Confusion Matrix", icon: Grid3x3 },
   { to: "/communication", label: "Communication Cost", icon: Radio },
+  { to: "/architecture", label: "Architecture", icon: Network },
 ];
 
 export function Sidebar() {
