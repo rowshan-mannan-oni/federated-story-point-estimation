@@ -39,7 +39,8 @@ class FedProxServer:
         val_labels: Optional[np.ndarray] = None,
         num_classes: int = 5,
         personalized_head: bool = False,
-    ) -> Tuple[Dict[str, torch.Tensor], List[Dict[str, Any]]]:
+        client_val: Optional[Dict[str, Tuple[DataLoader, np.ndarray]]] = None,
+    ) -> Tuple[Dict[str, torch.Tensor], List[Dict[str, Any]], Optional[Dict[str, Dict[str, torch.Tensor]]]]:
         global_model = self.model_factory().to(device)
         if initial_state is not None:
             global_model.load_state_dict(initial_state)
@@ -68,7 +69,22 @@ class FedProxServer:
         print(f"[FedProx] Aggregating {n_agg}/{n_total} param tensors per round.", flush=True)
         del global_model
 
-        track_val = val_loader is not None and val_labels is not None
+        # Personalized-head mode: every client keeps its OWN head across rounds. All clients
+        # start from the same initial head (from the warm-start checkpoint / random init).
+        # Clients not selected in a round retain their head; selected clients update it.
+        client_heads: Optional[Dict[str, Dict[str, torch.Tensor]]] = None
+        best_client_heads: Optional[Dict[str, Dict[str, torch.Tensor]]] = None
+        if personalized_head:
+            init_head = {k: v.clone() for k, v in global_state.items() if is_head_param(k)}
+            client_heads = {
+                str(c.client_id): {k: v.clone() for k, v in init_head.items()}
+                for c in self.clients
+            }
+
+        # Shared mode tracks val on the single pooled global model; personalized mode tracks
+        # val per-client (own head on own val split) and selects on the weighted mean.
+        track_val_shared = (not personalized_head) and val_loader is not None and val_labels is not None
+        track_val_personalized = personalized_head and bool(client_val)
         best_state: Optional[Dict[str, torch.Tensor]] = None
         best_val_macro_f1 = -1.0
         best_round = 0
@@ -105,9 +121,18 @@ class FedProxServer:
             client_losses: List[float] = []
 
             for idx in picked:
+                cid = str(self.clients[int(idx)].client_id)
                 client_seed = int(self.rng.integers(0, np.iinfo(np.int32).max))
+                # In personalized mode the client trains the shared representation plus ITS
+                # OWN head — inject that head into the state it loads (otherwise it would
+                # restart from the stale global head every round).
+                if personalized_head:
+                    round_client_state = dict(global_state)
+                    round_client_state.update(client_heads[cid])
+                else:
+                    round_client_state = global_state
                 result = self.clients[int(idx)].train_local(
-                    global_state=global_state,
+                    global_state=round_client_state,
                     model_factory=self.model_factory,
                     device=device,
                     epochs=local_epochs,
@@ -131,6 +156,13 @@ class FedProxServer:
                     else:
                         accum[key] = contribution
                 total_weight += weight
+
+                # Persist this client's freshly-trained head for next time it's selected
+                # and for per-client validation / test evaluation.
+                if personalized_head:
+                    client_heads[cid] = {
+                        k: v.clone() for k, v in result.state_dict.items() if is_head_param(k)
+                    }
 
                 client_weights.append(result.num_examples)
                 client_losses.append(result.loss)
@@ -156,7 +188,7 @@ class FedProxServer:
             }
 
             val_msg = ""
-            if track_val:
+            if track_val_shared:
                 eval_model = self.model_factory().to(device)
                 eval_model.load_state_dict(global_state)
                 val_pred = run_prediction(eval_model, val_loader, device)
@@ -177,6 +209,49 @@ class FedProxServer:
 
                 val_msg = (
                     f" val_acc={val_metrics['accuracy']:.4f} val_macro_f1={val_macro_f1:.4f}"
+                    f"{' (best)' if is_best else ''}"
+                )
+            elif track_val_personalized:
+                # Each client evaluates the shared representation + its OWN head on its OWN
+                # val split. Selection is on the weighted mean val macro-F1 (weight = client
+                # val examples); the best round snapshots ALL client heads.
+                macro_f1s: List[float] = []
+                accuracies: List[float] = []
+                val_ns: List[int] = []
+                for eval_cid, (eval_loader, eval_labels) in client_val.items():
+                    eval_model = self.model_factory().to(device)
+                    eval_state = dict(global_state)
+                    eval_state.update(client_heads[eval_cid])
+                    eval_model.load_state_dict(eval_state)
+                    eval_pred = run_prediction(eval_model, eval_loader, device)
+                    eval_metrics = evaluate_classification(eval_labels, eval_pred, num_classes)
+                    macro_f1s.append(eval_metrics["macro_f1"])
+                    accuracies.append(eval_metrics["accuracy"])
+                    val_ns.append(int(len(eval_labels)))
+                    del eval_model
+                if device.type == "cuda":
+                    torch.cuda.empty_cache()
+
+                mean_val_macro_f1 = float(np.mean(macro_f1s))
+                weighted_val_macro_f1 = float(np.average(macro_f1s, weights=val_ns))
+                mean_val_accuracy = float(np.mean(accuracies))
+                round_entry["mean_val_macro_f1"] = mean_val_macro_f1
+                round_entry["weighted_val_macro_f1"] = weighted_val_macro_f1
+                round_entry["mean_val_accuracy"] = mean_val_accuracy
+
+                is_best = weighted_val_macro_f1 > best_val_macro_f1
+                if is_best:
+                    best_val_macro_f1 = weighted_val_macro_f1
+                    best_round = round_idx + 1
+                    best_state = {k: v.clone() for k, v in global_state.items()}
+                    best_client_heads = {
+                        hcid: {k: v.clone() for k, v in head.items()}
+                        for hcid, head in client_heads.items()
+                    }
+
+                val_msg = (
+                    f" mean_val_macro_f1={mean_val_macro_f1:.4f} "
+                    f"weighted_val_macro_f1={weighted_val_macro_f1:.4f}"
                     f"{' (best)' if is_best else ''}"
                 )
 
@@ -205,12 +280,25 @@ class FedProxServer:
                 flush=True,
             )
 
-        if track_val and best_state is not None:
+        if personalized_head:
+            # Return best-on-val shared state + the per-client heads snapshotted at that
+            # round. Falls back to the final round if val tracking was disabled.
+            if track_val_personalized and best_state is not None:
+                print(
+                    f"[FedProx] Selected shared state from round {best_round} "
+                    f"(best weighted val macro-F1={best_val_macro_f1:.4f}); "
+                    f"snapshotted {len(best_client_heads)} client heads.",
+                    flush=True,
+                )
+                return best_state, history, best_client_heads
+            return global_state, history, client_heads
+
+        if track_val_shared and best_state is not None:
             print(
                 f"[FedProx] Selected global model from round {best_round} "
                 f"(best val macro-F1={best_val_macro_f1:.4f}).",
                 flush=True,
             )
-            return best_state, history
+            return best_state, history, None
 
-        return global_state, history
+        return global_state, history, None

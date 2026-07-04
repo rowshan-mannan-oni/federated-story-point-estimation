@@ -763,6 +763,19 @@ def main() -> None:
             )
         )
 
+    # Personalized-head mode needs each client's own val split (shared repr + own head is
+    # evaluated on it per round). Built once here and reused across warmstart/no-warmstart runs.
+    client_val: Optional[Dict[str, Any]] = None
+    if config.personalized_head:
+        client_val = {}
+        for client_id, group in bundle.val_df.groupby("client_id"):
+            if group.empty:
+                continue
+            ds = IssueDataset(group.reset_index(drop=True), bundle.type_to_id, bundle.priority_to_id)
+            loader = DataLoader(ds, batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn)
+            client_val[str(client_id)] = (loader, ds.labels)
+        print(f"[FedProx] Personalized-head per-client val splits: {len(client_val)} clients.", flush=True)
+
     communication_cost = compute_communication_cost(
         trainable_params=probe_trainable_params,
         total_params=probe_total_params,
@@ -790,7 +803,7 @@ def main() -> None:
         print("[LocalOnly] Skipped (--skip-local-only).", flush=True)
 
     server = FedProxServer(model_factory=model_factory, clients=clients, random_state=config.random_state)
-    fed_state, fed_history = server.train(
+    fed_state, fed_history, fed_client_heads = server.train(
         rounds=config.rounds,
         clients_per_round_fraction=config.clients_per_round_fraction,
         local_epochs=config.local_epochs,
@@ -805,6 +818,7 @@ def main() -> None:
         val_labels=fl_val_dataset.labels,
         num_classes=config.num_classes,
         personalized_head=config.personalized_head,
+        client_val=client_val,
     )
 
     federated_model = model_factory().to(device)
@@ -829,7 +843,7 @@ def main() -> None:
     if config.run_no_warmstart_fl:
         print("\n[FedProx] Running no-warmstart federated training (random init) ...", flush=True)
         server_nw = FedProxServer(model_factory=model_factory, clients=clients, random_state=config.random_state)
-        fed_state_nw, fed_history_nw = server_nw.train(
+        fed_state_nw, fed_history_nw, fed_client_heads_nw = server_nw.train(
             rounds=config.rounds,
             clients_per_round_fraction=config.clients_per_round_fraction,
             local_epochs=config.local_epochs,
@@ -844,6 +858,7 @@ def main() -> None:
             val_labels=fl_val_dataset.labels,
             num_classes=config.num_classes,
             personalized_head=config.personalized_head,
+            client_val=client_val,
         )
 
         federated_model_nw = model_factory().to(device)
