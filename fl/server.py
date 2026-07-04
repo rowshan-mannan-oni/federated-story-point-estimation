@@ -1,10 +1,12 @@
 from typing import Any, Dict, List, Optional, Tuple
+from pathlib import Path
 import time
 
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
+from fl import checkpoint as ck
 from fl.client import FederatedClient
 from fl.metrics import evaluate_classification, run_prediction
 from fl.model import is_head_param
@@ -40,6 +42,11 @@ class FedProxServer:
         num_classes: int = 5,
         personalized_head: bool = False,
         client_val: Optional[Dict[str, Tuple[DataLoader, np.ndarray]]] = None,
+        checkpoint_every: int = 0,
+        checkpoint_keep: int = 2,
+        ckpt_root: Optional[Path] = None,
+        checkpoint_config: Optional[Any] = None,
+        resume_payload: Optional[Dict[str, Any]] = None,
     ) -> Tuple[Dict[str, torch.Tensor], List[Dict[str, Any]], Optional[Dict[str, Dict[str, torch.Tensor]]]]:
         global_model = self.model_factory().to(device)
         if initial_state is not None:
@@ -91,6 +98,42 @@ class FedProxServer:
 
         history: List[Dict[str, Any]] = []
 
+        # Resume (gap #13): overlay the checkpoint's trainable-only states onto the
+        # freshly-constructed global_state (so the frozen backbone + LoRA-A come from the
+        # normal init path and only B/embeddings/head are restored), then restore per-client
+        # heads, history, best-on-val bookkeeping, the round index, and all RNG state. The
+        # loop then continues at round start_round+1 reproducing an uninterrupted run.
+        start_round = 0
+        if resume_payload is not None:
+            for key, tensor in resume_payload["shared_state"].items():
+                global_state[key] = tensor.clone()
+            if personalized_head and resume_payload.get("client_heads") is not None:
+                client_heads = {
+                    hcid: {k: v.clone() for k, v in head.items()}
+                    for hcid, head in resume_payload["client_heads"].items()
+                }
+            history = list(resume_payload.get("history", []))
+            best_val_macro_f1 = resume_payload.get("best_val_macro_f1", -1.0)
+            best_round = resume_payload.get("best_round", 0)
+            if resume_payload.get("best_state") is not None:
+                # best_state is stored trainable-only; rebuild it on the current backbone.
+                best_state = {k: v.clone() for k, v in global_state.items()}
+                for key, tensor in resume_payload["best_state"].items():
+                    best_state[key] = tensor.clone()
+            if personalized_head and resume_payload.get("best_client_heads") is not None:
+                best_client_heads = {
+                    hcid: {k: v.clone() for k, v in head.items()}
+                    for hcid, head in resume_payload["best_client_heads"].items()
+                }
+            start_round = int(resume_payload["round"])
+            ck.restore_rng_state(resume_payload["rng"], {"server": self.rng})
+            print(
+                f"[FedProx] Resumed from round {start_round} "
+                f"(best val macro-F1={best_val_macro_f1:.4f} at round {best_round}); "
+                f"continuing to round {rounds}.",
+                flush=True,
+            )
+
         per_round = max(1, int(round(len(self.clients) * clients_per_round_fraction)))
 
         print(
@@ -103,7 +146,7 @@ class FedProxServer:
 
         train_start = time.perf_counter()
 
-        for round_idx in range(rounds):
+        for round_idx in range(start_round, rounds):
             round_start = time.perf_counter()
             picked = self.choose_client_indices(total_clients=len(self.clients), per_round=per_round, rng=self.rng)
             selected_client_ids = [self.clients[int(idx)].client_id for idx in picked]
@@ -188,6 +231,7 @@ class FedProxServer:
             }
 
             val_msg = ""
+            is_best = False  # whether this round set a new best-on-val (drives best/ checkpoint mirror)
             if track_val_shared:
                 eval_model = self.model_factory().to(device)
                 eval_model.load_state_dict(global_state)
@@ -279,6 +323,46 @@ class FedProxServer:
                 f"round_time={round_elapsed:.1f}s elapsed={total_elapsed:.1f}s eta={eta_seconds:.1f}s",
                 flush=True,
             )
+
+            # Checkpoint after per-round val (gap #13). Trainable-only states keep it small;
+            # RNG is captured AFTER this round's selection + client seeds so a resume
+            # reproduces the next round's client selection exactly.
+            if checkpoint_every > 0 and ckpt_root is not None and (
+                completed_rounds % checkpoint_every == 0 or completed_rounds == rounds
+            ):
+                payload: Dict[str, Any] = {
+                    "round": completed_rounds,
+                    "shared_state": {k: global_state[k].clone() for k in trainable_keys},
+                    "best_state": (
+                        {k: best_state[k].clone() for k in trainable_keys}
+                        if best_state is not None else None
+                    ),
+                    "best_val_macro_f1": best_val_macro_f1,
+                    "best_round": best_round,
+                    "history": history,
+                    "rng": ck.capture_rng_state({"server": self.rng}),
+                }
+                if personalized_head:
+                    payload["client_heads"] = {
+                        hcid: {k: v.clone() for k, v in head.items()}
+                        for hcid, head in client_heads.items()
+                    }
+                    payload["best_client_heads"] = (
+                        {
+                            hcid: {k: v.clone() for k, v in head.items()}
+                            for hcid, head in best_client_heads.items()
+                        }
+                        if best_client_heads is not None else None
+                    )
+                ck.save_checkpoint(
+                    ckpt_root, completed_rounds, payload, checkpoint_config,
+                    is_best=is_best, keep=checkpoint_keep, step_prefix="round",
+                )
+                print(
+                    f"[FedProx][Checkpoint] saved round {completed_rounds} "
+                    f"(is_best={is_best}) to {ckpt_root}",
+                    flush=True,
+                )
 
         if personalized_head:
             # Return best-on-val shared state + the per-client heads snapshotted at that

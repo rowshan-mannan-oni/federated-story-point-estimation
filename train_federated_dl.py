@@ -20,6 +20,7 @@ from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 
+from fl import checkpoint as ck
 from fl.client import FederatedClient
 from fl.config import FLConfig
 from sklearn.model_selection import train_test_split
@@ -951,6 +952,21 @@ def main() -> None:
     else:
         print("[LocalOnly] Skipped (--skip-local-only).", flush=True)
 
+    # Checkpoint / resume wiring (gap #13) for the primary federated run.
+    fed_ckpt_root = ck.federated_ckpt_root(save_dir)
+    fed_resume_payload = None
+    if config.resume_from:
+        resume_dir = Path(config.resume_from)
+        print(f"[FedProx] Resuming from explicit checkpoint: {resume_dir}", flush=True)
+        fed_resume_payload, _ = ck.load_checkpoint(resume_dir, config)
+    elif config.resume:
+        latest = ck.latest_checkpoint_dir(fed_ckpt_root)
+        if latest is not None:
+            print(f"[FedProx] Auto-resuming from latest checkpoint: {latest}", flush=True)
+            fed_resume_payload, _ = ck.load_checkpoint(latest, config)
+        else:
+            print("[FedProx] --resume set but no federated checkpoint found; starting fresh.", flush=True)
+
     server = FedProxServer(model_factory=model_factory, clients=clients, random_state=config.random_state)
     fed_state, fed_history, fed_client_heads = server.train(
         rounds=config.rounds,
@@ -968,6 +984,11 @@ def main() -> None:
         num_classes=config.num_classes,
         personalized_head=config.personalized_head,
         client_val=client_val,
+        checkpoint_every=config.checkpoint_every,
+        checkpoint_keep=config.checkpoint_keep,
+        ckpt_root=fed_ckpt_root,
+        checkpoint_config=config,
+        resume_payload=fed_resume_payload,
     )
 
     federated_model = model_factory().to(device)
