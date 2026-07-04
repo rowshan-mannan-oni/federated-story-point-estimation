@@ -36,16 +36,18 @@ def choose_device(device_name: str) -> torch.device:
     return torch.device("cpu")
 
 
-def federated_condition_name(prox_mu: float) -> str:
+def federated_condition_name(prox_mu: float, personalized_head: bool = False) -> str:
     """
     Human-readable label for the federated condition, derived from prox_mu.
     prox_mu=0 degrades FedProx to plain FedAvg (CLAUDE.md gap #2) — name it
     explicitly so results/config.json and printed output don't require the
-    reader to know this equivalence.
+    reader to know this equivalence. In personalized-head mode (gap #11) a
+    " + P-head" suffix is appended (e.g. "FedProx (mu=0.01) + P-head").
     """
-    if prox_mu == 0.0:
-        return "FedAvg"
-    return f"FedProx (mu={prox_mu:g})"
+    base = "FedAvg" if prox_mu == 0.0 else f"FedProx (mu={prox_mu:g})"
+    if personalized_head:
+        base += " + P-head"
+    return base
 
 
 def collate_fn_builder(tokenizer: AutoTokenizer, max_length: int):
@@ -623,7 +625,7 @@ def main() -> None:
         warmstart_lr=args.warmstart_lr,
         device=args.device,
     )
-    fl_condition = federated_condition_name(config.prox_mu)
+    fl_condition = federated_condition_name(config.prox_mu, config.personalized_head)
     save_dir = Path(args.save_dir)
 
     torch.manual_seed(config.random_state)
