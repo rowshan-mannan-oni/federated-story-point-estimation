@@ -462,19 +462,49 @@ def train_local_only(
     learning_rate: float,
     weight_decay: float,
     random_state: int,
+    save_dir: Optional[Path] = None,
+    checkpoint_every: int = 0,
+    checkpoint_keep: int = 2,
+    checkpoint_config: Optional[FLConfig] = None,
+    resume: bool = False,
 ) -> Dict[str, Dict[str, torch.Tensor]]:
     """
     Train each client independently on its own data only — no server, no aggregation.
     Every client starts from the same `initial_state` (the warm-start checkpoint, same
     as the federated run) so the only difference vs. federated is the absence of
     cross-client aggregation. Returns client_id -> full state dict.
+
+    Checkpointing (gap #13) is per-client: a finished client's final trainable state is
+    its checkpoint, so an interrupt mid-pool doesn't redo finished clients. On resume,
+    clients with a checkpoint are loaded and skipped; the RNG state saved by the last
+    skipped client is restored before the first re-trained client so the remaining pool
+    reproduces an uninterrupted run.
     """
     local_states: Dict[str, Dict[str, torch.Tensor]] = {}
 
     print(f"\n[LocalOnly] Training {len(clients)} clients independently for {epochs} epoch(s) each ...", flush=True)
     start = time.perf_counter()
 
+    last_skipped_rng: Optional[Dict[str, Any]] = None
     for i, client in enumerate(clients):
+        cid = str(client.client_id)
+        client_ckpt_root = ck.local_only_ckpt_root(save_dir, cid) if save_dir is not None else None
+
+        if resume and client_ckpt_root is not None:
+            latest = ck.latest_checkpoint_dir(client_ckpt_root)
+            if latest is not None:
+                payload, _ = ck.load_checkpoint(latest, checkpoint_config)
+                local_states[cid] = {**initial_state, **payload["trainable_state"]}
+                last_skipped_rng = payload.get("rng")
+                print(f"  - client={cid} RESUMED from checkpoint (skipped training)", flush=True)
+                continue
+
+        # First client trained after a run of skipped ones: restore the RNG captured when
+        # the last skipped client finished, so the remaining pool matches a straight run.
+        if last_skipped_rng is not None:
+            ck.restore_rng_state(last_skipped_rng)
+            last_skipped_rng = None
+
         result = client.train_local(
             global_state=initial_state,
             model_factory=model_factory,
@@ -488,7 +518,19 @@ def train_local_only(
             seed=random_state + i,
         )
         # Trainable params come from local training; frozen backbone is shared with initial_state.
-        local_states[str(client.client_id)] = {**initial_state, **result.state_dict}
+        local_states[cid] = {**initial_state, **result.state_dict}
+
+        if checkpoint_every > 0 and client_ckpt_root is not None:
+            payload = {
+                "trainable_state": result.state_dict,
+                "rng": ck.capture_rng_state(),
+                "client_id": cid,
+            }
+            ck.save_checkpoint(
+                client_ckpt_root, i + 1, payload, checkpoint_config,
+                is_best=False, keep=checkpoint_keep, step_prefix="client",
+            )
+
         print(
             f"  - client={client.client_id} examples={result.num_examples} final_loss={result.loss:.6f}",
             flush=True,
@@ -1001,6 +1043,11 @@ def main() -> None:
             learning_rate=config.learning_rate,
             weight_decay=config.weight_decay,
             random_state=config.random_state,
+            save_dir=save_dir,
+            checkpoint_every=config.checkpoint_every,
+            checkpoint_keep=config.checkpoint_keep,
+            checkpoint_config=config,
+            resume=config.resume and config.resume_from is None,
         )
     else:
         print("[LocalOnly] Skipped (--skip-local-only).", flush=True)
