@@ -226,6 +226,7 @@ class FedProxServer:
 
             round_entry: Dict[str, Any] = {
                 "round": round_idx + 1,
+                "selected_clients": [str(cid) for cid in selected_client_ids],
                 "mean_local_loss": round_mean_loss,
                 "weighted_local_loss": weighted_round_loss,
             }
