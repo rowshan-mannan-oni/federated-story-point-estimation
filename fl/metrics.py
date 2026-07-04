@@ -90,12 +90,18 @@ def compute_communication_cost(
     total_params: int,
     rounds: int,
     num_clients: int,
+    head_type: str = "ce",
 ) -> Dict[str, Any]:
     """
     Per-round, per-client upload cost (float32), assuming only trainable
     parameters are transmitted (FFA-LoRA excludes the frozen backbone and
     frozen LoRA-A matrices). Compared against full fine-tuning, where every
     parameter would be transmitted, as the communication-cost baseline.
+
+    `trainable_params` must come from a probe model built with the run's actual
+    head_type — CE and CORN heads differ in size (num_classes vs num_classes-1
+    output logits), so this cost is not interchangeable between them. head_type
+    is recorded in the output for traceability.
     """
     bytes_per_param = 4  # float32
 
@@ -106,6 +112,7 @@ def compute_communication_cost(
     total_upload_bytes_full_finetune = bytes_per_round_full * rounds * num_clients
 
     return {
+        "head_type": head_type,
         "trainable_params": int(trainable_params),
         "total_params": int(total_params),
         "bytes_per_client_per_round": int(bytes_per_round_trainable),

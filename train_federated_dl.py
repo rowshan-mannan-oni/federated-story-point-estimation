@@ -765,6 +765,7 @@ def main() -> None:
         total_params=probe_total_params,
         rounds=config.rounds,
         num_clients=len(clients),
+        head_type=config.head_type,
     )
 
     # Local-only baseline: each client trains independently from the same warm-start
