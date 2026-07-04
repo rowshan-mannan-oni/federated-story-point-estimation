@@ -53,5 +53,16 @@ class FLConfig:
 
     num_classes: int = 5  # fixed: Fibonacci {1,2,3,5,8} → labels {0..4}
 
+    # Head / loss type (gap #12). "ce" = 5-logit softmax + class-weighted CrossEntropy
+    # (baseline/ablation, default for backward compatibility). "corn" = 4-logit CORN
+    # ordinal head + corn_loss (default for final experiments; pass --head-type corn).
+    head_type: str = "ce"
+
     # Device.
     device: str = "cuda"
+
+    def __post_init__(self):
+        if self.head_type not in ("ce", "corn"):
+            raise ValueError(
+                f"head_type must be 'ce' or 'corn', got {self.head_type!r}"
+            )
