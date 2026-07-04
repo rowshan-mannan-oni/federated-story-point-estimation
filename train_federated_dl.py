@@ -79,12 +79,33 @@ def train_centralized(
     weight_decay: float,
     class_weights: torch.Tensor,
     log_every: int = 1,
+    ckpt_root: Optional[Path] = None,
+    checkpoint_every: int = 0,
+    checkpoint_keep: int = 2,
+    checkpoint_config: Optional[FLConfig] = None,
+    resume_payload: Optional[Dict[str, Any]] = None,
 ) -> nn.Module:
     model.train()
     optimizer = AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))  # CE head only; CORN ignores weights
     head_type = getattr(model, "head_type", "ce")
     num_classes = getattr(model, "num_classes", class_weights.numel())
+
+    # Trainable-only keys — the frozen backbone is never checkpointed (gap #13).
+    trainable_keys = [n for n, p in model.named_parameters() if p.requires_grad]
+
+    # Resume: restore trainable params, optimizer state, epoch index, and RNG.
+    start_epoch = 0
+    if resume_payload is not None:
+        model.load_state_dict(resume_payload["model_state"], strict=False)
+        optimizer.load_state_dict(resume_payload["optimizer"])
+        for opt_state in optimizer.state.values():
+            for sk, sv in opt_state.items():
+                if isinstance(sv, torch.Tensor):
+                    opt_state[sk] = sv.to(device)
+        start_epoch = int(resume_payload["epoch"])
+        ck.restore_rng_state(resume_payload["rng"])
+        print(f"[Centralized] Resumed from epoch {start_epoch}; continuing to {epochs}.", flush=True)
 
     print(
         f"[Centralized] Starting training: epochs={epochs}, batches_per_epoch={len(train_loader)}",
@@ -93,7 +114,7 @@ def train_centralized(
 
     train_start = time.perf_counter()
 
-    for epoch_idx in range(epochs):
+    for epoch_idx in range(start_epoch, epochs):
         epoch_start = time.perf_counter()
         epoch_loss_sum = 0.0
         epoch_batches = 0
@@ -125,6 +146,23 @@ def train_centralized(
                 f"eta={eta_seconds:.1f}s",
                 flush=True,
             )
+
+        # Per-epoch checkpoint (gap #13): trainable state + optimizer + epoch + RNG.
+        if checkpoint_every > 0 and ckpt_root is not None and (
+            done % checkpoint_every == 0 or done == epochs
+        ):
+            full_state = model.state_dict()
+            payload: Dict[str, Any] = {
+                "epoch": done,
+                "model_state": {k: full_state[k].detach().cpu().clone() for k in trainable_keys},
+                "optimizer": optimizer.state_dict(),
+                "rng": ck.capture_rng_state(),
+            }
+            ck.save_checkpoint(
+                ckpt_root, done, payload, checkpoint_config,
+                is_best=False, keep=checkpoint_keep, step_prefix="epoch",
+            )
+            print(f"[Centralized][Checkpoint] saved epoch {done} to {ckpt_root}", flush=True)
 
     return model
 
@@ -877,6 +915,16 @@ def main() -> None:
     else:
         global_class_weights = compute_class_weights(train_dataset.labels, config.num_classes)
         centralized_model = model_factory().to(device)
+
+        # Checkpoint / resume wiring (gap #13) for the centralized phase.
+        central_ckpt_root = ck.centralized_ckpt_root(save_dir)
+        central_resume_payload = None
+        if config.resume and config.resume_from is None:
+            latest = ck.latest_checkpoint_dir(central_ckpt_root)
+            if latest is not None:
+                print(f"[Centralized] Auto-resuming from latest checkpoint: {latest}", flush=True)
+                central_resume_payload, _ = ck.load_checkpoint(latest, config)
+
         centralized_model = train_centralized(
             model=centralized_model,
             train_loader=train_loader,
@@ -886,6 +934,11 @@ def main() -> None:
             weight_decay=config.weight_decay,
             class_weights=global_class_weights,
             log_every=max(1, args.central_log_every),
+            ckpt_root=central_ckpt_root,
+            checkpoint_every=config.checkpoint_every,
+            checkpoint_keep=config.checkpoint_keep,
+            checkpoint_config=config,
+            resume_payload=central_resume_payload,
         )
         centralized_artifact = save_model_artifact(
             save_root=save_dir,
