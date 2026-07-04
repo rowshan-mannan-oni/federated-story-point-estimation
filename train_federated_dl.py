@@ -944,32 +944,60 @@ def main() -> None:
     baseline_metrics = evaluate_classification(y_test_labels, baseline_pred, config.num_classes)
 
     # Warm-start: pretrain LoRA + head on Lsstcorp with early stopping on val macro-F1.
+    # On --resume, reuse a cached warm-start (skip retraining): the saved state carries the
+    # same weights + frozen LoRA-A, and the RNG snapshot taken right after warm-start is
+    # restored so every downstream phase (baselines, federated) stays bit-reproducible. This
+    # matters a lot for short daily sessions — otherwise every resume re-pays warm-start.
     ws_class_weights = compute_class_weights(ws_train_dataset.labels, config.num_classes)
-    warmstart_model = model_factory().to(device)
-    warmstart_state, warmstart_val_f1 = train_warmstart(
-        model=warmstart_model,
-        train_loader=ws_train_loader,
-        val_loader=ws_val_loader,
-        val_labels=ws_val_dataset.labels,
-        device=device,
-        max_epochs=config.warmstart_epochs,
-        patience=config.warmstart_patience,
-        learning_rate=config.warmstart_lr,
-        weight_decay=config.weight_decay,
-        class_weights=ws_class_weights,
-        num_classes=config.num_classes,
-    )
-    print(f"[Warmstart] Best val macro-F1: {warmstart_val_f1:.4f}", flush=True)
+    warmstart_dir = save_dir / "warmstart"
+    ws_state_path = warmstart_dir / "model_state.pt"
+    ws_cache_path = warmstart_dir / "warmstart_cache.pt"
+    reuse_warmstart = config.resume and ws_state_path.exists() and ws_cache_path.exists()
 
-    warmstart_artifact = save_model_artifact(
-        save_root=save_dir,
-        artifact_name="warmstart",
-        model=warmstart_model,
-        tokenizer=tokenizer,
-        config=config,
-        type_to_id=bundle.type_to_id,
-        priority_to_id=bundle.priority_to_id,
-    )
+    warmstart_model = model_factory().to(device)
+    if reuse_warmstart:
+        warmstart_model.load_state_dict(torch.load(ws_state_path, map_location="cpu", weights_only=False))
+        warmstart_state = {k: v.detach().cpu().clone() for k, v in warmstart_model.state_dict().items()}
+        cache = torch.load(ws_cache_path, map_location="cpu", weights_only=False)
+        ck.restore_rng_state(cache["rng"])
+        warmstart_val_f1 = float(cache.get("val_macro_f1", float("nan")))
+        warmstart_artifact = warmstart_dir
+        print(
+            f"[Warmstart] Reused cached warm-start (skipped retraining). "
+            f"Cached val macro-F1: {warmstart_val_f1:.4f}",
+            flush=True,
+        )
+    else:
+        warmstart_state, warmstart_val_f1 = train_warmstart(
+            model=warmstart_model,
+            train_loader=ws_train_loader,
+            val_loader=ws_val_loader,
+            val_labels=ws_val_dataset.labels,
+            device=device,
+            max_epochs=config.warmstart_epochs,
+            patience=config.warmstart_patience,
+            learning_rate=config.warmstart_lr,
+            weight_decay=config.weight_decay,
+            class_weights=ws_class_weights,
+            num_classes=config.num_classes,
+        )
+        print(f"[Warmstart] Best val macro-F1: {warmstart_val_f1:.4f}", flush=True)
+
+        warmstart_artifact = save_model_artifact(
+            save_root=save_dir,
+            artifact_name="warmstart",
+            model=warmstart_model,
+            tokenizer=tokenizer,
+            config=config,
+            type_to_id=bundle.type_to_id,
+            priority_to_id=bundle.priority_to_id,
+        )
+        # Cache the post-warm-start RNG + val metric so a later --resume can skip retraining
+        # while keeping the downstream RNG identical to this uninterrupted run.
+        torch.save(
+            {"rng": ck.capture_rng_state(), "val_macro_f1": warmstart_val_f1},
+            ws_cache_path,
+        )
 
     # Centralized deep model reference on FL data (fair comparison — same 18 projects as FL).
     centralized_model = None
