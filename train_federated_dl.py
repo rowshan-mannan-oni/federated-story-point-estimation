@@ -650,6 +650,14 @@ def main() -> None:
     parser.add_argument("--skip-local-only", action="store_true")
     parser.add_argument("--run-no-warmstart-fl", action="store_true")
     parser.add_argument("--central-log-every", type=int, default=1)
+    parser.add_argument("--checkpoint-every", type=int, default=0,
+                        help="Checkpoint frequency (0=off). Unit: epochs for centralized/local-only, global rounds for federated")
+    parser.add_argument("--checkpoint-keep", type=int, default=2,
+                        help="Number of numbered checkpoints to retain (latest/ and best/ are always kept)")
+    parser.add_argument("--resume", action="store_true",
+                        help="Auto-detect and resume from the latest checkpoint under <save-dir>/checkpoints/")
+    parser.add_argument("--resume-from", type=str, default=None,
+                        help="Resume from an explicit checkpoint dir (overrides --resume auto-detection)")
     parser.add_argument("--save-dir", type=str, default="artifacts")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"])
@@ -677,6 +685,10 @@ def main() -> None:
         head_type=args.head_type,
         personalized_head=args.personalized_head,
         generic_head=args.generic_head,
+        checkpoint_every=args.checkpoint_every,
+        checkpoint_keep=args.checkpoint_keep,
+        resume=args.resume,
+        resume_from=args.resume_from,
         clients_per_round_fraction=args.clients_per_round_fraction,
         local_sample_ratio_per_epoch=args.local_sample_ratio_per_epoch,
         sample_with_replacement=args.sample_with_replacement,

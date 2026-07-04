@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional
 
 
 @dataclass
@@ -68,6 +69,16 @@ class FLConfig:
     # initialize new/external clients (LOPO onboarding). Never pushed back to participants.
     generic_head: bool = False
 
+    # Checkpoint / resume (gap #13). checkpoint_every: 0 = off; unit is EPOCHS for
+    # centralized & local-only, GLOBAL ROUNDS for federated. resume auto-detects the
+    # latest checkpoint under <save-dir>/checkpoints/; resume_from overrides with an
+    # explicit checkpoint dir. checkpoint_keep = numbered checkpoints retained (latest/
+    # and best/ are always kept on top).
+    checkpoint_every: int = 0
+    resume: bool = False
+    resume_from: Optional[str] = None
+    checkpoint_keep: int = 2
+
     # Device.
     device: str = "cuda"
 
@@ -76,3 +87,7 @@ class FLConfig:
             raise ValueError(
                 f"head_type must be 'ce' or 'corn', got {self.head_type!r}"
             )
+        if self.checkpoint_every < 0:
+            raise ValueError(f"checkpoint_every must be >= 0, got {self.checkpoint_every}")
+        if self.checkpoint_keep < 0:
+            raise ValueError(f"checkpoint_keep must be >= 0, got {self.checkpoint_keep}")
