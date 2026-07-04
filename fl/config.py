@@ -58,6 +58,11 @@ class FLConfig:
     # ordinal head + corn_loss (default for final experiments; pass --head-type corn).
     head_type: str = "ce"
 
+    # Personalized head (gap #11, FedSP-PEFT-P). When True, the classification head
+    # stays LOCAL per client (never aggregated); only LoRA-B + embeddings are federated.
+    # Targets the project-specific story-point calibration problem (FedPer/FedRep-style).
+    personalized_head: bool = False
+
     # Device.
     device: str = "cuda"
 

@@ -492,6 +492,8 @@ def main() -> None:
     parser.add_argument("--prox-mu", type=float, default=1e-2)
     parser.add_argument("--head-type", type=str, default="ce", choices=["ce", "corn"],
                         help="Classification head/loss: 'ce' (softmax + CrossEntropy) or 'corn' (ordinal CORN head + loss)")
+    parser.add_argument("--personalized-head", action="store_true",
+                        help="Keep the classification head local per client (FedSP-PEFT-P); only LoRA-B + embeddings are aggregated")
     parser.add_argument("--clients-per-round-fraction", "--fraction", dest="clients_per_round_fraction", type=float, default=1.0)
     parser.add_argument("--local-sample-ratio-per-epoch", type=float, default=1.0)
     parser.add_argument("--sample-with-replacement", action="store_true")
@@ -537,6 +539,7 @@ def main() -> None:
         weight_decay=args.weight_decay,
         prox_mu=args.prox_mu,
         head_type=args.head_type,
+        personalized_head=args.personalized_head,
         clients_per_round_fraction=args.clients_per_round_fraction,
         local_sample_ratio_per_epoch=args.local_sample_ratio_per_epoch,
         sample_with_replacement=args.sample_with_replacement,
