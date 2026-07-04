@@ -117,6 +117,7 @@ class FedProxServer:
                     weight_decay=weight_decay,
                     prox_mu=prox_mu,
                     seed=client_seed,
+                    personalized_head=personalized_head,
                 )
 
                 weight = float(result.num_examples)

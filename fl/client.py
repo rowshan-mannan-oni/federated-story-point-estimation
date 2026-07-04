@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, Subset
 from transformers import AutoTokenizer
 
 from fl.data import IssueDataset, compute_class_weights
-from fl.model import compute_head_loss
+from fl.model import compute_head_loss, is_head_param
 
 
 @dataclass
@@ -95,6 +95,7 @@ class FederatedClient:
         weight_decay: float,
         prox_mu: float,
         seed: int,
+        personalized_head: bool = False,
     ) -> ClientOutput:
         rng = np.random.default_rng(seed)
 
@@ -108,12 +109,22 @@ class FederatedClient:
         class_weights = compute_class_weights(self.dataset.labels, self.num_classes).to(device)
         criterion = nn.CrossEntropyLoss(weight=class_weights)
         head_type = getattr(model, "head_type", "ce")
-        # Only load trainable params for the proximal term — avoids double-loading the
+
+        # The FedProx proximal term is computed over AGGREGATABLE params only — the params
+        # that have a global reference point on the server. This restriction is applied
+        # unconditionally: in shared-head mode the head IS aggregated, so it's included and
+        # behavior is unchanged; in personalized-head mode the local head has no global
+        # counterpart (never aggregated), so anchoring it to the global state would be
+        # meaningless and would undo personalization — it's excluded.
+        def is_aggregatable(name: str, param) -> bool:
+            return param.requires_grad and not (personalized_head and is_head_param(name))
+
+        # Only load aggregatable params for the proximal term — avoids double-loading the
         # frozen backbone (~264MB for DistilBERT) that is already on device via model.to(device).
         global_params = {
             name: global_state[name].to(device)
             for name, param in model.named_parameters()
-            if param.requires_grad
+            if is_aggregatable(name, param)
         }
 
         running_loss = 0.0
@@ -148,7 +159,7 @@ class FederatedClient:
                 if prox_mu > 0.0:
                     prox_term = torch.zeros((), device=device)
                     for name, param in model.named_parameters():
-                        if param.requires_grad:  # B + head only when FFA-LoRA on
+                        if is_aggregatable(name, param):  # aggregatable only (see note above)
                             prox_term += torch.sum((param - global_params[name]) ** 2)
                     loss = loss + 0.5 * prox_mu * prox_term
 
