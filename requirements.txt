@@ -6,6 +6,7 @@ scikit-learn>=1.3
 torch==2.6.0+cu124
 transformers>=4.41,<5.0
 peft>=0.19
+coral-pytorch>=1.4.0
 protobuf>=4.25
 sentencepiece>=0.2.0
 openpyxl>=3.1
