@@ -202,6 +202,38 @@ def train_warmstart(
     return best_state, best_macro_f1
 
 
+def _artifact_metadata(
+    config: FLConfig,
+    type_to_id: Dict[str, int],
+    priority_to_id: Dict[str, int],
+) -> Dict[str, Any]:
+    """Model-reconstruction metadata shared by shared-head and personalized artifacts."""
+    return {
+        "model_name": config.model_name,
+        "max_length": config.max_length,
+        "num_classes": config.num_classes,
+        "label_map": {str(k): v for k, v in LABEL_MAP.items()},
+        "inv_label_map": {str(k): v for k, v in INV_LABEL_MAP.items()},
+        "categorical_emb_dim": config.categorical_emb_dim,
+        "hidden_dim": config.hidden_dim,
+        "dropout": config.dropout,
+        "freeze_encoder": config.freeze_encoder,
+        "use_lora": config.use_lora,
+        "lora_r": config.lora_r,
+        "lora_alpha": config.lora_alpha,
+        "lora_dropout": config.lora_dropout,
+        "lora_target_modules": list(config.lora_target_modules),
+        "ffa_lora": config.ffa_lora,
+        "head_type": config.head_type,
+        "personalized_head": config.personalized_head,
+        "prox_mu": config.prox_mu,
+        "num_types": len(type_to_id),
+        "num_priorities": len(priority_to_id),
+        "type_to_id": type_to_id,
+        "priority_to_id": priority_to_id,
+    }
+
+
 def save_model_artifact(
     save_root: Path,
     artifact_name: str,
@@ -218,29 +250,66 @@ def save_model_artifact(
     torch.save(model.state_dict(), artifact_dir / "model_state.pt")
     tokenizer.save_pretrained(tokenizer_dir)
 
-    metadata = {
-        "model_name": config.model_name,
-        "max_length": config.max_length,
-        "num_classes": config.num_classes,
-        "label_map": {str(k): v for k, v in LABEL_MAP.items()},
-        "inv_label_map": {str(k): v for k, v in INV_LABEL_MAP.items()},
-        "categorical_emb_dim": config.categorical_emb_dim,
-        "hidden_dim": config.hidden_dim,
-        "dropout": config.dropout,
-        "freeze_encoder": config.freeze_encoder,
-        "use_lora": config.use_lora,
-        "lora_r": config.lora_r,
-        "lora_alpha": config.lora_alpha,
-        "lora_dropout": config.lora_dropout,
-        "lora_target_modules": list(config.lora_target_modules),
-        "ffa_lora": config.ffa_lora,
-        "prox_mu": config.prox_mu,
-        "num_types": len(type_to_id),
-        "num_priorities": len(priority_to_id),
-        "type_to_id": type_to_id,
-        "priority_to_id": priority_to_id,
-    }
+    metadata = _artifact_metadata(config, type_to_id, priority_to_id)
 
+    with (artifact_dir / "metadata.json").open("w", encoding="utf-8") as handle:
+        json.dump(metadata, handle, indent=2)
+
+    return artifact_dir
+
+
+def compute_generic_head(
+    client_heads: Dict[str, Dict[str, torch.Tensor]],
+    client_sizes: Dict[str, int],
+) -> Dict[str, torch.Tensor]:
+    """One-way weighted average of the per-client heads (weight = client train size).
+
+    Used ONLY to initialize new/external clients (LOPO onboarding); never pushed back
+    to participants. Weights come from each client's own example count.
+    """
+    total = float(sum(client_sizes.get(cid, 0) for cid in client_heads)) or 1.0
+    generic: Dict[str, torch.Tensor] = {}
+    for cid, head in client_heads.items():
+        weight = client_sizes.get(cid, 0) / total
+        for key, tensor in head.items():
+            contribution = tensor.detach().cpu() * weight
+            generic[key] = contribution if key not in generic else generic[key] + contribution
+    return generic
+
+
+def save_personalized_federated_artifact(
+    save_root: Path,
+    artifact_name: str,
+    shared_state: Dict[str, torch.Tensor],
+    client_heads: Dict[str, Dict[str, torch.Tensor]],
+    tokenizer: AutoTokenizer,
+    config: FLConfig,
+    type_to_id: Dict[str, int],
+    priority_to_id: Dict[str, int],
+    generic_head: Optional[Dict[str, torch.Tensor]] = None,
+) -> Path:
+    """
+    Personalized-head artifact layout (gap #11):
+        <artifact_name>/shared_state.pt      full loadable state (shared repr + placeholder head)
+        <artifact_name>/heads/<project>.pt   per-client head params, overlaid at inference
+        <artifact_name>/generic_head.pt      optional one-way head average (onboarding only)
+        <artifact_name>/{tokenizer, metadata.json}
+    """
+    artifact_dir = save_root / artifact_name
+    heads_dir = artifact_dir / "heads"
+    heads_dir.mkdir(parents=True, exist_ok=True)
+
+    torch.save(shared_state, artifact_dir / "shared_state.pt")
+    for cid, head in client_heads.items():
+        torch.save(head, heads_dir / f"{cid}.pt")
+    if generic_head is not None:
+        torch.save(generic_head, artifact_dir / "generic_head.pt")
+    tokenizer.save_pretrained(artifact_dir / "tokenizer")
+
+    metadata = _artifact_metadata(config, type_to_id, priority_to_id)
+    metadata["artifact_layout"] = "personalized"
+    metadata["client_ids"] = sorted(client_heads)
+    metadata["has_generic_head"] = generic_head is not None
     with (artifact_dir / "metadata.json").open("w", encoding="utf-8") as handle:
         json.dump(metadata, handle, indent=2)
 
@@ -559,6 +628,8 @@ def main() -> None:
                         help="Classification head/loss: 'ce' (softmax + CrossEntropy) or 'corn' (ordinal CORN head + loss)")
     parser.add_argument("--personalized-head", action="store_true",
                         help="Keep the classification head local per client (FedSP-PEFT-P); only LoRA-B + embeddings are aggregated")
+    parser.add_argument("--generic-head", action="store_true",
+                        help="Personalized mode only: also save a one-way weighted average of client heads as generic_head.pt (for new-client onboarding); never pushed to participants")
     parser.add_argument("--clients-per-round-fraction", "--fraction", dest="clients_per_round_fraction", type=float, default=1.0)
     parser.add_argument("--local-sample-ratio-per-epoch", type=float, default=1.0)
     parser.add_argument("--sample-with-replacement", action="store_true")
@@ -605,6 +676,7 @@ def main() -> None:
         prox_mu=args.prox_mu,
         head_type=args.head_type,
         personalized_head=args.personalized_head,
+        generic_head=args.generic_head,
         clients_per_round_fraction=args.clients_per_round_fraction,
         local_sample_ratio_per_epoch=args.local_sample_ratio_per_epoch,
         sample_with_replacement=args.sample_with_replacement,
@@ -889,15 +961,33 @@ def main() -> None:
     federated_model = model_factory().to(device)
     federated_model.load_state_dict(fed_state)
 
-    federated_artifact = save_model_artifact(
-        save_root=save_dir,
-        artifact_name="federated",
-        model=federated_model,
-        tokenizer=tokenizer,
-        config=config,
-        type_to_id=bundle.type_to_id,
-        priority_to_id=bundle.priority_to_id,
-    )
+    if config.personalized_head:
+        # Personalized layout: shared_state.pt + per-project heads (+ optional generic head).
+        client_sizes = {str(c.client_id): len(c.dataset) for c in clients}
+        generic_head_state = (
+            compute_generic_head(fed_client_heads, client_sizes) if config.generic_head else None
+        )
+        federated_artifact = save_personalized_federated_artifact(
+            save_root=save_dir,
+            artifact_name="federated",
+            shared_state=fed_state,
+            client_heads=fed_client_heads,
+            tokenizer=tokenizer,
+            config=config,
+            type_to_id=bundle.type_to_id,
+            priority_to_id=bundle.priority_to_id,
+            generic_head=generic_head_state,
+        )
+    else:
+        federated_artifact = save_model_artifact(
+            save_root=save_dir,
+            artifact_name="federated",
+            model=federated_model,
+            tokenizer=tokenizer,
+            config=config,
+            type_to_id=bundle.type_to_id,
+            priority_to_id=bundle.priority_to_id,
+        )
 
     # Warm-start ablation (gap #7): also run FL from random init, using a fresh
     # server with the same random_state so both runs select the same per-round
@@ -929,15 +1019,32 @@ def main() -> None:
         federated_model_nw = model_factory().to(device)
         federated_model_nw.load_state_dict(fed_state_nw)
 
-        federated_artifact_nw = save_model_artifact(
-            save_root=save_dir,
-            artifact_name="federated_no_warmstart",
-            model=federated_model_nw,
-            tokenizer=tokenizer,
-            config=config,
-            type_to_id=bundle.type_to_id,
-            priority_to_id=bundle.priority_to_id,
-        )
+        if config.personalized_head:
+            client_sizes = {str(c.client_id): len(c.dataset) for c in clients}
+            generic_head_state_nw = (
+                compute_generic_head(fed_client_heads_nw, client_sizes) if config.generic_head else None
+            )
+            federated_artifact_nw = save_personalized_federated_artifact(
+                save_root=save_dir,
+                artifact_name="federated_no_warmstart",
+                shared_state=fed_state_nw,
+                client_heads=fed_client_heads_nw,
+                tokenizer=tokenizer,
+                config=config,
+                type_to_id=bundle.type_to_id,
+                priority_to_id=bundle.priority_to_id,
+                generic_head=generic_head_state_nw,
+            )
+        else:
+            federated_artifact_nw = save_model_artifact(
+                save_root=save_dir,
+                artifact_name="federated_no_warmstart",
+                model=federated_model_nw,
+                tokenizer=tokenizer,
+                config=config,
+                type_to_id=bundle.type_to_id,
+                priority_to_id=bundle.priority_to_id,
+            )
 
         if config.personalized_head:
             fed_results_nw = evaluate_per_project_personalized(

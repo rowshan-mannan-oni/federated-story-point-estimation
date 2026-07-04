@@ -117,6 +117,10 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"])
     parser.add_argument("--out-csv", type=str, default="predictions.csv")
+    parser.add_argument("--head-project", type=str, default=None,
+                        help="Personalized artifact only: name of the per-project head to overlay (loads heads/<name>.pt)")
+    parser.add_argument("--generic-head", action="store_true",
+                        help="Personalized artifact only: use the saved generic_head.pt instead of a per-project head")
     args = parser.parse_args()
 
     artifact_dir = Path(args.artifact_dir)
@@ -128,6 +132,7 @@ def main() -> None:
     type_to_id: Dict[str, int] = metadata["type_to_id"]
     priority_to_id: Dict[str, int] = metadata["priority_to_id"]
 
+    head_type = metadata.get("head_type", "ce")
     model = StoryPointClassifier(
         model_name=metadata["model_name"],
         num_types=metadata["num_types"],
@@ -143,9 +148,39 @@ def main() -> None:
         lora_dropout=metadata.get("lora_dropout", 0.05),
         lora_target_modules=metadata.get("lora_target_modules", ["query", "value"]),
         ffa_lora=metadata.get("ffa_lora", True),
+        head_type=head_type,
     )
 
-    state_dict = torch.load(artifact_dir / "model_state.pt", map_location="cpu")
+    if metadata.get("artifact_layout") == "personalized":
+        # Personalized artifact: shared_state.pt + a per-project (or generic) head overlaid.
+        state_dict = torch.load(artifact_dir / "shared_state.pt", map_location="cpu")
+        if args.generic_head:
+            head_path = artifact_dir / "generic_head.pt"
+            if not head_path.exists():
+                raise FileNotFoundError(
+                    f"--generic-head requested but {head_path} not found "
+                    "(re-run training with --generic-head)."
+                )
+            head_state = torch.load(head_path, map_location="cpu")
+            print("[Predict] Using generic head.", flush=True)
+        elif args.head_project is not None:
+            head_path = artifact_dir / "heads" / f"{args.head_project}.pt"
+            if not head_path.exists():
+                available = sorted(p.stem for p in (artifact_dir / "heads").glob("*.pt"))
+                raise FileNotFoundError(
+                    f"Head for project '{args.head_project}' not found at {head_path}. "
+                    f"Available: {available}"
+                )
+            head_state = torch.load(head_path, map_location="cpu")
+            print(f"[Predict] Using per-project head: {args.head_project}.", flush=True)
+        else:
+            raise ValueError(
+                "This is a personalized artifact - pass --head-project <name> to use a "
+                "specific project's head, or --generic-head for the averaged head."
+            )
+        state_dict = {**state_dict, **head_state}
+    else:
+        state_dict = torch.load(artifact_dir / "model_state.pt", map_location="cpu")
     model.load_state_dict(state_dict)
 
     device = choose_device(args.device)
@@ -163,12 +198,18 @@ def main() -> None:
 
     inv_label_map = {int(k): int(v) for k, v in metadata["inv_label_map"].items()}
 
+    if head_type == "corn":
+        from coral_pytorch.dataset import corn_label_from_logits
+
     predictions: List[np.ndarray] = []
     with torch.no_grad():
         for batch in loader:
             batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
             logits = model(batch).detach().cpu()
-            predictions.append(logits.argmax(dim=1).numpy())
+            if head_type == "corn":
+                predictions.append(corn_label_from_logits(logits).numpy())
+            else:
+                predictions.append(logits.argmax(dim=1).numpy())
 
     pred_labels = np.concatenate(predictions, axis=0)
     pred_story_points = np.array([inv_label_map[int(p)] for p in pred_labels], dtype=np.int64)

@@ -63,6 +63,11 @@ class FLConfig:
     # Targets the project-specific story-point calibration problem (FedPer/FedRep-style).
     personalized_head: bool = False
 
+    # Generic head (gap #11 / gap #14). Personalized mode only: additionally save a
+    # one-way weighted average of the per-client heads as generic_head.pt, used ONLY to
+    # initialize new/external clients (LOPO onboarding). Never pushed back to participants.
+    generic_head: bool = False
+
     # Device.
     device: str = "cuda"
 
