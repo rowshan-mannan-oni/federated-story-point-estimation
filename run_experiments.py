@@ -20,10 +20,20 @@ train_federated_dl.py for BOTH runs (e.g. --data-dir, --model-name,
 --seed, --prox-mu, --save-dir, --skip-centralized, or --skip-local-only as
 passthrough args — the runner sets these itself for each run.
 
+Checkpoint/resume flags (gap #13) are passthrough too — forwarding
+--checkpoint-every / --checkpoint-keep / --resume / --resume-from applies them
+to every per-seed run, and since each run gets its own per-condition
+--save-dir, each resumes only from its OWN checkpoints. Resume is two-layered:
+the per-seed skip below (a seed/condition whose federated_per_project.json
+already exists is skipped entirely) is the COARSE layer; the within-run
+checkpoints under each save-dir are the FINE layer that resumes a run that was
+interrupted before it wrote its results JSON.
+
 Example:
     python run_experiments.py --data-dir data_to_train_on --seeds 42-51 \\
         --results-root experiments --model-name microsoft/codebert-base \\
-        --max-length 384 --rounds 20 --batch-size 8
+        --max-length 384 --rounds 20 --batch-size 8 \\
+        --checkpoint-every 5 --resume
 """
 
 import argparse
