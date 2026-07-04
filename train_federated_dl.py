@@ -283,6 +283,66 @@ def evaluate_per_project(
     return results
 
 
+def evaluate_per_project_personalized(
+    shared_state: Dict[str, torch.Tensor],
+    client_heads: Dict[str, Dict[str, torch.Tensor]],
+    model_factory,
+    test_df: pd.DataFrame,
+    type_to_id: Dict[str, int],
+    priority_to_id: Dict[str, int],
+    collate_fn,
+    device: torch.device,
+    batch_size: int,
+    num_classes: int,
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Personalized-head test evaluation: each client is evaluated with the shared
+    representation plus ITS OWN head on ITS OWN test split. There is NO pooled
+    "global" entry — a pooled metric is undefined when every client uses a
+    different head (report per-project + mean/median instead).
+    """
+    results: Dict[str, Dict[str, Any]] = {}
+    for client_id, group in test_df.groupby("client_id"):
+        cid = str(client_id)
+        model = model_factory().to(device)
+        state = dict(shared_state)
+        if cid in client_heads:
+            state.update(client_heads[cid])
+        model.load_state_dict(state)
+        model.eval()
+
+        dataset = IssueDataset(group.reset_index(drop=True), type_to_id, priority_to_id)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+        pred = run_prediction(model, loader, device)
+
+        metrics = evaluate_classification(dataset.labels, pred, num_classes)
+        metrics["n_test"] = int(len(dataset.labels))
+        results[cid] = metrics
+        del model
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
+
+    return results
+
+
+def mean_metrics_across_projects(results: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Aggregate per-project metrics into an unweighted mean across projects (used
+    for printouts/comparisons in personalized mode, where no pooled-global entry
+    exists). Excludes any "global" key if present.
+    """
+    pids = [k for k in results if k != "global"]
+    per_class = np.mean([results[k]["per_class_f1"] for k in pids], axis=0).tolist()
+    return {
+        "accuracy": float(np.mean([results[k]["accuracy"] for k in pids])),
+        "macro_f1": float(np.mean([results[k]["macro_f1"] for k in pids])),
+        "per_class_f1": per_class,
+        "mae": float(np.mean([results[k]["mae"] for k in pids])),
+        "cohen_kappa": float(np.mean([results[k]["cohen_kappa"] for k in pids])),
+        "n_test": int(sum(results[k]["n_test"] for k in pids)),
+    }
+
+
 def train_local_only(
     clients: List[FederatedClient],
     model_factory,
@@ -381,7 +441,10 @@ def build_summary_df(
     local_results: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> pd.DataFrame:
     sp_labels = [1, 2, 3, 5, 8]
-    project_ids = sorted(k for k in fed_results if k != "global") + ["global"]
+    # Personalized mode has no pooled "global" entry; append it only if present.
+    project_ids = sorted(k for k in fed_results if k != "global")
+    if "global" in fed_results:
+        project_ids = project_ids + ["global"]
     rows = []
     for pid in project_ids:
         fed = fed_results[pid]
@@ -874,20 +937,35 @@ def main() -> None:
             priority_to_id=bundle.priority_to_id,
         )
 
-        fed_results_nw = evaluate_per_project(
-            federated_model_nw, bundle.test_df,
-            bundle.type_to_id, bundle.priority_to_id,
-            collate_fn, device, config.batch_size, config.num_classes,
-        )
+        if config.personalized_head:
+            fed_results_nw = evaluate_per_project_personalized(
+                fed_state_nw, fed_client_heads_nw, model_factory, bundle.test_df,
+                bundle.type_to_id, bundle.priority_to_id,
+                collate_fn, device, config.batch_size, config.num_classes,
+            )
+        else:
+            fed_results_nw = evaluate_per_project(
+                federated_model_nw, bundle.test_df,
+                bundle.type_to_id, bundle.priority_to_id,
+                collate_fn, device, config.batch_size, config.num_classes,
+            )
         del federated_model_nw
 
     # Per-project evaluation — both models evaluated on each FL client's test split.
     print("\n[Eval] Running per-project evaluation ...", flush=True)
-    fed_results = evaluate_per_project(
-        federated_model, bundle.test_df,
-        bundle.type_to_id, bundle.priority_to_id,
-        collate_fn, device, config.batch_size, config.num_classes,
-    )
+    if config.personalized_head:
+        # Personalized mode: each client uses its own head; no pooled-global entry.
+        fed_results = evaluate_per_project_personalized(
+            fed_state, fed_client_heads, model_factory, bundle.test_df,
+            bundle.type_to_id, bundle.priority_to_id,
+            collate_fn, device, config.batch_size, config.num_classes,
+        )
+    else:
+        fed_results = evaluate_per_project(
+            federated_model, bundle.test_df,
+            bundle.type_to_id, bundle.priority_to_id,
+            collate_fn, device, config.batch_size, config.num_classes,
+        )
     central_results = (
         evaluate_per_project(
             centralized_model, bundle.test_df,
@@ -905,7 +983,12 @@ def main() -> None:
         if local_states is not None else None
     )
 
-    federated_metrics = fed_results["global"]
+    # In personalized mode there is no pooled-global entry; use the mean across projects
+    # for the aggregate printouts and improvement comparisons.
+    if config.personalized_head:
+        federated_metrics = mean_metrics_across_projects(fed_results)
+    else:
+        federated_metrics = fed_results["global"]
     centralized_metrics = central_results["global"] if central_results is not None else None
     local_metrics = local_results["global"] if local_results is not None else None
 
@@ -923,7 +1006,8 @@ def main() -> None:
     print(f"  Model: {config.model_name} | Device: {device}")
     print(f"  Federated condition: {fl_condition} (prox_mu={config.prox_mu:g})")
 
-    print("\nClassification metrics — global pooled (primary: Macro-F1)")
+    agg_label = "per-project mean" if config.personalized_head else "global pooled"
+    print(f"\nClassification metrics — {agg_label} (primary: Macro-F1)")
     print(format_metrics("Baseline (Majority)", baseline_metrics))
     if local_metrics is not None:
         print(format_metrics("Local-only DL", local_metrics))
@@ -931,7 +1015,11 @@ def main() -> None:
         print(format_metrics("Centralized DL", centralized_metrics))
     print(format_metrics(fl_condition, federated_metrics))
     if fed_results_nw is not None:
-        print(format_metrics(f"{fl_condition} (no warmstart)", fed_results_nw["global"]))
+        nw_metrics = (
+            mean_metrics_across_projects(fed_results_nw)
+            if config.personalized_head else fed_results_nw["global"]
+        )
+        print(format_metrics(f"{fl_condition} (no warmstart)", nw_metrics))
     print(f"  Warmstart best val macro-F1: {warmstart_val_f1:.4f}")
 
     print(f"\nPer-project summary ({fl_condition} vs Centralized vs Local-only):")
@@ -942,18 +1030,22 @@ def main() -> None:
             f"{fl_condition} loss history: first={fed_history[0]['mean_local_loss']:.6f}, "
             f"last={fed_history[-1]['mean_local_loss']:.6f}, rounds={len(fed_history)}"
         )
-        val_f1_history = [entry["val_macro_f1"] for entry in fed_history if "val_macro_f1" in entry]
+        # Shared mode records "val_macro_f1"; personalized mode records the weighted mean
+        # across clients as "weighted_val_macro_f1". Select on whichever is present.
+        val_key = "weighted_val_macro_f1" if config.personalized_head else "val_macro_f1"
+        val_f1_history = [entry[val_key] for entry in fed_history if val_key in entry]
         if val_f1_history:
-            best_round = max(fed_history, key=lambda e: e.get("val_macro_f1", -1.0))["round"]
+            best_round = max(fed_history, key=lambda e: e.get(val_key, -1.0))["round"]
             print(
-                f"{fl_condition} val Macro-F1 history: first={val_f1_history[0]:.4f}, "
+                f"{fl_condition} val Macro-F1 history ({val_key}): first={val_f1_history[0]:.4f}, "
                 f"last={val_f1_history[-1]:.4f}, best={max(val_f1_history):.4f} (round {best_round})"
             )
 
     if fed_history_nw:
-        val_f1_history_nw = [entry["val_macro_f1"] for entry in fed_history_nw if "val_macro_f1" in entry]
+        val_key_nw = "weighted_val_macro_f1" if config.personalized_head else "val_macro_f1"
+        val_f1_history_nw = [entry[val_key_nw] for entry in fed_history_nw if val_key_nw in entry]
         if val_f1_history_nw:
-            best_round_nw = max(fed_history_nw, key=lambda e: e.get("val_macro_f1", -1.0))["round"]
+            best_round_nw = max(fed_history_nw, key=lambda e: e.get(val_key_nw, -1.0))["round"]
             print(
                 f"{fl_condition} (no warmstart) val Macro-F1 history: first={val_f1_history_nw[0]:.4f}, "
                 f"last={val_f1_history_nw[-1]:.4f}, best={max(val_f1_history_nw):.4f} (round {best_round_nw})"
@@ -993,7 +1085,11 @@ def main() -> None:
         print(f"{fl_condition} Macro-F1 improvement vs local-only: {f1_vs_local:.2f}%")
 
     if fed_results_nw is not None:
-        no_ws_macro_f1 = fed_results_nw["global"]["macro_f1"]
+        nw_agg = (
+            mean_metrics_across_projects(fed_results_nw)
+            if config.personalized_head else fed_results_nw["global"]
+        )
+        no_ws_macro_f1 = nw_agg["macro_f1"]
         f1_warmstart_gain = 100.0 * (federated_metrics["macro_f1"] - no_ws_macro_f1) / max(no_ws_macro_f1, 1e-9)
         print(f"{fl_condition} Macro-F1 improvement from warm-start: {f1_warmstart_gain:.2f}%")
 
