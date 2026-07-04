@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader, Subset
 from transformers import AutoTokenizer
 
 from fl.data import IssueDataset, compute_class_weights
+from fl.model import compute_head_loss
 
 
 @dataclass
@@ -103,8 +104,10 @@ class FederatedClient:
 
         optimizer = AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
         # Per-client inverse-frequency weights — computed once from full local data.
+        # (Used only by the CE head; CORN ignores class weights.)
         class_weights = compute_class_weights(self.dataset.labels, self.num_classes).to(device)
         criterion = nn.CrossEntropyLoss(weight=class_weights)
+        head_type = getattr(model, "head_type", "ce")
         # Only load trainable params for the proximal term — avoids double-loading the
         # frozen backbone (~264MB for DistilBERT) that is already on device via model.to(device).
         global_params = {
@@ -140,7 +143,7 @@ class FederatedClient:
 
                 optimizer.zero_grad(set_to_none=True)
                 pred = model(batch)
-                loss = criterion(pred, batch["target"])
+                loss = compute_head_loss(head_type, pred, batch["target"], self.num_classes, criterion)
 
                 if prox_mu > 0.0:
                     prox_term = torch.zeros((), device=device)

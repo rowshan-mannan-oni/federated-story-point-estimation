@@ -25,8 +25,13 @@ class StoryPointClassifier(nn.Module):
         lora_dropout: float = 0.05,
         lora_target_modules: Sequence[str] = ("query", "value"),
         ffa_lora: bool = True,
+        head_type: str = "ce",
     ) -> None:
         super().__init__()
+        if head_type not in ("ce", "corn"):
+            raise ValueError(f"head_type must be 'ce' or 'corn', got {head_type!r}")
+        self.head_type = head_type
+        self.num_classes = num_classes
         self.encoder = AutoModel.from_pretrained(model_name)
 
         # Capture hidden_size before peft potentially rewraps the encoder.
@@ -56,12 +61,15 @@ class StoryPointClassifier(nn.Module):
 
         fusion_dim = text_dim + categorical_emb_dim * 2
 
+        # CORN ordinal head emits num_classes-1 threshold logits; CE head emits num_classes.
+        head_out_dim = num_classes - 1 if head_type == "corn" else num_classes
+
         self.head = nn.Sequential(
             nn.LayerNorm(fusion_dim),
             nn.Linear(fusion_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim, num_classes),
+            nn.Linear(hidden_dim, head_out_dim),
         )
 
     def encode_text(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
@@ -82,7 +90,27 @@ class StoryPointClassifier(nn.Module):
         priority_vector = self.priority_emb(batch["priority_id"])
 
         fused = torch.cat([text_vector, type_vector, priority_vector], dim=1)
-        return self.head(fused)  # (batch, num_classes) logits
+        # CE: (batch, num_classes) logits. CORN: (batch, num_classes-1) threshold logits.
+        return self.head(fused)
+
+
+def compute_head_loss(
+    head_type: str,
+    logits: torch.Tensor,
+    targets: torch.Tensor,
+    num_classes: int,
+    ce_criterion: nn.Module,
+) -> torch.Tensor:
+    """Branch the training loss on head type.
+
+    CE: class-weighted CrossEntropy over `num_classes` logits.
+    CORN: rank-consistent ordinal loss over `num_classes-1` threshold logits
+    (class weights do not apply — CORN handles imbalance via its threshold structure).
+    """
+    if head_type == "corn":
+        from coral_pytorch.losses import corn_loss
+        return corn_loss(logits, targets, num_classes=num_classes)
+    return ce_criterion(logits, targets)
 
 
 def log_trainable_params(model: nn.Module) -> None:

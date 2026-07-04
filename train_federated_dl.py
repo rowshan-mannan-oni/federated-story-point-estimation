@@ -26,7 +26,7 @@ from sklearn.model_selection import train_test_split
 
 from fl.data import IssueDataset, compute_class_weights, load_dataset_by_project, prepare_tabular_bundle, LABEL_MAP, INV_LABEL_MAP
 from fl.metrics import compute_communication_cost, evaluate_classification, format_metrics, run_prediction
-from fl.model import StoryPointClassifier, log_trainable_params
+from fl.model import StoryPointClassifier, compute_head_loss, log_trainable_params
 from fl.server import FedProxServer
 
 
@@ -79,7 +79,9 @@ def train_centralized(
 ) -> nn.Module:
     model.train()
     optimizer = AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))
+    criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))  # CE head only; CORN ignores weights
+    head_type = getattr(model, "head_type", "ce")
+    num_classes = getattr(model, "num_classes", class_weights.numel())
 
     print(
         f"[Centralized] Starting training: epochs={epochs}, batches_per_epoch={len(train_loader)}",
@@ -97,7 +99,7 @@ def train_centralized(
             batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
             optimizer.zero_grad(set_to_none=True)
             pred = model(batch)
-            loss = criterion(pred, batch["target"])
+            loss = compute_head_loss(head_type, pred, batch["target"], num_classes, criterion)
             loss.backward()
             optimizer.step()
 
@@ -142,7 +144,8 @@ def train_warmstart(
     Returns (best_state_dict, best_val_macro_f1).
     """
     optimizer = AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))
+    criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))  # CE head only; CORN ignores weights
+    head_type = getattr(model, "head_type", "ce")
 
     best_macro_f1 = -1.0
     best_state: Dict[str, torch.Tensor] = {}
@@ -163,7 +166,7 @@ def train_warmstart(
         for batch in train_loader:
             batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
             optimizer.zero_grad(set_to_none=True)
-            loss = criterion(model(batch), batch["target"])
+            loss = compute_head_loss(head_type, model(batch), batch["target"], num_classes, criterion)
             loss.backward()
             optimizer.step()
             epoch_loss += float(loss.item())
@@ -671,6 +674,7 @@ def main() -> None:
             lora_dropout=config.lora_dropout,
             lora_target_modules=config.lora_target_modules,
             ffa_lora=config.ffa_lora,
+            head_type=config.head_type,
         )
 
     _probe = model_factory()
