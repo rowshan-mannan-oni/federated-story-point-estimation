@@ -10,7 +10,16 @@ from fl.data import INV_LABEL_MAP
 
 
 def run_prediction(model: nn.Module, loader: DataLoader, device: torch.device) -> np.ndarray:
-    """Return predicted class indices (argmax over logits)."""
+    """Return predicted class indices.
+
+    CE head: argmax over the `num_classes` logits.
+    CORN head: rank-consistent decode of the `num_classes-1` threshold logits via
+    `corn_label_from_logits` (counts how many thresholds are passed).
+    """
+    head_type = getattr(model, "head_type", "ce")
+    if head_type == "corn":
+        from coral_pytorch.dataset import corn_label_from_logits
+
     model.eval()
     preds: List[np.ndarray] = []
 
@@ -18,7 +27,10 @@ def run_prediction(model: nn.Module, loader: DataLoader, device: torch.device) -
         for batch in loader:
             batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
             logits = model(batch).detach().cpu()
-            preds.append(logits.argmax(dim=1).numpy())
+            if head_type == "corn":
+                preds.append(corn_label_from_logits(logits).numpy())
+            else:
+                preds.append(logits.argmax(dim=1).numpy())
 
     return np.concatenate(preds, axis=0)
 
