@@ -804,6 +804,7 @@ def main() -> None:
         val_loader=fl_val_loader,
         val_labels=fl_val_dataset.labels,
         num_classes=config.num_classes,
+        personalized_head=config.personalized_head,
     )
 
     federated_model = model_factory().to(device)
@@ -842,6 +843,7 @@ def main() -> None:
             val_loader=fl_val_loader,
             val_labels=fl_val_dataset.labels,
             num_classes=config.num_classes,
+            personalized_head=config.personalized_head,
         )
 
         federated_model_nw = model_factory().to(device)

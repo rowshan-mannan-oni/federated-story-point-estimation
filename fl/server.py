@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 
 from fl.client import FederatedClient
 from fl.metrics import evaluate_classification, run_prediction
+from fl.model import is_head_param
 
 
 class FedProxServer:
@@ -37,6 +38,7 @@ class FedProxServer:
         val_loader: Optional[DataLoader] = None,
         val_labels: Optional[np.ndarray] = None,
         num_classes: int = 5,
+        personalized_head: bool = False,
     ) -> Tuple[Dict[str, torch.Tensor], List[Dict[str, Any]]]:
         global_model = self.model_factory().to(device)
         if initial_state is not None:
@@ -46,9 +48,21 @@ class FedProxServer:
 
         # Derive which keys to aggregate from trainable params — single source of truth.
         # Frozen backbone and (when FFA-LoRA is on) frozen A matrices are excluded.
-        aggregatable_keys = frozenset(
+        trainable_keys = frozenset(
             name for name, param in global_model.named_parameters() if param.requires_grad
         )
+        # Personalized-head mode (gap #11): the classification head stays local per client
+        # and is never aggregated — only LoRA-B + embeddings are federated.
+        head_keys = frozenset(k for k in trainable_keys if is_head_param(k))
+        if personalized_head:
+            aggregatable_keys = trainable_keys - head_keys
+            print(
+                f"[FedProx] Personalized-head mode: excluding {len(head_keys)} head param "
+                f"tensor(s) from aggregation: {sorted(head_keys)}",
+                flush=True,
+            )
+        else:
+            aggregatable_keys = trainable_keys
         n_agg = len(aggregatable_keys)
         n_total = sum(1 for _ in global_model.parameters())
         print(f"[FedProx] Aggregating {n_agg}/{n_total} param tensors per round.", flush=True)
@@ -107,6 +121,9 @@ class FedProxServer:
 
                 weight = float(result.num_examples)
                 for key, tensor in result.state_dict.items():
+                    # Skip non-aggregatable keys (e.g. the local head in personalized mode).
+                    if key not in aggregatable_keys:
+                        continue
                     contribution = tensor * weight
                     if key in accum:
                         accum[key] += contribution

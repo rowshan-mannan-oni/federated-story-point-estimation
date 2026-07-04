@@ -6,6 +6,18 @@ from transformers import AutoModel
 from peft import LoraConfig, get_peft_model
 
 
+# Parameter-name prefixes that identify the classification head. Used to exclude the
+# head from aggregation in personalized-head mode (gap #11) and to save/load per-project
+# heads. The model below names its head submodule `head`; `classifier.` is tolerated for
+# forward-compatibility with alternative head naming.
+HEAD_KEY_PREFIXES = ("head.", "classifier.")
+
+
+def is_head_param(name: str) -> bool:
+    """True if a state-dict key belongs to the classification head."""
+    return name.startswith(HEAD_KEY_PREFIXES)
+
+
 class StoryPointClassifier(nn.Module):
     """Transformer encoder + categorical embeddings + classification head."""
 
