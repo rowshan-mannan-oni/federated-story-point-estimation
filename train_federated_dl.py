@@ -37,6 +37,26 @@ def choose_device(device_name: str) -> torch.device:
     return torch.device("cpu")
 
 
+def resolve_project_name(available: List[str], name: str, role: str) -> str:
+    """Resolve a project name against the available client IDs: exact (case-insensitive)
+    match first, then a unique case-insensitive substring match (so 'lsstcorp' ->
+    'Lsstcorp_Data_management'). Raises ValueError on no/ambiguous match."""
+    needle = name.lower()
+    exact = [c for c in available if c.lower() == needle]
+    if exact:
+        return exact[0]
+    substring_matches = [c for c in available if needle in c.lower()]
+    if len(substring_matches) == 1:
+        return substring_matches[0]
+    if len(substring_matches) > 1:
+        raise ValueError(
+            f"{role} project '{name}' is ambiguous. Matching client IDs: {substring_matches}"
+        )
+    raise ValueError(
+        f"{role} project '{name}' not found in data. Available client IDs: {available}"
+    )
+
+
 def federated_condition_name(prox_mu: float, personalized_head: bool = False) -> str:
     """
     Human-readable label for the federated condition, derived from prox_mu.
@@ -723,6 +743,8 @@ def main() -> None:
     parser.add_argument("--lora-dropout", type=float, default=0.05)
     parser.add_argument("--lora-target-modules", nargs="+", default=["query", "value"])
     parser.add_argument("--warmstart-project", type=str, default="lsstcorp")
+    parser.add_argument("--holdout-project", type=str, default=None,
+                        help="Exclude this project from the FL pool entirely (LOPO onboarding source). Cannot be the warm-start project.")
     parser.add_argument("--warmstart-val-size", type=float, default=0.15)
     parser.add_argument("--warmstart-epochs", type=int, default=10)
     parser.add_argument("--warmstart-patience", type=int, default=3)
@@ -784,6 +806,7 @@ def main() -> None:
         skip_local_only=args.skip_local_only,
         run_no_warmstart_fl=args.run_no_warmstart_fl,
         warmstart_project=args.warmstart_project,
+        holdout_project=args.holdout_project,
         warmstart_val_size=args.warmstart_val_size,
         warmstart_epochs=args.warmstart_epochs,
         warmstart_patience=args.warmstart_patience,
@@ -801,28 +824,10 @@ def main() -> None:
     data = load_dataset_by_project(config.data_dir)
 
     # Split warmstart project out before building FL bundle. Resolve the
-    # configured name against client_id by exact match first, falling back
-    # to a case-insensitive substring match (e.g. "lsstcorp" ->
-    # "Lsstcorp_Data_management") so users don't need the full client_id.
+    # configured name against client_id (exact, then unique substring) so users
+    # don't need the full client_id (e.g. "lsstcorp" -> "Lsstcorp_Data_management").
     available = sorted(data["client_id"].unique())
-    needle = config.warmstart_project.lower()
-    exact = [c for c in available if c.lower() == needle]
-    if exact:
-        resolved_project = exact[0]
-    else:
-        substring_matches = [c for c in available if needle in c.lower()]
-        if len(substring_matches) == 1:
-            resolved_project = substring_matches[0]
-        elif len(substring_matches) > 1:
-            raise ValueError(
-                f"Warmstart project '{config.warmstart_project}' is ambiguous. "
-                f"Matching client IDs: {substring_matches}"
-            )
-        else:
-            raise ValueError(
-                f"Warmstart project '{config.warmstart_project}' not found in data. "
-                f"Available client IDs: {available}"
-            )
+    resolved_project = resolve_project_name(available, config.warmstart_project, "Warmstart")
 
     warmstart_mask = data["client_id"] == resolved_project
     warmstart_data = data[warmstart_mask].reset_index(drop=True)
@@ -833,6 +838,23 @@ def main() -> None:
         f"FL projects: {fl_data['client_id'].nunique()} | {len(fl_data)} rows",
         flush=True,
     )
+
+    # Leave-one-project-out (gap #14): drop the held-out project from the FL pool entirely
+    # so it can act as the external/new client in the onboarding experiment (run_lopo.py).
+    if config.holdout_project:
+        holdout_resolved = resolve_project_name(available, config.holdout_project, "Holdout")
+        if holdout_resolved == resolved_project:
+            raise ValueError(
+                f"Cannot hold out '{holdout_resolved}': it is the warm-start source and is "
+                "already excluded from the FL pool. Choose a mid-sized FL project instead."
+            )
+        fl_data = fl_data[fl_data["client_id"] != holdout_resolved].reset_index(drop=True)
+        config.holdout_project = holdout_resolved
+        print(
+            f"[Data] Holdout '{holdout_resolved}' excluded from FL pool | "
+            f"FL projects now: {fl_data['client_id'].nunique()} | {len(fl_data)} rows",
+            flush=True,
+        )
 
     # Category maps and train/val/test split built from FL data only.
     bundle = prepare_tabular_bundle(

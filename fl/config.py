@@ -69,6 +69,11 @@ class FLConfig:
     # initialize new/external clients (LOPO onboarding). Never pushed back to participants.
     generic_head: bool = False
 
+    # Leave-one-project-out holdout (gap #14). When set, this project is excluded from the
+    # FL pool entirely (train/val/test) so it can serve as the external/new client in the
+    # onboarding experiment (run_lopo.py). Must not be the warm-start source.
+    holdout_project: Optional[str] = None
+
     # Checkpoint / resume (gap #13). checkpoint_every: 0 = off; unit is EPOCHS for
     # centralized & local-only, GLOBAL ROUNDS for federated. resume auto-detects the
     # latest checkpoint under <save-dir>/checkpoints/; resume_from overrides with an
