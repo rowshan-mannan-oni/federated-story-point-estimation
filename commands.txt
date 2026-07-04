@@ -1,711 +1,434 @@
 # ==========================================================
 # Federated Story Point Estimation - Command Runbook
 # ==========================================================
-# Notes:
-# - Run these commands from PowerShell.
-# - Edit paths only if your folder locations differ.
-# - "--seed" keeps training reproducible (use 42, 43, ... 51 for the
-#   10-seed statistical runs the thesis requires).
-# - Data dir must contain one CSV per project (including lsstcorp.csv).
-#   Lsstcorp is used for warm-start pre-training; the remaining
-#   projects become the FL clients.
-# - prox_mu=0 is auto-labeled "FedAvg" everywhere in the output
-#   (console, results/summary.md, results/config.json field
-#   "federated_condition"); prox_mu>0 is labeled "FedProx (mu=X)".
-#   No extra flag needed for this besides --prox-mu.
-# - DistilBERT target modules: q_lin v_lin. DistilRoBERTa / CodeBERT /
-#   BERT-tiny (BERT-architecture encoders): query value.
-# - Add --run-no-warmstart-fl to any run to also train a second federated
-#   model from random init (no warm-start checkpoint), for the warm-start
-#   ablation (gap #7). Roughly doubles federated training time. Results
-#   land in federated_no_warmstart_per_project.json /
-#   federated_no_warmstart_round_history.json and the
-#   "<save-dir>/federated_no_warmstart" artifact.
-
-
-
-
-
-
-
-
-
+# Run these from PowerShell. Either activate the venv first, or replace
+# `python` with the full interpreter path:
+#     & "d:/Federated Learning using DL/.venv/Scripts/python.exe"
+# All commands assume the current directory is the project root.
+#
+# Data dir  : one CSV/XLSX per project, INCLUDING the warm-start project
+#             (lsstcorp.csv). The warm-start project is pre-trained on and
+#             then excluded from the FL client pool; every other project is
+#             one FL client.
+# bert-tiny : DEV/SMOKE encoder only. Never interpret its accuracy — use it
+#             to check plumbing, then switch to a real encoder for results.
+# Seeds     : --seed keeps a run reproducible. Use 42..51 for the 10-seed
+#             statistical runs (run_experiments.py + compute_statistics.py).
+#
+# ---- Condition labels (auto-derived, no extra flag) --------------------
+#   --prox-mu 0        -> "FedAvg"          --prox-mu >0 -> "FedProx (mu=X)"
+#   --personalized-head-> appends " + P-head" (e.g. "FedProx (mu=0.01) + P-head")
+#   The label appears in console output, results/summary.md, and
+#   results/config.json ("federated_condition").
+#
+# ---- Head / loss (gap #12) ---------------------------------------------
+#   --head-type ce     5-logit softmax + class-weighted CrossEntropy
+#                      (default; baseline/ablation arm).
+#   --head-type corn   4-logit CORN ordinal head + corn_loss (num_classes-1
+#                      threshold logits). Use for the final ordinal results;
+#                      expect it to move MAE / Cohen's Kappa more than macro-F1.
+#
+# ---- Personalized head, FedSP-PEFT-P (gap #11) -------------------------
+#   --personalized-head  Head stays LOCAL per client (never aggregated); only
+#                        LoRA-B + embeddings are federated. There is NO pooled
+#                        "global" test metric — report per-project + mean.
+#                        Artifact layout: <save-dir>/federated/{shared_state.pt,
+#                        heads/<project>.pt}.
+#   --generic-head       Personalized mode only: also save
+#                        federated/generic_head.pt (one-way weighted average of
+#                        client heads) for new-client onboarding init. Never
+#                        pushed back to participants.
+#
+# ---- Checkpoint / resume (gap #13) -------------------------------------
+#   --checkpoint-every N Checkpoint frequency (0 = off). Unit = global ROUNDS
+#                        for federated, EPOCHS for centralized & local-only.
+#   --checkpoint-keep K  Numbered checkpoints kept (default 2); latest/ and
+#                        best/ are always kept on top. Layout:
+#                        <save-dir>/checkpoints/{federated|centralized|
+#                        local_only/<project>}/{latest,best,round_<k>|epoch_<k>}.
+#   --resume             Auto-detect and resume from the latest checkpoint under
+#                        <save-dir>/checkpoints/ (re-pass the SAME command +
+#                        --resume). Resume is bit-reproducible.
+#   --resume-from <dir>  Resume the federated phase from an explicit checkpoint dir.
+#   NOTE: checkpoints are trainable-only (never the frozen backbone), so a
+#   resume re-runs warm-start (cheap; also keeps LoRA-A reproducible).
+#
+# ---- Leave-one-project-out onboarding (gap #14) -----------------------
+#   --holdout-project <name>  Exclude a project from the FL pool entirely
+#                             (train/val/test) so it can be onboarded later via
+#                             run_lopo.py. Cannot be the warm-start source.
+#
+# ---- Encoder target modules --------------------------------------------
+#   query value  -> BERT/RoBERTa family (prajjwal1/bert-tiny, distilroberta-base,
+#                   microsoft/codebert-base). This is the default.
+#   q_lin v_lin  -> distilbert-base-uncased. Pass --lora-target-modules q_lin v_lin.
+#
+# ---- Warm-start ablation (gap #7) --------------------------------------
+#   --run-no-warmstart-fl  Also train a second federated model from random init
+#                          (same per-round client selection). Roughly doubles
+#                          federated time. Extra outputs:
+#                          federated_no_warmstart_per_project.json and the
+#                          <save-dir>/federated_no_warmstart artifact.
 
 
 # ==========================================================
-#  ARGUMENT REFERENCE — what every flag does
+#  ARGUMENT REFERENCE
 # ==========================================================
 #
-# ---- train_federated_dl.py -------------------------------------------
-#
+# ---- train_federated_dl.py --------------------------------------------
 # Data & splits
-#   --data-dir (required, path)
-#       Folder with one CSV/XLSX per project, including the warm-start
-#       project (e.g. lsstcorp.csv). Each non-warm-start project becomes
-#       one FL client.
-#   --test-size (float, default 0.2)
-#       Fraction of each client's rows held out as the final test split.
-#       Never used for training or validation; evaluated exactly once at
-#       the end of the run. Written verbatim to results/test_split.csv.
-#   --val-size (float, default 0.1)
-#       Fraction of the remaining (non-test) rows carved out per client
-#       as the FL validation split. Used after every round to track
-#       {val_macro_f1, val_accuracy} and to pick the best-on-val global
-#       model (results/federated_round_history.json).
-#   --split-mode {random, temporal} (default random)
-#       "random"   = stratified random per-client split by story_point.
-#       "temporal" = chronological split using Creation_Date — train on
-#                     each client's earliest issues, val/test on the
-#                     latest. Robustness check against the "model just
-#                     memorized recency" critique (CLAUDE.md gap #9).
+#   --data-dir (required, path)         One CSV/XLSX per project (incl. warm-start).
+#   --test-size (float, 0.2)            Per-client test fraction; evaluated once.
+#   --val-size (float, 0.1)             Per-client validation fraction (round tracking + best-on-val).
+#   --split-mode {random, temporal}     random = stratified; temporal = train earliest, val/test latest (gap #9).
+#   --holdout-project (str, none)       Exclude one project from the FL pool for LOPO (gap #14).
 #
 # Model / encoder
-#   --model-name (str, default "prajjwal1/bert-tiny")
-#       HuggingFace encoder. bert-tiny for dev/smoke tests;
-#       distilroberta-base / distilbert-base-uncased /
-#       microsoft/codebert-base for final results.
-#   --max-length (int, default 128)
-#       Max token length for tokenized title+description. p90 of
-#       combined text is ~164 tokens, so 128 truncates the longest
-#       ~10-15% of issues. Try 256 for the encoder ablation (gap #8).
-#   --freeze-encoder (flag)
-#       Freeze the entire backbone. Only meaningful when --no-lora is
-#       also set — LoRA already keeps the backbone frozen by
-#       construction.
+#   --model-name (str, prajjwal1/bert-tiny)  HF encoder. bert-tiny = dev only.
+#   --max-length (int, 128)             Token cap for title+description (try 256 ablation).
+#   --freeze-encoder (flag)             Freeze backbone (only meaningful with --no-lora).
+#
+# Head / loss
+#   --head-type {ce, corn} (ce)         CE softmax head vs CORN ordinal head (gap #12).
 #
 # LoRA / FFA-LoRA
-#   --no-lora (flag)
-#       Disable LoRA adapters entirely. Falls back to full or frozen
-#       (--freeze-encoder) fine-tuning of the backbone.
-#   --no-ffa-lora (flag)
-#       Disable FFA-LoRA. Both LoRA A and B matrices become trainable
-#       and are aggregated independently, reintroducing the
-#       avg(B)*A != avg(B*A) aggregation error FFA-LoRA exists to avoid
-#       (see CLAUDE.md "Why FFA-LoRA specifically").
-#   --lora-r (int, default 8)
-#       LoRA rank.
-#   --lora-alpha (int, default 16)
-#       LoRA scaling numerator; effective scale = alpha / r (default 2.0).
-#   --lora-dropout (float, default 0.05)
-#       Dropout applied inside the LoRA adapter path.
-#   --lora-target-modules (list of str, default: query value)
-#       Attention sub-modules that get LoRA adapters.
-#       "query value"  -> BERT/RoBERTa-family (bert-tiny,
-#                          distilroberta-base, microsoft/codebert-base).
-#       "q_lin v_lin"  -> distilbert-base-uncased.
+#   --no-lora (flag)                    Disable LoRA adapters.
+#   --no-ffa-lora (flag)                Train+aggregate both A and B (reintroduces aggregation error; RQ3 ablation).
+#   --lora-r (int, 8) / --lora-alpha (int, 16) / --lora-dropout (float, 0.05)
+#   --lora-target-modules (list, query value)  q_lin v_lin for DistilBERT.
 #
-# Federated optimization (FedProx / FedAvg)
-#   --rounds (int, default 8)
-#       Number of global FL communication rounds.
-#   --local-epochs (int, default 1)
-#       Local epochs each selected client trains per round.
-#   --clients-per-round-fraction / --fraction (float, default 1.0)
-#       Fraction of clients sampled each round, in (0, 1]. 1.0 = full
-#       participation.
-#   --local-sample-ratio-per-epoch (float, default 1.0)
-#       Fraction of each client's local train set sampled per local
-#       epoch, in (0, 1].
+# Federated optimization
+#   --rounds (int, 8)                   Global FL rounds.
+#   --local-epochs (int, 1)             Local epochs per selected client per round.
+#   --clients-per-round-fraction/--fraction (float, 1.0)  Client sampling fraction (0,1].
+#   --local-sample-ratio-per-epoch (float, 1.0)           Per-client local subsample (0,1].
 #   --sample-with-replacement (flag)
-#       Sample each client's local training batches with replacement
-#       instead of without.
-#   --prox-mu (float, default 0.01)
-#       FedProx proximal term strength: (mu/2) * ||w - w_global||^2 over
-#       trainable params. mu=0 mathematically degrades to FedAvg and is
-#       auto-labeled "FedAvg"; mu>0 is labeled "FedProx (mu=X)" (both in
-#       console output, results/summary.md, and results/config.json).
-#   --lr (float, default 2e-5)
-#       Learning rate for federated local training and for centralized
-#       training.
-#   --weight-decay (float, default 1e-4)
-#       AdamW weight decay for federated local training, centralized
-#       training, and warm-start pre-training.
+#   --prox-mu (float, 0.01)             FedProx strength over aggregatable params; 0 -> FedAvg.
+#   --personalized-head (flag)          Keep head local per client (gap #11).
+#   --generic-head (flag)               Personalized only: also save averaged generic_head.pt.
+#   --lr (float, 2e-5) / --weight-decay (float, 1e-4)
 #
-# Warm-start (pre-training on one large project)
-#   --warmstart-project (str, default "lsstcorp")
-#       Project matched case-insensitively/substring against client_id,
-#       used for warm-start pre-training and excluded from the FL client
-#       pool.
-#   --warmstart-val-size (float, default 0.15)
-#       Stratified validation fraction carved from the warm-start
-#       project, used for early stopping.
-#   --warmstart-epochs (int, default 10)
-#       Max warm-start pre-training epochs.
-#   --warmstart-patience (int, default 3)
-#       Stop warm-start early after this many epochs without val
-#       macro-F1 improvement.
-#   --warmstart-lr (float, default 2e-5)
-#       Learning rate for warm-start pre-training only (independent of
-#       --lr).
-#   --run-no-warmstart-fl (flag)
-#       Also run a second federated training from random init
-#       (initial_state=None), using a fresh server seeded the same as
-#       the warm-started run so both pick identical per-round clients.
-#       Warm-start ablation (gap #7); roughly doubles federated training
-#       time. Results: federated_no_warmstart_per_project.json,
-#       federated_no_warmstart_round_history.json, and the
-#       federated_no_warmstart artifact.
+# Warm-start
+#   --warmstart-project (str, lsstcorp) / --warmstart-val-size (0.15)
+#   --warmstart-epochs (10) / --warmstart-patience (3) / --warmstart-lr (2e-5)
+#   --run-no-warmstart-fl (flag)        Warm-start ablation (gap #7).
 #
-# Baseline conditions / toggles
-#   --skip-centralized (flag)
-#       Skip the centralized (pooled-data, privacy-ignored) upper-bound
-#       baseline.
-#   --skip-local-only (flag)
-#       Skip the local-only (no-federation) baseline condition.
+# Baselines / toggles
+#   --skip-centralized (flag) / --skip-local-only (flag)
 #
-# Output, reproducibility & device
-#   --seed (int, default 42)
-#       Random seed for splits, model init, and client sampling. Use
-#       42-51 for the thesis's 10-seed statistical runs.
-#   --device {cuda, cpu} (default cuda)
-#       Falls back to CPU automatically if CUDA isn't available.
-#   --batch-size (int, default 16)
-#       Batch size for all dataloaders (train/val/test, warm-start,
-#       centralized, and federated clients).
-#   --central-log-every (int, default 1)
-#       Print a centralized-training progress line every N epochs.
-#   --save-dir (str, default "artifacts")
-#       Root output folder. Model artifacts go to
-#       <save-dir>/{warmstart,centralized,local_only,federated,
-#       federated_no_warmstart}; all metrics/JSON/CSV/markdown results
-#       (including test_split.csv) go to <save-dir>/results/.
+# Checkpoint / resume (gap #13)
+#   --checkpoint-every (int, 0) / --checkpoint-keep (int, 2)
+#   --resume (flag) / --resume-from (str, none)
 #
-# ---- predict_saved_model.py --------------------------------------------
+# Output / reproducibility / device
+#   --seed (int, 42) / --device {cuda, cpu} / --batch-size (int, 16)
+#   --central-log-every (int, 1)
+#   --save-dir (str, artifacts)         Artifacts under <save-dir>/{warmstart,centralized,
+#                                       local_only,federated,...}; metrics under <save-dir>/results/;
+#                                       checkpoints under <save-dir>/checkpoints/.
 #
-#   --artifact-dir (required, path)
-#       A saved model folder produced by train_federated_dl.py, e.g.
-#       artifacts/federated, artifacts/centralized, artifacts/warmstart,
-#       or artifacts/federated_no_warmstart. Must contain model_state.pt,
-#       tokenizer/, and metadata.json.
-#   --data-dir (required, path)
-#       Folder of CSV/XLSX files to run inference on (same schema as
-#       training data). If a story_point column is present, metrics
-#       (accuracy, macro-F1, MAE, Cohen's kappa, per-class F1) are also
-#       printed; otherwise only predictions are written.
-#   --batch-size (int, default 16)
-#       Inference batch size.
-#   --device {cuda, cpu} (default cuda)
-#       Falls back to CPU automatically if CUDA isn't available.
-#   --out-csv (str, default "predictions.csv")
-#       Output path. Adds predicted_class (0-4) and
-#       predicted_story_point (1/2/3/5/8) columns to the input data.
+# ---- predict_saved_model.py -------------------------------------------
+#   --artifact-dir (required)           A saved model folder (e.g. artifacts/federated).
+#   --data-dir (required)               Files to score (metrics printed if story_point present).
+#   --head-project (str, none)          Personalized artifact: overlay heads/<name>.pt.
+#   --generic-head (flag)               Personalized artifact: use generic_head.pt instead.
+#   --batch-size (16) / --device / --out-csv (predictions.csv)
 #
-# ---- run_experiments.py (gap #4) ---------------------------------------
+# ---- run_lopo.py (gap #14) --------------------------------------------
+#   --artifact-dir (required)           Federated artifact trained WITH the project held out.
+#   --data-dir (required)               Full dataset dir (holdout project must be present).
+#   --holdout-project (required)        The project to onboard.
+#   --head-init {generic, random} (generic)  Personalized artifact head init (ignored for shared).
+#   --budgets (str, "0,10,25,50,100")   Adaptation budgets (earliest issues).
+#   --test-size (0.2) / --adapt-epochs (30) / --adapt-lr (1e-3) / --batch-size (32)
+#   --device / --seed / --out-dir (results)  Writes lopo_<project>_<condition>.json.
 #
-#   --seeds (str, default "42-51")
-#       Seed list/range, e.g. "42-51" or "42,43,44". For each seed, runs
-#       train_federated_dl.py once for "fedprox" and once for "fedavg".
-#   --prox-mu (float, default 0.01)
-#       FedProx mu for the "fedprox" run. The "fedavg" run always uses
-#       mu=0, regardless of this value.
-#   --results-root (str, default "experiments")
-#       Output root. Results land in
-#       <results-root>/seed_<N>/{fedprox,fedavg}/results/*.json and
-#       <results-root>/manifest.json.
-#   --skip-fedavg (flag)
-#       Only run the "fedprox" (+ baselines) condition per seed.
-#   --force (flag)
-#       Re-run a seed/condition even if its results/federated_per_project.json
-#       already exists (default: skip and resume).
-#   --dry-run (flag)
-#       Print the commands that would run without executing them.
-#   (any other flag)
-#       Forwarded verbatim to train_federated_dl.py for BOTH runs (e.g.
-#       --data-dir, --model-name, --rounds, --max-length, --lora-*,
-#       --warmstart-*, --device, --batch-size). Do NOT pass --seed,
-#       --prox-mu, --save-dir, --skip-centralized, or --skip-local-only —
-#       the runner sets these itself per run.
+# ---- compare_lopo.py (gap #14) ----------------------------------------
+#   --results-dir (results) / --glob ("lopo_*.json") / --metrics (accuracy,macro_f1,mae,cohen_kappa)
+#   --out (<results-dir>/lopo_comparison.csv)  Tidy LONG CSV for the crossover plot.
 #
-# ---- compute_statistics.py (gap #5) -------------------------------------
+# ---- run_experiments.py (gap #4) / compute_statistics.py (gap #5) -------
+#   run_experiments: --seeds (42-51) / --prox-mu (0.01) / --results-root (experiments)
+#                    / --skip-fedavg / --force / --dry-run. Any other flag (incl. --head-type,
+#                    --personalized-head, --checkpoint-*) is forwarded verbatim to BOTH runs.
+#   compute_statistics: --experiments-root / --seeds / --metric {macro_f1,accuracy,cohen_kappa,mae}
+#                    / --alpha (0.05) / --out-dir.
+
+
+# ==========================================================
+# 0) SMOKE TEST — bert-tiny, plumbing only (run after any code change)
+# ==========================================================
+python train_federated_dl.py `
+    --data-dir data_to_train_on `
+    --model-name prajjwal1/bert-tiny --max-length 64 `
+    --rounds 2 --local-epochs 1 --warmstart-epochs 1 `
+    --skip-centralized --skip-local-only `
+    --save-dir artifacts_smoke --seed 42
+
+# Smoke the full feature set (CORN + personalized head + generic head + checkpoints):
+python train_federated_dl.py `
+    --data-dir data_to_train_on `
+    --model-name prajjwal1/bert-tiny --max-length 64 `
+    --rounds 2 --local-epochs 1 --warmstart-epochs 1 `
+    --head-type corn --personalized-head --generic-head --checkpoint-every 1 `
+    --save-dir artifacts_smoke_full --seed 42
+
+
+# ==========================================================
+# 1) PRIMARY — FedProx + FFA-LoRA + warm-start + CORN + personalized head
+# ==========================================================
+# The full FedSP-PEFT-P framework (RQ1/RQ2/RQ3/RQ4). CORN ordinal head,
+# personalized per-client heads, DistilRoBERTa encoder. --generic-head so the
+# artifact can seed LOPO onboarding. --checkpoint-every for crash safety.
+# (Personalized mode reports per-project + mean; there is no pooled "global" row.)
+
+python train_federated_dl.py `
+    --data-dir data_to_train_on `
+    --model-name distilroberta-base --max-length 256 `
+    --rounds 20 --local-epochs 1 --batch-size 8 `
+    --lr 3e-5 --warmstart-lr 3e-5 --warmstart-epochs 10 `
+    --prox-mu 1e-2 `
+    --head-type corn --personalized-head --generic-head `
+    --checkpoint-every 5 `
+    --save-dir artifacts_fedsp_peft_p --seed 42
+
+
+# ==========================================================
+# 2) SHARED-HEAD COUNTERPART — RQ4 comparison (same setup, no personalization)
+# ==========================================================
+# Everything identical to run 1 but the head is SHARED/aggregated. The
+# personalized-vs-shared delta (with all else equal) is the RQ4 result.
+
+python train_federated_dl.py `
+    --data-dir data_to_train_on `
+    --model-name distilroberta-base --max-length 256 `
+    --rounds 20 --local-epochs 1 --batch-size 8 `
+    --lr 3e-5 --warmstart-lr 3e-5 --warmstart-epochs 10 `
+    --prox-mu 1e-2 `
+    --head-type corn `
+    --checkpoint-every 5 `
+    --save-dir artifacts_fedsp_peft_shared --seed 42
+
+
+# ==========================================================
+# 3) FEDAVG CONDITION — prox_mu = 0 (RQ2: FedProx vs FedAvg)
+# ==========================================================
+# Same as a chosen primary but --prox-mu 0 (auto-labeled "FedAvg"). Skip the
+# centralized/local-only baselines — they don't depend on prox_mu, so reuse
+# the primary run's numbers for those rows.
+
+python train_federated_dl.py `
+    --data-dir data_to_train_on `
+    --model-name distilroberta-base --max-length 256 `
+    --rounds 20 --local-epochs 1 --batch-size 8 `
+    --lr 3e-5 --warmstart-lr 3e-5 --warmstart-epochs 10 `
+    --prox-mu 0 --head-type corn --personalized-head `
+    --skip-centralized --skip-local-only `
+    --save-dir artifacts_fedavg_p --seed 42
+
+
+# ==========================================================
+# 4) ABLATIONS — copy run 1 and change ONLY the flags noted
+# ==========================================================
+# Head / loss (gap #12):     --head-type ce            (CE baseline arm)  + new --save-dir
+# prox_mu sweep (RQ2):       --prox-mu 0.0 / 0.001 / 0.01 / 0.1           + new --save-dir per value
+#                            (--skip-centralized --skip-local-only for the reruns)
+# Temporal split (gap #9):   --split-mode temporal     (recompute all conditions) + new --save-dir
+# FFA-LoRA off (RQ3):        --no-ffa-lora             (recompute all conditions) + new --save-dir
+# Partial participation:     --clients-per-round-fraction 0.5 --local-sample-ratio-per-epoch 0.75
+#                            --skip-centralized --skip-local-only + new --save-dir
+# Local epochs:              --rounds 7 --local-epochs 3   (~matches 20x1 exposure) + new --save-dir
+# Warm-start ablation (#7):  --run-no-warmstart-fl     + new --save-dir
+# Encoder swaps (gap #8):    --model-name distilbert-base-uncased --lora-target-modules q_lin v_lin
+#                            --model-name microsoft/codebert-base   (query value, the default)
+# Token length:              --max-length 128   vs   --max-length 256
+
+
+# ==========================================================
+# 5) CHECKPOINT / RESUME — interrupt-safe training (gap #13)
+# ==========================================================
+# Run with checkpointing on. If the run dies, re-run the SAME command with
+# --resume added: warm-start re-runs, then the federated loop continues from
+# the last checkpointed round (bit-reproducible; skips completed local-only
+# clients and finished centralized epochs).
+
+# First (or uninterrupted) run:
+python train_federated_dl.py `
+    --data-dir data_to_train_on `
+    --model-name distilroberta-base --max-length 256 `
+    --rounds 20 --local-epochs 1 --batch-size 8 --lr 3e-5 --warmstart-lr 3e-5 `
+    --prox-mu 1e-2 --head-type corn --personalized-head `
+    --checkpoint-every 2 --checkpoint-keep 2 `
+    --save-dir artifacts_resumable --seed 42
+
+# Resume after an interruption (same command + --resume):
+python train_federated_dl.py `
+    --data-dir data_to_train_on `
+    --model-name distilroberta-base --max-length 256 `
+    --rounds 20 --local-epochs 1 --batch-size 8 --lr 3e-5 --warmstart-lr 3e-5 `
+    --prox-mu 1e-2 --head-type corn --personalized-head `
+    --checkpoint-every 2 --checkpoint-keep 2 --resume `
+    --save-dir artifacts_resumable --seed 42
+
+
+# ==========================================================
+# 6) TESTING / INFERENCE — score new data with a saved artifact
+# ==========================================================
+# Shared-head or centralized/warmstart artifact:
+python predict_saved_model.py `
+    --artifact-dir artifacts_fedsp_peft_shared/federated `
+    --data-dir data_to_test_on `
+    --out-csv predictions_shared.csv
+
+# Personalized artifact — pick the project's own head:
+python predict_saved_model.py `
+    --artifact-dir artifacts_fedsp_peft_p/federated `
+    --data-dir data_to_test_on `
+    --head-project Moodle `
+    --out-csv predictions_moodle.csv
+
+# Personalized artifact — use the averaged generic head (e.g. an unseen project):
+python predict_saved_model.py `
+    --artifact-dir artifacts_fedsp_peft_p/federated `
+    --data-dir data_to_test_on `
+    --generic-head `
+    --out-csv predictions_generic.csv
+
+
+# ==========================================================
+# 7) LEAVE-ONE-PROJECT-OUT ONBOARDING — the cold-start experiment (gap #14)
+# ==========================================================
+# Pick a mid-sized holdout (NOT lsstcorp). Train two artifacts with it held
+# out, then head-only-adapt on its earliest {0,10,25,50,100} issues and
+# evaluate on its latest test split. The crossover (where personalized+
+# adaptation overtakes the shared head) is the practitioner-facing answer to
+# "how much history does a new team need before joining pays off".
+
+# Step 1 - train BOTH conditions with the holdout excluded:
+python train_federated_dl.py `
+    --data-dir data_to_train_on --model-name distilroberta-base --max-length 256 `
+    --rounds 20 --local-epochs 1 --batch-size 8 --lr 3e-5 --warmstart-lr 3e-5 `
+    --prox-mu 1e-2 --head-type corn --personalized-head --generic-head `
+    --holdout-project Moodle --save-dir artifacts_lopo_personalized --seed 42
+
+python train_federated_dl.py `
+    --data-dir data_to_train_on --model-name distilroberta-base --max-length 256 `
+    --rounds 20 --local-epochs 1 --batch-size 8 --lr 3e-5 --warmstart-lr 3e-5 `
+    --prox-mu 1e-2 --head-type corn `
+    --holdout-project Moodle --save-dir artifacts_lopo_shared --seed 42
+
+# Step 2 - head-only onboarding over budgets, writing lopo_Moodle_*.json:
+python run_lopo.py `
+    --artifact-dir artifacts_lopo_personalized/federated --data-dir data_to_train_on `
+    --holdout-project Moodle --head-init generic --out-dir lopo_results
+
+python run_lopo.py `
+    --artifact-dir artifacts_lopo_shared/federated --data-dir data_to_train_on `
+    --holdout-project Moodle --out-dir lopo_results
+
+# Step 3 - tidy crossover CSV (shared vs personalized across budgets):
+python compare_lopo.py --results-dir lopo_results --out lopo_results/lopo_comparison.csv
+
+
+# ==========================================================
+# 8) MULTI-SEED RUNNER + STATISTICS — 10 seeds (gaps #4/#5)
+# ==========================================================
+# For each seed, runs "fedprox" (+ baselines) and "fedavg" (prox_mu=0, reusing
+# the fedprox baselines). Any flag not recognized by run_experiments.py —
+# including --head-type, --personalized-head, --generic-head, and the
+# --checkpoint-* flags — is forwarded verbatim to BOTH runs. Do NOT pass
+# --seed, --prox-mu, --save-dir, --skip-centralized, or --skip-local-only.
+
+python run_experiments.py `
+    --seeds 42-51 --results-root experiments `
+    --data-dir data_to_train_on `
+    --model-name distilroberta-base --max-length 256 `
+    --rounds 20 --local-epochs 1 --batch-size 8 --lr 3e-5 --warmstart-lr 3e-5 `
+    --prox-mu 1e-2 `
+    --head-type corn --personalized-head `
+    --checkpoint-every 5 --resume
+
+# Re-run: the same command skips seed/condition pairs whose
+# federated_per_project.json already exists (add --force to redo, --dry-run to preview).
+
+# Statistics across the seeds (repeat per metric of interest):
+python compute_statistics.py --experiments-root experiments --metric macro_f1
+python compute_statistics.py --experiments-root experiments --metric mae
+python compute_statistics.py --experiments-root experiments --metric cohen_kappa
+# Output: experiments/statistics/{results_long.csv, pairwise_vs_fedprox.csv,
+# friedman.json, nemenyi.csv, summary_table.tex}.
+
+
+# ==========================================================
+# 9) FINAL RESULTS RUN — 24 GB VRAM, no time limit (addresses RQ1-RQ4)
+# ==========================================================
+# Encoder: distilroberta-base @ max-length 256 (CLAUDE.md's final encoder;
+#          RoBERTa arch -> default query/value target modules). CORN ordinal
+#          head. 10 seeds (42-51), 20 rounds, full participation.
+# VRAM   : batch-size 16 is a safe fit for 24 GB with the frozen backbone +
+#          LoRA (only LoRA-B + head + embeddings train). 24 GB can usually
+#          handle 32 for ~2x throughput — bump it if you see spare memory and
+#          no OOM in the first round.
+# Time   : this is a long multi-day sweep (10 seeds x {FedProx, FedAvg} x
+#          {warm-start, local-only, centralized, federated}). It is fully
+#          checkpointed: if it dies, re-run the SAME command (already includes
+#          --resume) — finished seed/condition pairs are skipped and an
+#          interrupted one continues from its last completed round/epoch/client.
 #
-#   --experiments-root (str, default "experiments")
-#       Root directory written by run_experiments.py
-#       (<experiments-root>/seed_<N>/{fedprox,fedavg}/results/*.json).
-#   --seeds (str, default: auto-discover seed_* dirs)
-#       Seed list/range, e.g. "42-51". If omitted, every seed_<N> directory
-#       under --experiments-root is used.
-#   --metric {macro_f1, accuracy, cohen_kappa, mae} (default macro_f1)
-#       Metric to compare across conditions (Local-only, Centralized,
-#       FedAvg, FedProx). mae is "lower is better"; the others are
-#       "higher is better".
-#   --alpha (float, default 0.05)
-#       Significance threshold for the Friedman test and the
-#       Wilcoxon-significance marker in the console output.
-#   --out-dir (str, default "<experiments-root>/statistics")
-#       Output directory for results_long.csv, pairwise_vs_fedprox.csv,
-#       friedman.json, nemenyi.csv, and summary_table.tex.
+# DAILY WORKFLOW (short lab sessions): just Ctrl-C (or power off) when your
+# time is up, and next day re-run the EXACT same command. On resume:
+#   - warm-start is REUSED from cache (not retrained) — no re-paying it daily;
+#   - centralized skips finished epochs, local-only skips finished clients,
+#     federated continues from its last round. Resume is bit-reproducible.
+#
+# --- A) CORE (RQ1 local-only->federated->centralized gap, RQ2 FedProx vs
+#     FedAvg, RQ3 FFA-LoRA communication cost). Shared head. ---
+python run_experiments.py `
+    --seeds 42-51 --results-root experiments_shared `
+    --data-dir data_to_train_on `
+    --model-name distilroberta-base --max-length 256 `
+    --rounds 20 --local-epochs 1 --batch-size 16 `
+    --lr 3e-5 --warmstart-lr 3e-5 --warmstart-epochs 10 `
+    --prox-mu 1e-2 --head-type corn `
+    --checkpoint-every 5 --resume
 
+# --- B) RQ4 (personalization). Same 10 seeds, personalized per-client heads
+#     (FedSP-PEFT-P) + generic head for the onboarding experiment.
+#     --skip-baselines: local-only + centralized are IDENTICAL to run A
+#     (personalization only changes federated aggregation), so skip them here
+#     and compare run B's per-project federated numbers against run A's shared
+#     federated + A's baselines. Saves ~10 redundant baseline sweeps. ---
+python run_experiments.py `
+    --seeds 42-51 --results-root experiments_personalized `
+    --data-dir data_to_train_on `
+    --model-name distilroberta-base --max-length 256 `
+    --rounds 20 --local-epochs 1 --batch-size 16 `
+    --lr 3e-5 --warmstart-lr 3e-5 --warmstart-epochs 10 `
+    --prox-mu 1e-2 --head-type corn --personalized-head --generic-head `
+    --skip-baselines --checkpoint-every 5 --resume
 
+# --- Statistics for both result roots (per metric) ---
+python compute_statistics.py --experiments-root experiments_shared --metric macro_f1
+python compute_statistics.py --experiments-root experiments_shared --metric mae
+python compute_statistics.py --experiments-root experiments_shared --metric cohen_kappa
+python compute_statistics.py --experiments-root experiments_personalized --metric macro_f1
+python compute_statistics.py --experiments-root experiments_personalized --metric mae
+python compute_statistics.py --experiments-root experiments_personalized --metric cohen_kappa
 
-
-
-
-# ==========================================================
-# 1) BASELINE — FedProx + FFA-LoRA + warm-start (random split)
-# ==========================================================
-# The thesis's primary condition.
-# - Warm-starts LoRA + head on Lsstcorp (up to 10 epochs, early-stop on val macro-F1)
-# - Federates across the remaining projects as clients, 20 rounds, 1 local epoch
-# - All clients participate every round (fraction = 1.0)
-# - FFA-LoRA: only LoRA B matrices + head are trained and aggregated
-# - prox_mu=1e-2 -> labeled "FedProx (mu=0.01)"
-# - Results (per-project CSV, markdown, confusion matrices) saved to --save-dir/results/
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
-	--data-dir "D:\Federated Learning using DL\data_to_train_on" `
-	--device cuda `
-	--model-name "microsoft/codebert-base" `
-	--max-length 384 `
-	--rounds 20 `
-	--local-epochs 1 `
-	--batch-size 8 `
-	--lr 3e-5 `
-	--weight-decay 1e-4 `
-	--prox-mu 1e-2 `
-	--clients-per-round-fraction 1.0 `
-	--local-sample-ratio-per-epoch 1.0 `
-	--lora-r 8 `
-	--lora-alpha 16 `
-	--lora-dropout 0.05 `
-	--lora-target-modules query value `
-	--warmstart-project lsstcorp `
-	--warmstart-epochs 10 `
-	--warmstart-patience 3 `
-	--warmstart-lr 3e-5 `
-	--save-dir "D:\Federated Learning using DL\artifacts" `
-	--central-log-every 1 `
-	--seed 42
-
-
-# ==========================================================
-# 2) FEDAVG CONDITION — prox_mu=0 (FedAvg vs FedProx, RQ2)
-# ==========================================================
-# Identical to run 1 except --prox-mu 0, which mathematically degrades
-# FedProx to plain FedAvg (no proximal term). Auto-labeled "FedAvg" in
-# all console output, results/summary.md, and results/config.json.
-# --skip-centralized / --skip-local-only: those baselines don't depend
-# on prox_mu (local-only always trains with prox_mu=0 internally, and
-# centralized doesn't use prox_mu at all) — reuse run 1's numbers for
-# those rows instead of recomputing them.
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
-	--data-dir "D:\Federated Learning using DL\data_to_train_on" `
-	--device cuda `
-	--skip-centralized `
-	--skip-local-only `
-	--model-name "microsoft/codebert-base" `
-	--max-length 384 `
-	--rounds 20 `
-	--local-epochs 1 `
-	--batch-size 8 `
-	--lr 3e-5 `
-	--weight-decay 1e-4 `
-	--prox-mu 0 `
-	--clients-per-round-fraction 1.0 `
-	--local-sample-ratio-per-epoch 1.0 `
-	--lora-r 8 `
-	--lora-alpha 16 `
-	--lora-dropout 0.05 `
-	--lora-target-modules query value `
-	--warmstart-project lsstcorp `
-	--warmstart-epochs 10 `
-	--warmstart-patience 3 `
-	--warmstart-lr 3e-5 `
-	--save-dir "D:\Federated Learning using DL\artifacts_fedavg" `
-	--central-log-every 1 `
-	--seed 42
-
-
-# ==========================================================
-# 3) PROX_MU SENSITIVITY — mu=0.1 (strong proximal pull)
-# ==========================================================
-# Same as run 1 but with a 10x larger mu, to probe whether stronger
-# regularization helps or over-constrains clients under TAWOS's
-# non-IID per-project label distributions. Run alongside mu=0.01
-# (run 1) and mu=0 (run 2) for the full sensitivity sweep — repeat
-# with mu=1e-3 for the 4-point sweep CLAUDE.md asks for
-# (0.0, 0.001, 0.01, 0.1) by copying this block and changing --prox-mu
-# and --save-dir.
-# Same --skip-centralized / --skip-local-only reasoning as run 2.
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
-	--data-dir "D:\Federated Learning using DL\data_to_train_on" `
-	--device cuda `
-	--skip-centralized `
-	--skip-local-only `
-	--model-name "microsoft/codebert-base" `
-	--max-length 384 `
-	--rounds 20 `
-	--local-epochs 1 `
-	--batch-size 8 `
-	--lr 3e-5 `
-	--weight-decay 1e-4 `
-	--prox-mu 0.1 `
-	--clients-per-round-fraction 1.0 `
-	--local-sample-ratio-per-epoch 1.0 `
-	--lora-r 8 `
-	--lora-alpha 16 `
-	--lora-dropout 0.05 `
-	--lora-target-modules query value `
-	--warmstart-project lsstcorp `
-	--warmstart-epochs 10 `
-	--warmstart-patience 3 `
-	--warmstart-lr 3e-5 `
-	--save-dir "D:\Federated Learning using DL\artifacts_mu0.1" `
-	--central-log-every 1 `
-	--seed 42
-
-
-# ==========================================================
-# 4) TEMPORAL SPLIT — train on earlier issues, test on later (gap #9)
-# ==========================================================
-# Same as run 1 but with --split-mode temporal: each client's val/test
-# split becomes its chronologically-latest slice (Creation_Date order)
-# instead of a random sample. Preempts the "random split leaks future
-# information" examiner critique. Centralized and local-only ARE
-# recomputed here because the train/val/test split itself changes.
-# Compare federated Macro-F1 against run 1 to check robustness under
-# a more realistic temporal evaluation.
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
-	--data-dir "D:\Federated Learning using DL\data_to_train_on" `
-	--device cuda `
-	--split-mode temporal `
-	--model-name "microsoft/codebert-base" `
-	--max-length 384 `
-	--rounds 20 `
-	--local-epochs 1 `
-	--batch-size 8 `
-	--lr 3e-5 `
-	--weight-decay 1e-4 `
-	--prox-mu 1e-2 `
-	--clients-per-round-fraction 1.0 `
-	--local-sample-ratio-per-epoch 1.0 `
-	--lora-r 8 `
-	--lora-alpha 16 `
-	--lora-dropout 0.05 `
-	--lora-target-modules query value `
-	--warmstart-project lsstcorp `
-	--warmstart-epochs 10 `
-	--warmstart-patience 3 `
-	--warmstart-lr 3e-5 `
-	--save-dir "D:\Federated Learning using DL\artifacts_temporal" `
-	--central-log-every 1 `
-	--seed 42
-
-
-# ==========================================================
-# 5) STANDARD LoRA — FFA-LoRA off (aggregation-error ablation, RQ3)
-# ==========================================================
-# --no-ffa-lora trains and aggregates both LoRA A and B matrices
-# (naive federated averaging, avg(B)*avg(A) != avg(B*A)). Compare
-# against run 1 to quantify the aggregation-error cost FFA-LoRA avoids.
-# Centralized/local-only ARE recomputed: --no-ffa-lora changes the
-# model's trainable-parameter set, so it affects every condition.
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
-	--data-dir "D:\Federated Learning using DL\data_to_train_on" `
-	--device cuda `
-	--model-name "microsoft/codebert-base" `
-	--max-length 384 `
-	--rounds 20 `
-	--local-epochs 1 `
-	--batch-size 8 `
-	--lr 3e-5 `
-	--weight-decay 1e-4 `
-	--prox-mu 1e-2 `
-	--clients-per-round-fraction 1.0 `
-	--local-sample-ratio-per-epoch 1.0 `
-	--lora-r 8 `
-	--lora-alpha 16 `
-	--lora-dropout 0.05 `
-	--lora-target-modules query value `
-	--no-ffa-lora `
-	--warmstart-project lsstcorp `
-	--warmstart-epochs 10 `
-	--warmstart-patience 3 `
-	--warmstart-lr 3e-5 `
-	--save-dir "D:\Federated Learning using DL\artifacts_std_lora" `
-	--central-log-every 1 `
-	--seed 42
-
-
-# ==========================================================
-# 6) PARTIAL PARTICIPATION — 50% clients/round + local subsampling
-# ==========================================================
-# - 50% of clients selected each round (--clients-per-round-fraction 0.5)
-# - Each selected client trains on a fresh 75% random subset per local epoch
-# Simulates clients that are sometimes offline / have limited compute —
-# a more realistic cross-silo FL scenario (CLAUDE.md ablation: clients
-# per round). --skip-centralized / --skip-local-only for the same reason
-# as run 2: neither baseline depends on participation fraction or
-# per-client subsampling.
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
-	--data-dir "D:\Federated Learning using DL\data_to_train_on" `
-	--device cuda `
-	--skip-centralized `
-	--skip-local-only `
-	--model-name "microsoft/codebert-base" `
-	--max-length 384 `
-	--rounds 20 `
-	--local-epochs 1 `
-	--batch-size 8 `
-	--lr 3e-5 `
-	--weight-decay 1e-4 `
-	--prox-mu 1e-2 `
-	--clients-per-round-fraction 0.5 `
-	--local-sample-ratio-per-epoch 0.75 `
-	--lora-r 8 `
-	--lora-alpha 16 `
-	--lora-dropout 0.05 `
-	--lora-target-modules query value `
-	--warmstart-project lsstcorp `
-	--warmstart-epochs 10 `
-	--warmstart-patience 3 `
-	--warmstart-lr 3e-5 `
-	--save-dir "D:\Federated Learning using DL\artifacts_partial" `
-	--central-log-every 1 `
-	--seed 42
-
-
-# ==========================================================
-# 7) LOCAL EPOCHS — 3 local epochs per round (ablation: local_epochs)
-# ==========================================================
-# Increases local compute per round. Rounds reduced from 20 to 7 to
-# keep total per-client exposure roughly comparable to run 1
-# (rounds * local_epochs: 7*3=21 vs 20*1=20). Centralized (epochs=rounds)
-# and local-only (epochs=rounds*local_epochs) both change with rounds/
-# local_epochs, so they are recomputed here.
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
-	--data-dir "D:\Federated Learning using DL\data_to_train_on" `
-	--device cuda `
-	--model-name "microsoft/codebert-base" `
-	--max-length 384 `
-	--rounds 7 `
-	--local-epochs 3 `
-	--batch-size 8 `
-	--lr 3e-5 `
-	--weight-decay 1e-4 `
-	--prox-mu 1e-2 `
-	--clients-per-round-fraction 1.0 `
-	--local-sample-ratio-per-epoch 1.0 `
-	--lora-r 8 `
-	--lora-alpha 16 `
-	--lora-dropout 0.05 `
-	--lora-target-modules query value `
-	--warmstart-project lsstcorp `
-	--warmstart-epochs 10 `
-	--warmstart-patience 3 `
-	--warmstart-lr 3e-5 `
-	--save-dir "D:\Federated Learning using DL\artifacts_local_epochs3" `
-	--central-log-every 1 `
-	--seed 42
-
-
-# ==========================================================
-# 8) ENCODER ABLATION — DistilRoBERTa (final-results encoder, gap #8)
-# ==========================================================
-# Swaps the encoder from CodeBERT to distilroberta-base for the
-# properly-sized final results. Target modules stay query/value
-# (RoBERTa architecture, same as CodeBERT). max-length raised to 256
-# per the 128-vs-256 ablation (p90 token length is 164, p95 is 234).
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
-	--data-dir "D:\Federated Learning using DL\data_to_train_on" `
-	--device cuda `
-	--model-name "distilroberta-base" `
-	--max-length 256 `
-	--rounds 20 `
-	--local-epochs 1 `
-	--batch-size 8 `
-	--lr 3e-5 `
-	--weight-decay 1e-4 `
-	--prox-mu 1e-2 `
-	--clients-per-round-fraction 1.0 `
-	--local-sample-ratio-per-epoch 1.0 `
-	--lora-r 8 `
-	--lora-alpha 16 `
-	--lora-dropout 0.05 `
-	--lora-target-modules query value `
-	--warmstart-project lsstcorp `
-	--warmstart-epochs 10 `
-	--warmstart-patience 3 `
-	--warmstart-lr 3e-5 `
-	--save-dir "D:\Federated Learning using DL\artifacts_distilroberta" `
-	--central-log-every 1 `
-	--seed 42
-
-
-# ==========================================================
-# 9) DEV / SMOKE TEST — bert-tiny, everything small
-# ==========================================================
-# Fast end-to-end sanity check (a few minutes, not hours). Use this
-# after any code change before launching a full run. bert-tiny is the
-# CLAUDE.md-recommended dev encoder (BERT architecture -> query/value).
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
-	--data-dir "D:\Federated Learning using DL\data_to_train_on" `
-	--device cuda `
-	--model-name "prajjwal1/bert-tiny" `
-	--max-length 64 `
-	--rounds 2 `
-	--local-epochs 1 `
-	--batch-size 16 `
-	--lr 2e-5 `
-	--weight-decay 1e-4 `
-	--prox-mu 1e-2 `
-	--clients-per-round-fraction 1.0 `
-	--local-sample-ratio-per-epoch 0.1 `
-	--lora-r 8 `
-	--lora-alpha 16 `
-	--lora-dropout 0.05 `
-	--lora-target-modules query value `
-	--warmstart-project lsstcorp `
-	--warmstart-epochs 1 `
-	--warmstart-patience 1 `
-	--warmstart-lr 2e-5 `
-	--save-dir "D:\Federated Learning using DL\artifacts_test" `
-	--central-log-every 1 `
-	--seed 42
-
-
-# ==========================================================
-# 10) WARM-START ABLATION — federated with vs without warm-start (gap #7)
-# ==========================================================
-# Same as run 1, plus --run-no-warmstart-fl: trains a second federated
-# model from random init (no Lsstcorp warm-start checkpoint), using the
-# same per-round client selections as the warm-started run. Compare
-# results/federated_per_project.json (warm-started) against
-# results/federated_no_warmstart_per_project.json, and check the printed
-# "<condition> Macro-F1 improvement from warm-start: X%" line — this
-# isolates how much of the federated result is attributable to warm-start
-# vs. federation itself (RQ1).
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/train_federated_dl.py" `
-	--data-dir "D:\Federated Learning using DL\data_to_train_on" `
-	--device cuda `
-	--model-name "microsoft/codebert-base" `
-	--max-length 384 `
-	--rounds 20 `
-	--local-epochs 1 `
-	--batch-size 8 `
-	--lr 3e-5 `
-	--weight-decay 1e-4 `
-	--prox-mu 1e-2 `
-	--clients-per-round-fraction 1.0 `
-	--local-sample-ratio-per-epoch 1.0 `
-	--lora-r 8 `
-	--lora-alpha 16 `
-	--lora-dropout 0.05 `
-	--lora-target-modules query value `
-	--warmstart-project lsstcorp `
-	--warmstart-epochs 10 `
-	--warmstart-patience 3 `
-	--warmstart-lr 3e-5 `
-	--run-no-warmstart-fl `
-	--save-dir "D:\Federated Learning using DL\artifacts_warmstart_ablation" `
-	--central-log-every 1 `
-	--seed 42
-
-
-# ==========================================================
-# 11) TESTING / INFERENCE
-# ==========================================================
-# Use a saved artifact to generate predictions on new data.
-# Change --artifact-dir to warmstart, centralized, or federated as needed.
-# Output CSV contains predicted_class (0-4) and predicted_story_point (1/2/3/5/8).
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/predict_saved_model.py" `
-	--artifact-dir "D:\Federated Learning using DL\artifacts\federated" `
-	--data-dir "D:\Federated Learning using DL\data_to_test_on" `
-	--device cuda `
-	--out-csv "D:\Federated Learning using DL\predictions_federated.csv"
-
-
-# ==========================================================
-# 12) MULTI-SEED RUNNER + STATISTICS — gaps #4/#5
-# ==========================================================
-# Step 1: run 10 seeds. For each seed this runs train_federated_dl.py
-# twice — "fedprox" (includes majority/local-only/centralized baselines)
-# and "fedavg" (prox_mu=0, reuses the fedprox run's baselines for that
-# seed). Any flags not recognized by run_experiments.py (e.g. --data-dir,
-# --model-name, --rounds, --max-length, --lora-*, --warmstart-*, --device)
-# are forwarded verbatim to BOTH runs. Do not pass --seed, --prox-mu,
-# --save-dir, --skip-centralized, or --skip-local-only here — the runner
-# sets those itself.
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/run_experiments.py" `
-	--seeds 42-51 `
-	--results-root "D:\Federated Learning using DL\experiments" `
-	--data-dir "D:\Federated Learning using DL\data_to_train_on" `
-	--device cuda `
-	--model-name "microsoft/codebert-base" `
-	--max-length 384 `
-	--rounds 20 `
-	--local-epochs 1 `
-	--batch-size 8 `
-	--lr 3e-5 `
-	--weight-decay 1e-4 `
-	--prox-mu 1e-2 `
-	--lora-r 8 `
-	--lora-alpha 16 `
-	--lora-dropout 0.05 `
-	--lora-target-modules query value `
-	--warmstart-project lsstcorp `
-	--warmstart-epochs 10 `
-	--warmstart-patience 3 `
-	--warmstart-lr 3e-5 `
-	--central-log-every 1
-
-# Resume an interrupted multi-seed run (skips seed/condition pairs that
-# already have a results/federated_per_project.json):
-#   ... same command as above, unchanged — already-finished runs are
-#   skipped automatically. Add --force to re-run everything anyway, or
-#   --dry-run to preview the commands without executing them.
-
-# Step 2: compute statistics across the 10 seeds. Repeat for each
-# --metric of interest (macro_f1, accuracy, mae, cohen_kappa).
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/compute_statistics.py" `
-	--experiments-root "D:\Federated Learning using DL\experiments" `
-	--metric macro_f1
-
-& "d:/Federated Learning using DL/.venv/Scripts/python.exe" "d:/Federated Learning using DL/compute_statistics.py" `
-	--experiments-root "D:\Federated Learning using DL\experiments" `
-	--metric mae
-
-# Output: <results-root>/statistics/{results_long.csv, pairwise_vs_fedprox.csv,
-# friedman.json, nemenyi.csv, summary_table.tex}. summary_table.tex is
-# LaTeX-ready for the thesis results chapter.
-
-
-
-# ==========================================================
-# SPECIAL FOR MINHAAAJ
-# ==========================================================
-
-python train_federated_dl.py \
-  --data-dir data_to_train_on_clean \
-  --device cuda \
-  --model-name microsoft/codebert-base \
-  --max-length 384 \
-  --rounds 20 \
-  --local-epochs 1 \
-  --batch-size 8 \
-  --lr 3e-5 \
-  --weight-decay 1e-4 \
-  --prox-mu 1e-2 \
-  --clients-per-round-fraction 1.0 \
-  --local-sample-ratio-per-epoch 1.0 \
-  --lora-r 8 \
-  --lora-alpha 16 \
-  --lora-dropout 0.05 \
-  --lora-target-modules query value \
-  --warmstart-project lsstcorp \
-  --warmstart-epochs 10 \
-  --warmstart-patience 3 \
-  --warmstart-lr 3e-5 \
-  --save-dir artifacts \
-  --central-log-every 1 \
-  --seed 42
+# --- RQ4 onboarding (cold-start crossover): run the LOPO block in section 7
+#     with the SAME encoder/flags, holding out a mid-sized project such as
+#     MongoDB_Core_Server (711 rows) or Moodle (978 rows) — NOT Lsstcorp.
+#
+# NOTES
+# - Run A first: it produces the majority/local-only/centralized baselines used
+#   across RQ1-RQ3. Run B (--skip-baselines) trains only the federated
+#   (personalized) part and is compared against run A's seed-matched baselines.
+# - compute_statistics pairs FedProx vs {Local-only, Centralized, FedAvg} within
+#   one root. The shared-vs-personalized (RQ4) comparison is done across the two
+#   roots' federated_per_project.json (per-project; personalized mode has no
+#   pooled "global" row by design — report per-project + mean/median).
+# - Warm-start is cached per seed/condition: the first time a run trains it, the
+#   state + post-warm-start RNG are saved under <save-dir>/warmstart/; any later
+#   --resume of that run loads them instead of retraining (bit-reproducible).
+# - If 24 GB is tight at max-length 256, drop to --max-length 128 (p90 token
+#   length is 164) before lowering the batch size.
