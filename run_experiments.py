@@ -113,6 +113,8 @@ def main() -> None:
     parser.add_argument("--prox-mu", type=float, default=1e-2, help="FedProx mu for the 'fedprox' run (default 0.01).")
     parser.add_argument("--results-root", type=str, default="experiments", help="Output root directory.")
     parser.add_argument("--skip-fedavg", action="store_true", help="Only run the FedProx (+baselines) condition.")
+    parser.add_argument("--skip-baselines", action="store_true",
+                        help="Also skip centralized + local-only in the fedprox condition (e.g. the personalized RQ4 run, which reuses the shared run's seed-matched baselines).")
     parser.add_argument("--force", action="store_true", help="Re-run even if results already exist for a seed/condition.")
     parser.add_argument("--dry-run", action="store_true", help="Print the commands that would run without executing them.")
     args, passthrough = parser.parse_known_args()
@@ -125,6 +127,7 @@ def main() -> None:
         "seeds": seeds,
         "prox_mu": args.prox_mu,
         "skip_fedavg": args.skip_fedavg,
+        "skip_baselines": args.skip_baselines,
         "passthrough_args": passthrough,
         "runs": [],
     }
@@ -133,8 +136,11 @@ def main() -> None:
     for seed in seeds:
         seed_dir = results_root / f"seed_{seed}"
 
+        fedprox_extra = ["--seed", str(seed), "--prox-mu", str(args.prox_mu)]
+        if args.skip_baselines:
+            fedprox_extra += ["--skip-centralized", "--skip-local-only"]
         conditions = [
-            ("fedprox", ["--seed", str(seed), "--prox-mu", str(args.prox_mu)]),
+            ("fedprox", fedprox_extra),
         ]
         if not args.skip_fedavg:
             conditions.append(
