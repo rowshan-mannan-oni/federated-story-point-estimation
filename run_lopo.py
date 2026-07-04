@@ -220,11 +220,14 @@ def main() -> None:
         per_budget[str(budget)] = metrics
         print(format_metrics(f"budget={budget} (n_adapt={n_adapt})", metrics), flush=True)
 
+    head_init = args.head_init if condition == "personalized" else "shared"
+    run_tag = condition if condition == "shared" else f"{condition}_{head_init}"
     out = {
         "holdout_project": holdout,
         "artifact_dir": str(artifact_dir),
         "condition": condition,
-        "head_init": args.head_init if condition == "personalized" else "shared",
+        "run_tag": run_tag,
+        "head_init": head_init,
         "head_type": head_type,
         "adapt_epochs": args.adapt_epochs,
         "adapt_lr": args.adapt_lr,
@@ -236,7 +239,9 @@ def main() -> None:
     }
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"lopo_{holdout}.json"
+    # Include the condition/head-init in the filename so shared vs personalized runs for the
+    # same holdout coexist (compare_lopo.py aggregates them into the crossover CSV).
+    out_path = out_dir / f"lopo_{holdout}_{run_tag}.json"
     with out_path.open("w", encoding="utf-8") as fh:
         json.dump(out, fh, indent=2)
     print(f"\n[LOPO] Wrote {out_path}", flush=True)
