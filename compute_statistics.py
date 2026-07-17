@@ -5,10 +5,16 @@ Consumes the <results-root>/seed_<N>/{fedprox,fedavg}/results/*.json files
 produced by run_experiments.py (gap #4) and runs:
 
   - Wilcoxon signed-rank test (paired, per (seed, project)): FedProx vs each
-    of Local-only, Centralized, FedAvg.
+    of Median, TF-IDF+SVM, Local-only, Centralized, FedAvg.
   - Vargha-Delaney A12 / Cliff's delta effect size for the same pairs.
   - Friedman test across all available conditions.
   - Nemenyi post-hoc pairwise test on the Friedman ranks.
+
+All tests are paired per (seed, project) — per-project is the unit of analysis, and
+pooled "global" entries are ignored on load. That is not just a convention: pooling
+rewards a model for encoding project identity (see fl/classic_baselines.py, where a
+per-project constant predictor pools to kappa 0.50 while scoring 0.00 in every
+project), so pooled numbers are not safe to compare across conditions.
 
 Outputs (written to <out-dir>, default <results-root>/statistics/):
   - results_long.csv      per (seed, project, condition) metric values
@@ -32,7 +38,14 @@ import pandas as pd
 from scipy.stats import friedmanchisquare, mannwhitneyu, studentized_range, wilcoxon
 
 # condition label -> (run subdirectory under seed_<N>/, per-project JSON file)
+# Ordered weakest-comparator-first; this order drives the printouts and the LaTeX
+# table rows. Median/TF-IDF+SVM are classic within-project baselines (not federated,
+# no privacy constraint) — they answer "competitive with what?", which majority-class
+# alone cannot. Any condition whose file is absent is skipped, so runs made with
+# --skip-classic-baselines still analyse cleanly.
 CONDITIONS: Dict[str, Tuple[str, str]] = {
+    "Median": ("fedprox", "median_per_project.json"),
+    "TF-IDF+SVM": ("fedprox", "tfidf_svm_per_project.json"),
     "Local-only": ("fedprox", "local_only_per_project.json"),
     "Centralized": ("fedprox", "centralized_per_project.json"),
     "FedAvg": ("fedavg", "federated_per_project.json"),
@@ -232,9 +245,23 @@ def main() -> None:
     wide = long_df.pivot_table(index=["seed", "project"], columns="condition", values=args.metric)
     if PRIMARY not in wide.columns:
         raise ValueError(f"'{PRIMARY}' results not found — cannot run statistics without the primary condition.")
-    wide = wide.dropna()
-    if wide.empty:
+
+    # dropna() keeps the blocks balanced, which the paired tests require — but a
+    # condition present for only SOME seeds would silently delete every block from
+    # the other seeds. Report it rather than quietly shrinking the analysis; a mixed
+    # root (e.g. seeds run before the classic baselines existed) is the likely cause.
+    missing_per_condition = {c: int(n) for c, n in (len(wide) - wide.count()).items() if n}
+    complete = wide.dropna()
+    if complete.empty:
         raise ValueError("No (seed, project) blocks have results for all conditions present.")
+    if len(complete) < len(wide):
+        print(
+            f"WARNING: dropped {len(wide) - len(complete)} of {len(wide)} (seed, project) blocks "
+            f"that lack at least one condition.\n"
+            f"         Blocks missing, per condition: {missing_per_condition}\n"
+            f"         Re-run the affected seeds, or the reported comparison silently rests on a subset.\n"
+        )
+    wide = complete
 
     pairwise = pairwise_vs_primary(wide, args.metric)
     pairwise.to_csv(out_dir / "pairwise_vs_fedprox.csv", index=False)
