@@ -39,6 +39,7 @@ class FLConfig:
     # Training toggles.
     skip_centralized: bool = False  # skip centralized baseline training to save time
     skip_local_only: bool = False  # skip the local-only (no-federation) baseline condition
+    skip_classic_baselines: bool = False  # skip the classic per-project baselines (TF-IDF+SVM, median) for RQ5
     run_no_warmstart_fl: bool = False  # also run federated training from random init (warm-start ablation, gap #7)
 
     # Optimization controls.

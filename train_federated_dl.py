@@ -26,6 +26,7 @@ from fl.config import FLConfig
 from sklearn.model_selection import train_test_split
 
 from fl.data import IssueDataset, compute_class_weights, load_dataset_by_project, prepare_tabular_bundle, LABEL_MAP, INV_LABEL_MAP
+from fl.classic_baselines import run_classic_baselines
 from fl.metrics import compute_communication_cost, evaluate_classification, format_metrics, run_prediction
 from fl.model import StoryPointClassifier, compute_head_loss, log_trainable_params
 from fl.server import FedProxServer
@@ -611,7 +612,22 @@ def build_summary_df(
     fed_results: Dict[str, Dict[str, Any]],
     central_results: Optional[Dict[str, Dict[str, Any]]],
     local_results: Optional[Dict[str, Dict[str, Any]]] = None,
+    classic_results: Optional[Dict[str, Dict[str, Dict[str, Any]]]] = None,
 ) -> pd.DataFrame:
+    """
+    Per-project comparison table (one row per project, plus a pooled "global" row
+    where the condition defines one).
+
+    classic_results ({"tfidf_svm": ..., "median": ...}) contributes accuracy and
+    macro-F1 only — deliberately not per-class F1, which would add 10 columns of
+    near-noise (the median arm is a per-project constant) to an already very wide
+    table. Their full metrics, including the primary MAE/kappa, are in
+    results/{median,tfidf_svm}_per_project.json and feed compute_statistics.py.
+
+    Those two are per-project models with no pooled entry (see fl/classic_baselines.py),
+    so their cells in the "global" row are left empty rather than filled with a pooled
+    figure that would flatter them.
+    """
     sp_labels = [1, 2, 3, 5, 8]
     # Personalized mode has no pooled "global" entry; append it only if present.
     project_ids = sorted(k for k in fed_results if k != "global")
@@ -640,6 +656,13 @@ def build_summary_df(
             row["local_macro_f1"] = round(loc["macro_f1"], 4)
             for i, sp in enumerate(sp_labels):
                 row[f"local_f1_sp{sp}"] = round(loc["per_class_f1"][i], 4)
+        if classic_results is not None:
+            for key, prefix in (("median", "median"), ("tfidf_svm", "svm")):
+                # .get(): absent for pid == "global" by design, and a project the
+                # baselines couldn't score would be a genuine hole worth showing empty.
+                entry = classic_results[key].get(pid)
+                row[f"{prefix}_acc"] = round(entry["accuracy"], 4) if entry is not None else None
+                row[f"{prefix}_macro_f1"] = round(entry["macro_f1"], 4) if entry is not None else None
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -651,7 +674,10 @@ def _df_to_markdown(df: pd.DataFrame) -> str:
         "| " + " | ".join("---" for _ in cols) + " |",
     ]
     for _, row in df.iterrows():
-        lines.append("| " + " | ".join(str(v) for v in row) + " |")
+        # Render missing cells as "-" rather than the literal "nan" pandas would
+        # stringify: a cell is empty only where a condition defines no value for that
+        # row (the classic baselines' pooled "global"), and "nan" reads as a bug.
+        lines.append("| " + " | ".join("-" if pd.isna(v) else str(v) for v in row) + " |")
     return "\n".join(lines)
 
 
@@ -751,6 +777,8 @@ def main() -> None:
     parser.add_argument("--warmstart-lr", type=float, default=2e-5)
     parser.add_argument("--skip-centralized", action="store_true")
     parser.add_argument("--skip-local-only", action="store_true")
+    parser.add_argument("--skip-classic-baselines", action="store_true",
+                        help="Skip the classic per-project baselines (TF-IDF+SVM, median) written for RQ5.")
     parser.add_argument("--run-no-warmstart-fl", action="store_true")
     parser.add_argument("--central-log-every", type=int, default=1)
     parser.add_argument("--checkpoint-every", type=int, default=0,
@@ -804,6 +832,7 @@ def main() -> None:
         ffa_lora=args.ffa_lora,
         skip_centralized=args.skip_centralized,
         skip_local_only=args.skip_local_only,
+        skip_classic_baselines=args.skip_classic_baselines,
         run_no_warmstart_fl=args.run_no_warmstart_fl,
         warmstart_project=args.warmstart_project,
         holdout_project=args.holdout_project,
@@ -942,6 +971,29 @@ def main() -> None:
     majority_class = int(np.bincount(train_dataset.labels).argmax())
     baseline_pred = np.full(len(y_test_labels), fill_value=majority_class, dtype=np.int64)
     baseline_metrics = evaluate_classification(y_test_labels, baseline_pred, config.num_classes)
+
+    # Classic per-project baselines (TF-IDF+SVM, median-SP): cheap CPU comparators
+    # from the SPE replication literature, trained WITHIN each project on the SAME
+    # split as the deep conditions. Not federated conditions — they contextualize the
+    # FL numbers ("competitive with what?").
+    #
+    # Run BEFORE any deep training, and written as soon as they exist, for two
+    # reasons: (a) they need only bundle.train_df/test_df, so there is nothing to
+    # wait for; (b) run_experiments.py treats federated_per_project.json as the
+    # "seed done" marker, so anything computed after that file is written is
+    # unrecoverable without --force re-running the whole GPU job. They take ~2 min
+    # on CPU, so paying for them up front costs nothing.
+    results_dir = save_dir / "results"
+    classic_results: Optional[Dict[str, Dict[str, Dict[str, Any]]]] = None
+    if not config.skip_classic_baselines:
+        classic_results = run_classic_baselines(
+            bundle.train_df, bundle.test_df, config.num_classes, config.random_state,
+        )
+        results_dir.mkdir(parents=True, exist_ok=True)
+        for name in ("tfidf_svm", "median"):
+            with (results_dir / f"{name}_per_project.json").open("w", encoding="utf-8") as fh:
+                json.dump(classic_results[name], fh, indent=2)
+        print("[ClassicBaselines] Wrote tfidf_svm_per_project.json + median_per_project.json", flush=True)
 
     # Warm-start: pretrain LoRA + head on Lsstcorp with early stopping on val macro-F1.
     # On --resume, reuse a cached warm-start (skip retraining): the saved state carries the
@@ -1284,8 +1336,7 @@ def main() -> None:
     centralized_metrics = central_results["global"] if central_results is not None else None
     local_metrics = local_results["global"] if local_results is not None else None
 
-    summary_df = build_summary_df(fed_results, central_results, local_results)
-    results_dir = save_dir / "results"
+    summary_df = build_summary_df(fed_results, central_results, local_results, classic_results)
     save_evaluation_results(
         results_dir, fed_results, central_results, summary_df, config,
         local_results, fed_history, communication_cost, fl_condition,
@@ -1313,6 +1364,18 @@ def main() -> None:
         )
         print(format_metrics(f"{fl_condition} (no warmstart)", nw_metrics))
     print(f"  Warmstart best val macro-F1: {warmstart_val_f1:.4f}")
+
+    # Printed in their own block, never inline with the conditions above: these are
+    # per-project models, so their only sound aggregate is the mean ACROSS projects,
+    # whereas the block above is pooled-global in shared-head mode. Stacking the two
+    # would invite a comparison between differently-aggregated numbers. The real
+    # comparison is per-project and paired — compute_statistics.py.
+    if classic_results is not None:
+        print("\nClassic baselines — per-project mean (within-project models, not federated)")
+        print(format_metrics("Baseline (Median SP)", mean_metrics_across_projects(classic_results["median"])))
+        print(format_metrics("TF-IDF + LinearSVM", mean_metrics_across_projects(classic_results["tfidf_svm"])))
+        print("  (no pooled-global row by design: pooling rewards encoding project identity —")
+        print("   the constant median predictor pools to kappa ~0.50 despite scoring 0.00 per project)")
 
     print(f"\nPer-project summary ({fl_condition} vs Centralized vs Local-only):")
     print(_df_to_markdown(summary_df))
