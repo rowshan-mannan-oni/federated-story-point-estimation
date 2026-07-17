@@ -12,12 +12,26 @@ interface MergedRow {
   round: number;
   val_macro_f1?: number;
   val_accuracy?: number;
+  mean_val_macro_f1?: number;
   mean_local_loss?: number;
   weighted_local_loss?: number;
   ws_val_macro_f1?: number;
   ws_val_accuracy?: number;
   ws_mean_local_loss?: number;
   ws_weighted_local_loss?: number;
+}
+
+/**
+ * Shared-head runs record `val_macro_f1`/`val_accuracy` (one global model).
+ * Personalized-head runs instead record per-client aggregates
+ * (`weighted_val_macro_f1`, `mean_val_macro_f1`, `mean_val_accuracy`).
+ * Best-on-val selection uses the weighted mean, so prefer it as the primary curve.
+ */
+function primaryValF1(r?: RoundHistoryEntry): number | undefined {
+  return r?.val_macro_f1 ?? r?.weighted_val_macro_f1 ?? r?.mean_val_macro_f1;
+}
+function primaryValAcc(r?: RoundHistoryEntry): number | undefined {
+  return r?.val_accuracy ?? r?.mean_val_accuracy;
 }
 
 function mergeHistories(primary?: RoundHistoryEntry[], secondary?: RoundHistoryEntry[]): MergedRow[] {
@@ -35,12 +49,14 @@ function mergeHistories(primary?: RoundHistoryEntry[], secondary?: RoundHistoryE
       const s = secondaryByRound.get(round);
       return {
         round,
-        val_macro_f1: p?.val_macro_f1,
-        val_accuracy: p?.val_accuracy,
+        val_macro_f1: primaryValF1(p),
+        val_accuracy: primaryValAcc(p),
+        // Only distinct from the weighted curve in personalized mode.
+        mean_val_macro_f1: p?.val_macro_f1 === undefined ? p?.mean_val_macro_f1 : undefined,
         mean_local_loss: p?.mean_local_loss,
         weighted_local_loss: p?.weighted_local_loss,
-        ws_val_macro_f1: s?.val_macro_f1,
-        ws_val_accuracy: s?.val_accuracy,
+        ws_val_macro_f1: primaryValF1(s),
+        ws_val_accuracy: primaryValAcc(s),
         ws_mean_local_loss: s?.mean_local_loss,
         ws_weighted_local_loss: s?.weighted_local_loss,
       };
@@ -70,13 +86,19 @@ export function RoundHistory() {
   }
 
   const data = mergeHistories(runData.roundHistory, runData.noWarmstartRoundHistory);
+  const personalized = !!runData.roundHistory?.some((r) => r.weighted_val_macro_f1 !== undefined);
+  const primaryLabel = personalized ? "Weighted (per client)" : "Federated";
 
   return (
     <div className="flex flex-col gap-5 pb-8">
       <PageHeader
         icon={LineChartIcon}
         title="Round History"
-        description="Validation performance and training loss across federated rounds."
+        description={
+          personalized
+            ? "Per-client validation aggregated across clients (weighted + mean) and training loss across federated rounds."
+            : "Validation performance and training loss across federated rounds."
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-4 sm:px-6">
@@ -108,9 +130,21 @@ export function RoundHistory() {
                   <Line
                     type="monotone"
                     dataKey="val_macro_f1"
-                    name="Federated"
+                    name={primaryLabel}
                     stroke="var(--color-fedprox)"
                     strokeWidth={2}
+                    dot={false}
+                    connectNulls
+                  />
+                )}
+                {personalized && (
+                  <Line
+                    type="monotone"
+                    dataKey="mean_val_macro_f1"
+                    name="Mean (per client)"
+                    stroke="var(--color-centralized)"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
                     dot={false}
                     connectNulls
                   />
@@ -160,7 +194,7 @@ export function RoundHistory() {
                   <Line
                     type="monotone"
                     dataKey="val_accuracy"
-                    name="Federated"
+                    name={primaryLabel}
                     stroke="var(--color-fedprox)"
                     strokeWidth={2}
                     dot={false}

@@ -42,6 +42,8 @@ saved_models_*/
 *.safetensors
 *.ckpt
 *.zip
+dashboard/public/data/
+results/
 
 # Predictions and logs
 predictions*.csv

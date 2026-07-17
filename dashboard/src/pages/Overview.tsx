@@ -5,7 +5,7 @@ import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
 import { MetricCard } from "../components/MetricCard";
 import { CONDITION_META } from "../lib/conditions";
-import { availableConditions, getGlobalMetrics, percentChange } from "../lib/metrics";
+import { availableConditions, getAggregateMetrics, isPersonalized, percentChange } from "../lib/metrics";
 import { formatNumber, formatPercent } from "../lib/format";
 import { ChartTooltip } from "../components/charts/ChartTooltip";
 
@@ -14,16 +14,19 @@ export function Overview() {
   if (!runData) return null;
 
   const conditions = availableConditions(runData);
+  const personalized = isPersonalized(runData);
   const primary =
-    getGlobalMetrics(runData.perProject.federated) ?? getGlobalMetrics(runData.perProject.federated_no_warmstart);
+    getAggregateMetrics(runData.perProject.federated) ?? getAggregateMetrics(runData.perProject.federated_no_warmstart);
 
   const warmstartGain = percentChange(
-    getGlobalMetrics(runData.perProject.federated)?.macro_f1 ?? NaN,
-    getGlobalMetrics(runData.perProject.federated_no_warmstart)?.macro_f1 ?? NaN,
+    getAggregateMetrics(runData.perProject.federated)?.macro_f1 ?? NaN,
+    getAggregateMetrics(runData.perProject.federated_no_warmstart)?.macro_f1 ?? NaN,
   );
 
+  const aggScope = personalized ? "test-weighted mean across per-client heads" : "pooled across all FL clients";
+
   const chartData = conditions.map((key) => {
-    const m = getGlobalMetrics(runData.perProject[key]);
+    const m = getAggregateMetrics(runData.perProject[key]);
     return {
       name: CONDITION_META[key].shortLabel,
       key,
@@ -38,7 +41,7 @@ export function Overview() {
       <PageHeader
         icon={LayoutDashboard}
         title="Overview"
-        description={`Headline results for "${runData.label}" — global metrics pooled across all FL clients.`}
+        description={`Headline results for "${runData.label}" — federated metrics, ${aggScope}.`}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 px-4 sm:px-6">
@@ -46,7 +49,7 @@ export function Overview() {
           icon={Target}
           label="Macro-F1 (Federated)"
           value={formatPercent(primary?.macro_f1)}
-          sublabel="Primary metric — robust to class imbalance"
+          sublabel={personalized ? "Aggregate over per-client heads" : "Robust to class imbalance"}
           accent="var(--color-fedprox)"
         />
         <MetricCard
@@ -73,7 +76,11 @@ export function Overview() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 px-4 sm:px-6">
-        <Panel title="Condition comparison (global)" icon={Sparkles} className="lg:col-span-2">
+        <Panel
+          title={personalized ? "Condition comparison (aggregate)" : "Condition comparison (global)"}
+          icon={Sparkles}
+          className="lg:col-span-2"
+        >
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} barCategoryGap="28%">
@@ -103,15 +110,41 @@ export function Overview() {
               </BarChart>
             </ResponsiveContainer>
           </div>
+          <p className="mt-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
+            {personalized
+              ? "Personalized-head run: no single global model exists — bars show the test-size-weighted aggregate of each client's own head on its own test split."
+              : "Bars show the pooled global model evaluated on the combined test set."}
+          </p>
         </Panel>
 
         <Panel title="Run configuration" icon={Settings2}>
           <dl className="flex flex-col gap-3 text-sm">
             <ConfigRow label="Encoder" value={runData.config?.model_name} mono />
             <ConfigRow label="Federated condition" value={runData.config?.federated_condition} />
+            <ConfigRow
+              label="Head type"
+              value={
+                runData.config?.head_type
+                  ? runData.config.head_type === "corn"
+                    ? "CORN (ordinal)"
+                    : "CE (softmax)"
+                  : undefined
+              }
+            />
+            <ConfigRow
+              label="Head aggregation"
+              value={
+                runData.config?.personalized_head === undefined
+                  ? undefined
+                  : runData.config.personalized_head
+                    ? `Personalized (local)${runData.config.generic_head ? " + generic" : ""}`
+                    : "Shared"
+              }
+            />
             <ConfigRow label="Rounds" value={runData.config?.rounds} />
             <ConfigRow label="Local epochs" value={runData.config?.local_epochs} />
             <ConfigRow label="Batch size" value={runData.config?.batch_size} />
+            <ConfigRow label="Max length" value={runData.config?.max_length} />
             <ConfigRow label="Learning rate" value={runData.config?.learning_rate} />
             <ConfigRow label="Prox μ" value={runData.config?.prox_mu} />
             <ConfigRow
@@ -123,6 +156,9 @@ export function Overview() {
               }
             />
             <ConfigRow label="Warm-start project" value={runData.config?.warmstart_project} />
+            {runData.config?.holdout_project ? (
+              <ConfigRow label="Holdout (LOPO)" value={runData.config.holdout_project} />
+            ) : null}
             <ConfigRow label="Split mode" value={runData.config?.split_mode} />
             <ConfigRow label="Seed" value={runData.config?.random_state} />
           </dl>

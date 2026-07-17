@@ -23,8 +23,15 @@ export interface RoundHistoryEntry {
   round: number;
   mean_local_loss: number;
   weighted_local_loss: number;
+  /** Shared-head mode: single global-model validation metrics. */
   val_macro_f1?: number;
   val_accuracy?: number;
+  /** Personalized-head mode: per-client validation aggregated across clients. */
+  mean_val_macro_f1?: number;
+  weighted_val_macro_f1?: number;
+  mean_val_accuracy?: number;
+  /** Client ids that participated in this round (full-participation runs list all). */
+  selected_clients?: string[];
 }
 
 export interface CommunicationCost {
@@ -82,6 +89,19 @@ export interface FLConfig {
 
   num_classes: number;
   device: string;
+
+  /** Ordinal head: "ce" = 5-logit softmax, "corn" = 4-logit CORN threshold head. */
+  head_type?: "ce" | "corn";
+  /** FedSP-PEFT-P: head stays local per client, never aggregated. */
+  personalized_head?: boolean;
+  /** Server keeps a one-way averaged head for onboarding new clients. */
+  generic_head?: boolean;
+  /** Leave-one-project-out: project excluded from the FL pool entirely. */
+  holdout_project?: string | null;
+
+  checkpoint_every?: number;
+  checkpoint_keep?: number;
+  resume?: boolean;
 
   federated_condition?: string;
 }

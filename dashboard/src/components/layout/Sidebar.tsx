@@ -47,13 +47,13 @@ export function Sidebar() {
 
       <div className="mt-auto pt-4 px-2">
         <p className="text-xs leading-relaxed" style={{ color: "var(--color-text-muted)" }}>
-          Reads result artifacts from{" "}
+          Use{" "}
+          <span className="font-medium" style={{ color: "var(--color-text-secondary)" }}>
+            Load folder
+          </span>{" "}
+          (top bar) to open any results directory from your computer — no sync needed. Bundled runs live in{" "}
           <code className="text-[11px]" style={{ color: "var(--color-text-secondary)" }}>
             public/data/runs/
-          </code>
-          . Sync a real run with{" "}
-          <code className="text-[11px]" style={{ color: "var(--color-text-secondary)" }}>
-            npm run sync-data
           </code>
           .
         </p>

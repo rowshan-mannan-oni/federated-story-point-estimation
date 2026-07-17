@@ -6,9 +6,12 @@ import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
 import { ChartTooltip } from "../components/charts/ChartTooltip";
 import { CONDITION_META } from "../lib/conditions";
-import { availableConditions, getProjectIds } from "../lib/metrics";
+import { availableConditions, getAggregateMetrics, getProjectIds } from "../lib/metrics";
 import { formatInt, formatPercent, formatProjectName } from "../lib/format";
 import { STORY_POINT_CLASSES } from "../types/results";
+
+/** Synthetic id for the pooled/aggregate matrix summed across all clients. */
+const AGGREGATE_ID = "__aggregate__";
 
 export function ConfusionMatrixPage() {
   const { runData } = useRun();
@@ -17,17 +20,29 @@ export function ConfusionMatrixPage() {
   const [condition, setCondition] = useState<string | undefined>(undefined);
   const activeCondition = condition ?? conditions[0];
 
+  const results = activeCondition
+    ? runData?.perProject[activeCondition as keyof typeof runData.perProject]
+    : undefined;
+
   const projectIds = useMemo(() => {
-    if (!runData || !activeCondition) return [];
-    return ["global", ...getProjectIds(runData.perProject[activeCondition as keyof typeof runData.perProject])];
-  }, [runData, activeCondition]);
+    if (!results) return [];
+    // Shared-head conditions expose a real pooled "global"; personalized ones get a
+    // summed-across-clients aggregate instead. Either leads the project list.
+    const lead = results.global !== undefined ? "global" : AGGREGATE_ID;
+    return [lead, ...getProjectIds(results)];
+  }, [results]);
 
   const [project, setProject] = useState<string | undefined>(undefined);
-  const activeProject = project ?? "global";
+  const activeProject = project && projectIds.includes(project) ? project : projectIds[0];
 
   if (!runData) return null;
 
-  const metrics = activeCondition ? runData.perProject[activeCondition as keyof typeof runData.perProject]?.[activeProject] : undefined;
+  const metrics =
+    activeProject === AGGREGATE_ID
+      ? getAggregateMetrics(results)
+      : activeProject
+        ? results?.[activeProject]
+        : undefined;
   const matrix = metrics?.confusion_matrix;
 
   const maxValue = matrix ? Math.max(...matrix.flat()) : 0;

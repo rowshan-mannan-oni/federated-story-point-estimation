@@ -25,7 +25,11 @@ export function AppLayout() {
           ) : runData ? (
             <Outlet />
           ) : (
-            <StatusScreen icon={DatabaseZap} title="No run selected" />
+            <StatusScreen
+              icon={DatabaseZap}
+              title="No results loaded"
+              description='Click "Load folder" in the top bar and pick a results directory (one containing config.json and *_per_project.json) to explore it here.'
+            />
           )}
         </main>
       </div>

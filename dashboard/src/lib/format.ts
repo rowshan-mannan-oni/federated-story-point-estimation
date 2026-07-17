@@ -30,5 +30,6 @@ export function formatBytes(bytes: number | undefined): string {
 /** Friendly label for a project/client id, e.g. "The_MongoDB_Engineering" -> "The MongoDB Engineering". */
 export function formatProjectName(id: string): string {
   if (id === "global") return "Global (all clients)";
+  if (id === "__aggregate__") return "Aggregate (all clients)";
   return id.replace(/_/g, " ");
 }
