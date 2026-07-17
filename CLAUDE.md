@@ -18,7 +18,7 @@ A **Bachelor thesis** on **Federated Learning for Story Point Estimation (SPE)**
 
 ---
 
-## ⚠️ CURRENT WORK — running the experiments (branch `version-2`)
+## ⚠️ CURRENT WORK — running the experiments (branch `thesis-final`)
 
 **Implementation is done.** Gaps #1–#14 are all implemented. The build-out that used to
 be tracked here as Tasks 1–4 (CORN head, personalized head, checkpoint/resume, LOPO) is
@@ -28,10 +28,10 @@ classic within-project baselines (TF-IDF+SVM, median-SP) landed on top of that.
 
 **The work now is running and analysing experiments, not writing features.**
 
-**Branch:** work happens on **`version-2`**. It branches off
+**Branch:** work happens on **`thesis-final`**. It branches off
 `feat/personalization-corn-checkpointing` (NOT off `main`), so it carries gaps #1–#14
 plus the classic baselines. `main` is stale — it is the known-good state of gaps #1–#10
-only. Whether/when to merge `version-2` into `main` is an open decision: ask, don't
+only. Whether/when to merge `thesis-final` into `main` is an open decision: ask, don't
 assume.
 
 **[RUN_PLAN.md](RUN_PLAN.md) is the source of truth for what to run.** It maps every run
@@ -44,7 +44,7 @@ of truth for *architecture, data, and framing*.
 ### Session protocol — every Claude Code session MUST follow this
 
 1. **Orient first:** `git status`, `git branch --show-current`, `git log --oneline -8`.
-   Expect `version-2`. Never work with a dirty tree from a previous session without
+   Expect `thesis-final`. Never work with a dirty tree from a previous session without
    understanding what's in it.
 2. **One concern = one commit.** Do not batch unrelated changes. Small commits are the
    rollback mechanism on a low-resource machine.
