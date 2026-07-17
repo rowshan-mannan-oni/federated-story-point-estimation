@@ -72,12 +72,16 @@ def run_condition(
     log_path: Path,
     dry_run: bool,
 ) -> bool:
-    save_dir.mkdir(parents=True, exist_ok=True)
     cmd = [python_exe, str(TRAIN_SCRIPT), *passthrough_args, *extra_args, "--save-dir", str(save_dir)]
     print(f"[run_experiments] $ {' '.join(cmd)}", flush=True)
 
     if dry_run:
         return True
+
+    # After the dry-run check: a preview must not touch the filesystem, or it litters
+    # the results root with empty seed dirs. Creating it here still precedes the log
+    # file below, whose parent (the seed dir) this same parents=True call creates.
+    save_dir.mkdir(parents=True, exist_ok=True)
 
     # Force the subprocess to emit UTF-8 on stdout/stderr (Windows defaults to
     # the console codepage, e.g. cp1252, which mismatches the utf-8 decoding
@@ -114,7 +118,7 @@ def main() -> None:
     parser.add_argument("--results-root", type=str, default="experiments", help="Output root directory.")
     parser.add_argument("--skip-fedavg", action="store_true", help="Only run the FedProx (+baselines) condition.")
     parser.add_argument("--skip-baselines", action="store_true",
-                        help="Also skip centralized + local-only in the fedprox condition (e.g. the personalized RQ4 run, which reuses the shared run's seed-matched baselines).")
+                        help="Also skip centralized + local-only + classic (TF-IDF/median) baselines in the fedprox condition (e.g. the personalized RQ4 run, which reuses the shared run's seed-matched baselines).")
     parser.add_argument("--force", action="store_true", help="Re-run even if results already exist for a seed/condition.")
     parser.add_argument("--dry-run", action="store_true", help="Print the commands that would run without executing them.")
     args, passthrough = parser.parse_known_args()
@@ -138,13 +142,16 @@ def main() -> None:
 
         fedprox_extra = ["--seed", str(seed), "--prox-mu", str(args.prox_mu)]
         if args.skip_baselines:
-            fedprox_extra += ["--skip-centralized", "--skip-local-only"]
+            fedprox_extra += ["--skip-centralized", "--skip-local-only", "--skip-classic-baselines"]
         conditions = [
             ("fedprox", fedprox_extra),
         ]
         if not args.skip_fedavg:
+            # Classic baselines (TF-IDF+SVM, median) don't depend on prox_mu, so the
+            # fedavg run reuses the fedprox run's copies rather than recomputing them.
             conditions.append(
-                ("fedavg", ["--seed", str(seed), "--prox-mu", "0", "--skip-centralized", "--skip-local-only"])
+                ("fedavg", ["--seed", str(seed), "--prox-mu", "0",
+                            "--skip-centralized", "--skip-local-only", "--skip-classic-baselines"])
             )
 
         for condition_name, extra_args in conditions:
