@@ -1,4 +1,5 @@
-from typing import Any, Dict, List
+from contextlib import contextmanager
+from typing import Any, Dict, Iterator, List
 
 import numpy as np
 import torch
@@ -7,6 +8,34 @@ from torch.utils.data import DataLoader
 from sklearn.metrics import accuracy_score, cohen_kappa_score, confusion_matrix, f1_score
 
 from fl.data import INV_LABEL_MAP
+
+
+@contextmanager
+def preserved_rng() -> Iterator[None]:
+    """Run a block without disturbing the global torch/numpy RNG streams.
+
+    Needed because iterating ANY DataLoader draws an int64 `_base_seed` from the global
+    torch RNG — even with `shuffle=False` and `num_workers=0`. An evaluation pass added to
+    an existing training loop therefore silently shifts every later shuffle and every
+    later random init, which changes the training trajectory and breaks bit-reproducibility
+    against earlier runs.
+
+    Wrap ONLY evaluation that was added after a training stream was already fixed (the
+    centralized and local-only best-on-val passes). Do NOT retrofit this onto the
+    warm-start or federated-server val passes: those existed when their streams were
+    established, so their RNG consumption is already baked into published results and
+    removing it would change them.
+    """
+    torch_state = torch.get_rng_state()
+    cuda_states = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
+    numpy_state = np.random.get_state()
+    try:
+        yield
+    finally:
+        torch.set_rng_state(torch_state)
+        if cuda_states is not None:
+            torch.cuda.set_rng_state_all(cuda_states)
+        np.random.set_state(numpy_state)
 
 
 def run_prediction(model: nn.Module, loader: DataLoader, device: torch.device) -> np.ndarray:

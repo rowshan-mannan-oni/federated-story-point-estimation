@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader, Subset
 from transformers import AutoTokenizer
 
 from fl.data import IssueDataset, compute_class_weights
+from fl.metrics import evaluate_classification, preserved_rng, run_prediction
 from fl.model import compute_head_loss, is_head_param
 
 
@@ -18,6 +19,11 @@ class ClientOutput:
     state_dict: Dict[str, torch.Tensor]
     num_examples: int
     loss: float
+    # Set only when train_local was given a val split and selected a best epoch
+    # (local-only condition). None in federated rounds, where the SERVER does the
+    # best-on-val selection across rounds instead.
+    best_val_macro_f1: Optional[float] = None
+    best_epoch: Optional[int] = None
 
 
 class FederatedClient:
@@ -96,12 +102,22 @@ class FederatedClient:
         prox_mu: float,
         seed: int,
         personalized_head: bool = False,
+        val_loader: Optional[DataLoader] = None,
+        val_labels: Optional[np.ndarray] = None,
     ) -> ClientOutput:
+        """
+        Train this client's model for `epochs` local epochs and return its trainable params.
+
+        `val_loader`/`val_labels` are for the LOCAL-ONLY condition, where a client trains
+        for the full budget in one call and nothing else selects a checkpoint for it: when
+        given, the epoch with the best val macro-F1 is returned instead of the final epoch.
+        Federated rounds leave them None — there the server does best-on-val selection
+        across rounds, so selecting per round as well would double-select.
+        """
         rng = np.random.default_rng(seed)
 
         model = model_factory().to(device)
         model.load_state_dict(global_state)
-        model.train()
 
         optimizer = AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
         # Per-client inverse-frequency weights — computed once from full local data.
@@ -131,7 +147,24 @@ class FederatedClient:
         num_batches = 0
         sampled_examples_total = 0
 
+        select_on_val = val_loader is not None and val_labels is not None
+        best_val_macro_f1 = -1.0
+        best_epoch = 0
+        best_state: Optional[Dict[str, torch.Tensor]] = None
+
+        def trainable_snapshot() -> Dict[str, torch.Tensor]:
+            # Frozen params are identical to global_state and never change, so a
+            # trainable-only snapshot fully captures one epoch's model.
+            return {
+                name: param.detach().cpu().clone()
+                for name, param in model.named_parameters()
+                if param.requires_grad
+            }
+
         for epoch_idx in range(epochs):
+            # run_prediction leaves the model in eval mode, so re-enter train mode every
+            # epoch. Harmless no-op when no val pass runs.
+            model.train()
             sampled_indices = self.sample_epoch_indices(
                 num_examples=len(self.dataset),
                 sample_ratio_per_epoch=sample_ratio_per_epoch,
@@ -177,15 +210,38 @@ class FederatedClient:
                         flush=True,
                     )
 
+            # Local-only best-on-val selection, wrapped in preserved_rng: iterating the val
+            # DataLoader draws from the global torch RNG, which would leak into everything
+            # downstream (later clients' inits, and on CPU the dropout masks of the
+            # federated phase that runs after local-only). Keeps this purely observational.
+            if select_on_val:
+                with preserved_rng():
+                    val_pred = run_prediction(model, val_loader, device)
+                val_macro_f1 = evaluate_classification(val_labels, val_pred, self.num_classes)["macro_f1"]
+                improved = val_macro_f1 > best_val_macro_f1
+                if improved:
+                    best_val_macro_f1 = val_macro_f1
+                    best_epoch = epoch_idx + 1
+                    best_state = trainable_snapshot()
+                print(
+                    f"    [Client {self.client_id}][Epoch {epoch_idx + 1}/{epochs}] "
+                    f"val_macro_f1={val_macro_f1:.4f}" + ("  *best*" if improved else ""),
+                    flush=True,
+                )
+
         avg_loss = running_loss / max(num_batches, 1)
         # Only trainable params are aggregated server-side — frozen backbone weights
         # are identical to global_state and would otherwise be cloned/transferred for nothing
         # (~500MB/client for a 125M-param encoder, vs ~1MB for LoRA-B + embeddings + head).
-        state = {
-            name: param.detach().cpu().clone()
-            for name, param in model.named_parameters()
-            if param.requires_grad
-        }
+        if select_on_val and best_state is not None:
+            state = best_state
+            print(
+                f"    [Client {self.client_id}] Selected epoch {best_epoch}/{epochs} "
+                f"(best val macro-F1={best_val_macro_f1:.4f}).",
+                flush=True,
+            )
+        else:
+            state = trainable_snapshot()
 
         # Explicitly release GPU tensors so the CUDA allocator can defragment before
         # the next client's model is loaded; without this, sequential client training
@@ -197,4 +253,10 @@ class FederatedClient:
             torch.cuda.empty_cache()
 
         effective_examples = max(sampled_examples_total, 1)
-        return ClientOutput(state_dict=state, num_examples=effective_examples, loss=avg_loss)
+        return ClientOutput(
+            state_dict=state,
+            num_examples=effective_examples,
+            loss=avg_loss,
+            best_val_macro_f1=best_val_macro_f1 if select_on_val else None,
+            best_epoch=best_epoch if select_on_val else None,
+        )

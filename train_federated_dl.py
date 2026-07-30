@@ -27,7 +27,13 @@ from sklearn.model_selection import train_test_split
 
 from fl.data import IssueDataset, compute_class_weights, load_dataset_by_project, prepare_tabular_bundle, LABEL_MAP, INV_LABEL_MAP
 from fl.classic_baselines import run_classic_baselines
-from fl.metrics import compute_communication_cost, evaluate_classification, format_metrics, run_prediction
+from fl.metrics import (
+    compute_communication_cost,
+    evaluate_classification,
+    format_metrics,
+    preserved_rng,
+    run_prediction,
+)
 from fl.model import StoryPointClassifier, compute_head_loss, log_trainable_params
 from fl.server import FedProxServer
 
@@ -99,6 +105,8 @@ def train_centralized(
     learning_rate: float,
     weight_decay: float,
     class_weights: torch.Tensor,
+    val_loader: Optional[DataLoader] = None,
+    val_labels: Optional[np.ndarray] = None,
     log_every: int = 1,
     ckpt_root: Optional[Path] = None,
     checkpoint_every: int = 0,
@@ -106,17 +114,40 @@ def train_centralized(
     checkpoint_config: Optional[FLConfig] = None,
     resume_payload: Optional[Dict[str, Any]] = None,
 ) -> nn.Module:
-    model.train()
+    """
+    Train the pooled-data (centralized) reference model.
+
+    When `val_loader`/`val_labels` are given, the epoch with the best val macro-F1 is
+    returned instead of the final epoch. This keeps model selection SYMMETRIC with the
+    federated server, which also trains for the full budget and returns its best-on-val
+    round. Without it the pooled model is the only condition judged at an arbitrary
+    epoch, which biases the RQ1 comparison against it: it sees by far the most data per
+    epoch, so it peaks earliest and then overfits with nothing to catch it.
+
+    Deliberately NOT early stopping: the federated arm runs every round and selects, so
+    cutting this one short would trade one asymmetry for another.
+    """
     optimizer = AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))  # CE head only; CORN ignores weights
     head_type = getattr(model, "head_type", "ce")
     num_classes = getattr(model, "num_classes", class_weights.numel())
+    select_on_val = val_loader is not None and val_labels is not None
 
-    # Trainable-only keys — the frozen backbone is never checkpointed (gap #13).
-    trainable_keys = [n for n, p in model.named_parameters() if p.requires_grad]
+    def trainable_snapshot() -> Dict[str, torch.Tensor]:
+        # Trainable-only — the frozen backbone never changes, so this fully captures the
+        # difference between two epochs. Restored with strict=False. (gap #13)
+        return {
+            name: param.detach().cpu().clone()
+            for name, param in model.named_parameters()
+            if param.requires_grad
+        }
 
-    # Resume: restore trainable params, optimizer state, epoch index, and RNG.
+    # Resume: restore trainable params, optimizer state, epoch index, RNG, and best-on-val
+    # bookkeeping. The `.get` defaults keep checkpoints written before selection existed loadable.
     start_epoch = 0
+    best_val_macro_f1 = -1.0
+    best_epoch = 0
+    best_state: Optional[Dict[str, torch.Tensor]] = None
     if resume_payload is not None:
         model.load_state_dict(resume_payload["model_state"], strict=False)
         optimizer.load_state_dict(resume_payload["optimizer"])
@@ -126,10 +157,18 @@ def train_centralized(
                     opt_state[sk] = sv.to(device)
         start_epoch = int(resume_payload["epoch"])
         ck.restore_rng_state(resume_payload["rng"])
+        best_val_macro_f1 = float(resume_payload.get("best_val_macro_f1", -1.0))
+        best_epoch = int(resume_payload.get("best_epoch", 0))
+        best_state = resume_payload.get("best_state")
         print(f"[Centralized] Resumed from epoch {start_epoch}; continuing to {epochs}.", flush=True)
 
     print(
-        f"[Centralized] Starting training: epochs={epochs}, batches_per_epoch={len(train_loader)}",
+        f"[Centralized] Starting training: epochs={epochs}, batches_per_epoch={len(train_loader)}"
+        + (
+            f", val_batches={len(val_loader)} (best-on-val selection)"
+            if select_on_val
+            else " (no val split -> final epoch returned)"
+        ),
         flush=True,
     )
 
@@ -140,6 +179,9 @@ def train_centralized(
         epoch_loss_sum = 0.0
         epoch_batches = 0
 
+        # run_prediction leaves the model in eval mode, so re-enter train mode every
+        # epoch. Harmless no-op when no val pass runs.
+        model.train()
         for batch in train_loader:
             batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
             optimizer.zero_grad(set_to_none=True)
@@ -152,7 +194,25 @@ def train_centralized(
             epoch_batches += 1
 
         done = epoch_idx + 1
-        if done % max(log_every, 1) == 0:
+
+        # Best-on-val selection, wrapped in preserved_rng: iterating the val DataLoader
+        # draws from the global torch RNG, which would otherwise reshuffle train_loader
+        # from the next epoch onward and change this model's training trajectory.
+        # Verified: with this guard the per-epoch training losses match a run with no
+        # val split exactly, so the ONLY effect of selection is which epoch is returned.
+        is_best = False
+        val_macro_f1: Optional[float] = None
+        if select_on_val:
+            with preserved_rng():
+                val_pred = run_prediction(model, val_loader, device)
+            val_macro_f1 = evaluate_classification(val_labels, val_pred, num_classes)["macro_f1"]
+            is_best = val_macro_f1 > best_val_macro_f1
+            if is_best:
+                best_val_macro_f1 = val_macro_f1
+                best_epoch = done
+                best_state = trainable_snapshot()
+
+        if done % max(log_every, 1) == 0 or is_best:
             avg_epoch_loss = epoch_loss_sum / max(epoch_batches, 1)
             epoch_elapsed = time.perf_counter() - epoch_start
             total_elapsed = time.perf_counter() - train_start
@@ -162,28 +222,42 @@ def train_centralized(
             print(
                 f"[Centralized][Epoch {done}/{epochs}] "
                 f"avg_loss={avg_epoch_loss:.6f} "
-                f"epoch_time={epoch_elapsed:.1f}s "
+                + (f"val_macro_f1={val_macro_f1:.4f} " if val_macro_f1 is not None else "")
+                + f"epoch_time={epoch_elapsed:.1f}s "
                 f"elapsed={total_elapsed:.1f}s "
-                f"eta={eta_seconds:.1f}s",
+                f"eta={eta_seconds:.1f}s"
+                + ("  *best*" if is_best else ""),
                 flush=True,
             )
 
-        # Per-epoch checkpoint (gap #13): trainable state + optimizer + epoch + RNG.
+        # Per-epoch checkpoint (gap #13): trainable state + optimizer + epoch + RNG,
+        # plus the best-on-val bookkeeping so a resumed run can still return the best
+        # epoch even if it occurred before the interruption.
         if checkpoint_every > 0 and ckpt_root is not None and (
             done % checkpoint_every == 0 or done == epochs
         ):
-            full_state = model.state_dict()
             payload: Dict[str, Any] = {
                 "epoch": done,
-                "model_state": {k: full_state[k].detach().cpu().clone() for k in trainable_keys},
+                "model_state": trainable_snapshot(),
                 "optimizer": optimizer.state_dict(),
                 "rng": ck.capture_rng_state(),
+                "best_val_macro_f1": best_val_macro_f1,
+                "best_epoch": best_epoch,
+                "best_state": best_state,
             }
             ck.save_checkpoint(
                 ckpt_root, done, payload, checkpoint_config,
-                is_best=False, keep=checkpoint_keep, step_prefix="epoch",
+                is_best=is_best, keep=checkpoint_keep, step_prefix="epoch",
             )
             print(f"[Centralized][Checkpoint] saved epoch {done} to {ckpt_root}", flush=True)
+
+    if select_on_val and best_state is not None:
+        model.load_state_dict(best_state, strict=False)
+        print(
+            f"[Centralized] Selected epoch {best_epoch}/{epochs} "
+            f"(best val macro-F1={best_val_macro_f1:.4f}).",
+            flush=True,
+        )
 
     return model
 
@@ -483,6 +557,7 @@ def train_local_only(
     learning_rate: float,
     weight_decay: float,
     random_state: int,
+    client_val: Optional[Dict[str, Any]] = None,
     save_dir: Optional[Path] = None,
     checkpoint_every: int = 0,
     checkpoint_keep: int = 2,
@@ -494,6 +569,13 @@ def train_local_only(
     Every client starts from the same `initial_state` (the warm-start checkpoint, same
     as the federated run) so the only difference vs. federated is the absence of
     cross-client aggregation. Returns client_id -> full state dict.
+
+    `client_val` maps client_id -> (val_loader, val_labels). When supplied, each client
+    returns its best-on-val epoch rather than its final one, matching how the federated
+    server selects across rounds. Keeping selection symmetric is what makes the
+    local-only vs. federated comparison attributable to federation itself; without it
+    only the federated arm gets to pick its best moment. A client absent from the map
+    (no val rows) falls back to its final epoch.
 
     Checkpointing (gap #13) is per-client: a finished client's final trainable state is
     its checkpoint, so an interrupt mid-pool doesn't redo finished clients. On resume,
@@ -526,6 +608,7 @@ def train_local_only(
             ck.restore_rng_state(last_skipped_rng)
             last_skipped_rng = None
 
+        val_pair = client_val.get(cid) if client_val else None
         result = client.train_local(
             global_state=initial_state,
             model_factory=model_factory,
@@ -537,6 +620,8 @@ def train_local_only(
             weight_decay=weight_decay,
             prox_mu=0.0,
             seed=random_state + i,
+            val_loader=val_pair[0] if val_pair is not None else None,
+            val_labels=val_pair[1] if val_pair is not None else None,
         )
         # Trainable params come from local training; frozen backbone is shared with initial_state.
         local_states[cid] = {**initial_state, **result.state_dict}
@@ -546,14 +631,22 @@ def train_local_only(
                 "trainable_state": result.state_dict,
                 "rng": ck.capture_rng_state(),
                 "client_id": cid,
+                "best_val_macro_f1": result.best_val_macro_f1,
+                "best_epoch": result.best_epoch,
             }
             ck.save_checkpoint(
                 client_ckpt_root, i + 1, payload, checkpoint_config,
                 is_best=False, keep=checkpoint_keep, step_prefix="client",
             )
 
+        selected = (
+            f" selected_epoch={result.best_epoch}/{epochs} best_val_macro_f1={result.best_val_macro_f1:.4f}"
+            if result.best_epoch is not None
+            else " (no val split -> final epoch)"
+        )
         print(
-            f"  - client={client.client_id} examples={result.num_examples} final_loss={result.loss:.6f}",
+            f"  - client={client.client_id} examples={result.num_examples} "
+            f"final_loss={result.loss:.6f}{selected}",
             flush=True,
         )
 
@@ -1077,6 +1170,10 @@ def main() -> None:
             learning_rate=config.learning_rate,
             weight_decay=config.weight_decay,
             class_weights=global_class_weights,
+            # Same pooled val split the shared-head federated server selects on, so both
+            # conditions are judged by the same yardstick.
+            val_loader=fl_val_loader,
+            val_labels=fl_val_dataset.labels,
             log_every=max(1, args.central_log_every),
             ckpt_root=central_ckpt_root,
             checkpoint_every=config.checkpoint_every,
@@ -1110,18 +1207,18 @@ def main() -> None:
             )
         )
 
-    # Personalized-head mode needs each client's own val split (shared repr + own head is
-    # evaluated on it per round). Built once here and reused across warmstart/no-warmstart runs.
-    client_val: Optional[Dict[str, Any]] = None
-    if config.personalized_head:
-        client_val = {}
-        for client_id, group in bundle.val_df.groupby("client_id"):
-            if group.empty:
-                continue
-            ds = IssueDataset(group.reset_index(drop=True), bundle.type_to_id, bundle.priority_to_id)
-            loader = DataLoader(ds, batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn)
-            client_val[str(client_id)] = (loader, ds.labels)
-        print(f"[FedProx] Personalized-head per-client val splits: {len(client_val)} clients.", flush=True)
+    # Per-client val splits. Two consumers: personalized-head federated (shared repr +
+    # own head evaluated per round) and local-only (per-client best-on-val selection).
+    # Built unconditionally — constructing loaders draws no RNG, so this does not perturb
+    # reproducibility of shared-head runs. Reused across warmstart/no-warmstart runs.
+    client_val: Dict[str, Any] = {}
+    for client_id, group in bundle.val_df.groupby("client_id"):
+        if group.empty:
+            continue
+        ds = IssueDataset(group.reset_index(drop=True), bundle.type_to_id, bundle.priority_to_id)
+        loader = DataLoader(ds, batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn)
+        client_val[str(client_id)] = (loader, ds.labels)
+    print(f"[Data] Per-client val splits: {len(client_val)} clients.", flush=True)
 
     communication_cost = compute_communication_cost(
         trainable_params=probe_trainable_params,
@@ -1145,6 +1242,7 @@ def main() -> None:
             learning_rate=config.learning_rate,
             weight_decay=config.weight_decay,
             random_state=config.random_state,
+            client_val=client_val,
             save_dir=save_dir,
             checkpoint_every=config.checkpoint_every,
             checkpoint_keep=config.checkpoint_keep,
