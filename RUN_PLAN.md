@@ -49,7 +49,7 @@ then once random for the robustness appendix.
 | robustness | `experiments_random_shared`, `_personalized` | 42–44 | mirrors of the temporal roots |
 
 RQ2 and RQ3 are both **cross-root** comparisons against the same shared root, so
-one analysis helper serves both (see Analysis).
+one analysis helper (`compare_conditions.py`; see Analysis) serves both.
 
 ---
 
@@ -57,7 +57,7 @@ one analysis helper serves both (see Analysis).
 
 ```powershell
 python train_federated_dl.py `
-    --data-dir data_to_train_on `
+    --data-dir "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean" `
     --model-name prajjwal1/bert-tiny --max-length 64 `
     --rounds 2 --local-epochs 1 --warmstart-epochs 1 `
     --head-type corn --personalized-head --generic-head --checkpoint-every 1 `
@@ -75,8 +75,8 @@ free, **and** is the comparison arm for both RQ2 and RQ3. Run it first.
 
 ```powershell
 python run_experiments.py `
-    --seeds 42-44 --results-root experiments_temporal_shared `
-    --data-dir data_to_train_on `
+    --seeds 42-44 --results-root "/mnt/Data/Oni/experiments_temporal_shared" `
+    --data-dir "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean" `
     --model-name microsoft/codebert-base --max-length 256 `
     --rounds 60 --local-epochs 1 --batch-size 64 `
     --lr 3e-5 --warmstart-lr 3e-5 --warmstart-epochs 10 `
@@ -87,9 +87,9 @@ python run_experiments.py `
 Stats (run per metric; MAE and κ are primary, macro-F1 secondary):
 
 ```powershell
-python compute_statistics.py --experiments-root experiments_temporal_shared --metric mae
-python compute_statistics.py --experiments-root experiments_temporal_shared --metric cohen_kappa
-python compute_statistics.py --experiments-root experiments_temporal_shared --metric macro_f1
+python compute_statistics.py --experiments-root "/mnt/Data/Oni/experiments_temporal_shared" --metric mae
+python compute_statistics.py --experiments-root "/mnt/Data/Oni/experiments_temporal_shared" --metric cohen_kappa
+python compute_statistics.py --experiments-root "/mnt/Data/Oni/experiments_temporal_shared" --metric macro_f1
 ```
 
 Pairs FedProx vs {Median, TF-IDF+SVM, Local-only, Centralized, FedAvg} with
@@ -106,8 +106,8 @@ only changes federated aggregation).
 
 ```powershell
 python run_experiments.py `
-    --seeds 42-44 --results-root experiments_temporal_personalized `
-    --data-dir data_to_train_on `
+    --seeds 42-44 --results-root "/mnt/Data/Oni/experiments_temporal_personalized" `
+    --data-dir "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean" `
     --model-name microsoft/codebert-base --max-length 256 `
     --rounds 60 --local-epochs 1 --batch-size 64 `
     --lr 3e-5 --warmstart-lr 3e-5 --warmstart-epochs 10 `
@@ -119,8 +119,30 @@ python run_experiments.py `
 RQ2 = personalized federated (this root) vs shared federated
 (`experiments_temporal_shared`), per-project, seed-matched. Personalized mode has
 **no pooled "global" row** by design — report per-project + mean/median.
-`compute_statistics.py` pairs *within* one root, so this uses the cross-root
-helper in Analysis.
+`compute_statistics.py` pairs *within* one root, so this instead uses the
+cross-root helper `compare_conditions.py` (same Wilcoxon + Vargha-Delaney Â
+machinery, applied across two roots' `fedprox/results/federated_per_project.json`
+files, paired per seed+project):
+
+```powershell
+python compare_conditions.py `
+    --root-a "/mnt/Data/Oni/experiments_temporal_shared" --label-a "Shared-head" `
+    --root-b "/mnt/Data/Oni/experiments_temporal_personalized" --label-b "P-head" `
+    --metric mae
+python compare_conditions.py `
+    --root-a "/mnt/Data/Oni/experiments_temporal_shared" --label-a "Shared-head" `
+    --root-b "/mnt/Data/Oni/experiments_temporal_personalized" --label-b "P-head" `
+    --metric cohen_kappa
+python compare_conditions.py `
+    --root-a "/mnt/Data/Oni/experiments_temporal_shared" --label-a "Shared-head" `
+    --root-b "/mnt/Data/Oni/experiments_temporal_personalized" --label-b "P-head" `
+    --metric macro_f1
+```
+
+Add `--out-csv <path>` to any call to save the per-(seed,project) pairs for a
+per-project table/plot — means alone can hide a project where personalization
+helps a lot (or not at all), which is itself worth reporting given the
+project-specific-semantics framing.
 
 ---
 
@@ -134,14 +156,31 @@ the shared root.
 
 ```powershell
 python run_experiments.py `
-    --seeds 42-44 --results-root experiments_temporal_fullft `
-    --data-dir data_to_train_on `
+    --seeds 42-44 --results-root "/mnt/Data/Oni/experiments_temporal_fullft" `
+    --data-dir "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean" `
     --model-name microsoft/codebert-base --max-length 256 `
     --rounds 60 --local-epochs 1 --batch-size 64 `
     --lr 3e-5 --warmstart-lr 3e-5 --warmstart-epochs 10 `
     --prox-mu 1e-2 --split-mode temporal --head-type corn `
     --no-lora `
     --skip-fedavg --skip-baselines --checkpoint-every 5 --resume
+```
+
+Stats (quality half — cross-root, same helper and reasoning as RQ2):
+
+```powershell
+python compare_conditions.py `
+    --root-a "/mnt/Data/Oni/experiments_temporal_shared" --label-a "LoRA" `
+    --root-b "/mnt/Data/Oni/experiments_temporal_fullft" --label-b "Full-FT" `
+    --metric mae
+python compare_conditions.py `
+    --root-a "/mnt/Data/Oni/experiments_temporal_shared" --label-a "LoRA" `
+    --root-b "/mnt/Data/Oni/experiments_temporal_fullft" --label-b "Full-FT" `
+    --metric cohen_kappa
+python compare_conditions.py `
+    --root-a "/mnt/Data/Oni/experiments_temporal_shared" --label-a "LoRA" `
+    --root-b "/mnt/Data/Oni/experiments_temporal_fullft" --label-b "Full-FT" `
+    --metric macro_f1
 ```
 
 **The communication half of RQ3 needs no run at all.**
@@ -179,7 +218,7 @@ Verify before committing 3 seeds:
 
 ```powershell
 python train_federated_dl.py `
-    --data-dir data_to_train_on `
+    --data-dir "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean" `
     --model-name microsoft/codebert-base --max-length 256 `
     --rounds 2 --local-epochs 1 --warmstart-epochs 1 --batch-size 64 `
     --no-lora --head-type corn `
@@ -239,8 +278,8 @@ the two ends, each in its **own** root (the runner names the federated dir
 
 ```powershell
 python run_experiments.py `
-    --seeds 42-44 --results-root experiments_temporal_mu0.001 `
-    --data-dir data_to_train_on `
+    --seeds 42-44 --results-root "/mnt/Data/Oni/experiments_temporal_mu0.001" `
+    --data-dir "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean" `
     --model-name microsoft/codebert-base --max-length 256 `
     --rounds 60 --local-epochs 1 --batch-size 64 `
     --lr 3e-5 --warmstart-lr 3e-5 --warmstart-epochs 10 `
@@ -248,13 +287,37 @@ python run_experiments.py `
     --skip-fedavg --skip-baselines --checkpoint-every 5 --resume
 
 python run_experiments.py `
-    --seeds 42-44 --results-root experiments_temporal_mu0.1 `
-    --data-dir data_to_train_on `
+    --seeds 42-44 --results-root "/mnt/Data/Oni/experiments_temporal_mu0.1" `
+    --data-dir "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean" `
     --model-name microsoft/codebert-base --max-length 256 `
     --rounds 60 --local-epochs 1 --batch-size 64 `
     --lr 3e-5 --warmstart-lr 3e-5 --warmstart-epochs 10 `
     --prox-mu 0.1 --split-mode temporal --head-type corn `
     --skip-fedavg --skip-baselines --checkpoint-every 5 --resume
+```
+
+Stats — each μ root is `--skip-fedavg --skip-baselines`, so it only contains its
+own μ's federated condition; pair each against the shared root's μ=0.01 with the
+same cross-root helper (μ=0/FedAvg is already inside the shared root, so it comes
+free from the RQ1 `compute_statistics.py` output — no extra run needed):
+
+```powershell
+python compare_conditions.py `
+    --root-a "/mnt/Data/Oni/experiments_temporal_shared" --label-a "mu=0.01" `
+    --root-b "/mnt/Data/Oni/experiments_temporal_mu0.001" --label-b "mu=0.001" `
+    --metric mae
+python compare_conditions.py `
+    --root-a "/mnt/Data/Oni/experiments_temporal_shared" --label-a "mu=0.01" `
+    --root-b "/mnt/Data/Oni/experiments_temporal_mu0.001" --label-b "mu=0.001" `
+    --metric cohen_kappa
+python compare_conditions.py `
+    --root-a "/mnt/Data/Oni/experiments_temporal_shared" --label-a "mu=0.01" `
+    --root-b "/mnt/Data/Oni/experiments_temporal_mu0.1" --label-b "mu=0.1" `
+    --metric mae
+python compare_conditions.py `
+    --root-a "/mnt/Data/Oni/experiments_temporal_shared" --label-a "mu=0.01" `
+    --root-b "/mnt/Data/Oni/experiments_temporal_mu0.1" --label-b "mu=0.1" `
+    --metric cohen_kappa
 ```
 
 **Classic within-project comparators** — median-SP and TF-IDF+LinearSVM are
@@ -293,14 +356,14 @@ is not why it was picked.
 
 ```powershell
 python train_federated_dl.py `
-    --data-dir data_to_train_on --model-name microsoft/codebert-base --max-length 256 `
+    --data-dir "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean" --model-name microsoft/codebert-base --max-length 256 `
     --rounds 60 --local-epochs 1 --batch-size 64 --lr 3e-5 --warmstart-lr 3e-5 `
     --prox-mu 1e-2 --split-mode temporal --head-type corn --personalized-head --generic-head `
     --holdout-project Hyperledger_Sawtooth --checkpoint-every 5 --resume `
     --save-dir artifacts_lopo_personalized_s42 --seed 42
 
 python train_federated_dl.py `
-    --data-dir data_to_train_on --model-name microsoft/codebert-base --max-length 256 `
+    --data-dir "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean" --model-name microsoft/codebert-base --max-length 256 `
     --rounds 60 --local-epochs 1 --batch-size 64 --lr 3e-5 --warmstart-lr 3e-5 `
     --prox-mu 1e-2 --split-mode temporal --head-type corn `
     --holdout-project Hyperledger_Sawtooth --checkpoint-every 5 --resume `
@@ -313,12 +376,12 @@ pool size (`min(budget, len(pool))`), so 758 is Sawtooth's ceiling.
 
 ```powershell
 python run_lopo.py `
-    --artifact-dir artifacts_lopo_personalized_s42/federated --data-dir data_to_train_on `
+    --artifact-dir artifacts_lopo_personalized_s42/federated --data-dir "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean" `
     --holdout-project Hyperledger_Sawtooth --head-init generic `
     --budgets 0,10,25,50,100,200,400,758 --out-dir lopo_results --seed 42
 
 python run_lopo.py `
-    --artifact-dir artifacts_lopo_shared_s42/federated --data-dir data_to_train_on `
+    --artifact-dir artifacts_lopo_shared_s42/federated --data-dir "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean" `
     --holdout-project Hyperledger_Sawtooth `
     --budgets 0,10,25,50,100,200,400,758 --out-dir lopo_results --seed 42
 ```
@@ -337,7 +400,7 @@ python compare_lopo.py --results-dir lopo_results --out lopo_results/lopo_compar
 personalized roots, and both sides select the same test rows — `fl/data.py`'s
 temporal carve and `run_lopo.py` both take `max(1, int(round(n * 0.2)))` from the
 tail of the same row order. So Sawtooth's row in
-`experiments_temporal_shared/seed_42/fedprox/results/federated_per_project.json`
+`/mnt/Data/Oni/experiments_temporal_shared/seed_42/fedprox/results/federated_per_project.json`
 is a directly comparable "if it had been a member all along" reference.
 
 ---
@@ -349,8 +412,8 @@ Supports RQ1/RQ2 as a robustness appendix. Lowest priority.
 
 ```powershell
 python run_experiments.py `
-    --seeds 42-44 --results-root experiments_random_shared `
-    --data-dir data_to_train_on `
+    --seeds 42-44 --results-root "/mnt/Data/Oni/experiments_random_shared" `
+    --data-dir "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean" `
     --model-name microsoft/codebert-base --max-length 256 `
     --rounds 60 --local-epochs 1 --batch-size 64 `
     --lr 3e-5 --warmstart-lr 3e-5 --warmstart-epochs 10 `
@@ -358,8 +421,8 @@ python run_experiments.py `
     --checkpoint-every 5 --resume
 
 python run_experiments.py `
-    --seeds 42-44 --results-root experiments_random_personalized `
-    --data-dir data_to_train_on `
+    --seeds 42-44 --results-root "/mnt/Data/Oni/experiments_random_personalized" `
+    --data-dir "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean" `
     --model-name microsoft/codebert-base --max-length 256 `
     --rounds 60 --local-epochs 1 --batch-size 64 `
     --lr 3e-5 --warmstart-lr 3e-5 --warmstart-epochs 10 `
@@ -368,22 +431,50 @@ python run_experiments.py `
     --checkpoint-every 5 --resume
 ```
 
+Stats — same two steps as the temporal primary roots, just pointed at the
+random-split mirrors:
+
+```powershell
+python compute_statistics.py --experiments-root "/mnt/Data/Oni/experiments_random_shared" --metric mae
+python compute_statistics.py --experiments-root "/mnt/Data/Oni/experiments_random_shared" --metric cohen_kappa
+python compute_statistics.py --experiments-root "/mnt/Data/Oni/experiments_random_shared" --metric macro_f1
+
+python compare_conditions.py `
+    --root-a "/mnt/Data/Oni/experiments_random_shared" --label-a "Shared-head" `
+    --root-b "/mnt/Data/Oni/experiments_random_personalized" --label-b "P-head" `
+    --metric mae
+python compare_conditions.py `
+    --root-a "/mnt/Data/Oni/experiments_random_shared" --label-a "Shared-head" `
+    --root-b "/mnt/Data/Oni/experiments_random_personalized" --label-b "P-head" `
+    --metric cohen_kappa
+python compare_conditions.py `
+    --root-a "/mnt/Data/Oni/experiments_random_shared" --label-a "Shared-head" `
+    --root-b "/mnt/Data/Oni/experiments_random_personalized" --label-b "P-head" `
+    --metric macro_f1
+```
+
 ---
 
 ## Analysis / helpers
 
-- **RQ1** (and FedProx vs FedAvg): `compute_statistics.py --experiments-root experiments_temporal_shared --metric {mae,cohen_kappa,macro_f1}`.
-- **RQ2 and RQ3 both need the same cross-root helper — write it early.** ~30 lines:
-  load `<root_a>/seed_*/fedprox/results/federated_per_project.json` and the same
-  from `<root_b>`, pair per (seed, project), Wilcoxon + Vargha-Delaney Â.
-  - RQ2: `experiments_temporal_shared` vs `experiments_temporal_personalized`
-  - RQ3: `experiments_temporal_shared` vs `experiments_temporal_fullft`
-  It is now load-bearing for two of the three RQs, not a nice-to-have.
+- **RQ1** (and FedProx vs FedAvg): `compute_statistics.py` — commands under RQ1
+  above.
+- **RQ2 and RQ3** are both cross-root comparisons (the conditions being compared
+  live under different `--results-root`s, so `compute_statistics.py`'s
+  within-root pairing doesn't apply). `compare_conditions.py` is the helper for
+  this: it loads `<root_a>/seed_*/fedprox/results/federated_per_project.json`
+  and the same from `<root_b>`, pairs per (seed, project), and runs the same
+  Wilcoxon + Vargha-Delaney Â as `compute_statistics.py` — commands under RQ2 /
+  RQ3 above.
 - **RQ3 communication table:** `results/communication_cost.json` from the shared
   root (LoRA) and the fullft root. No code needed.
-- **μ sweep** (supporting): same cross-root helper, μ as the grouping factor,
-  gathering the shared root's `fedprox` (μ=0.01), its `fedavg` (μ=0), and the two
-  μ roots.
+- **μ sweep** (supporting): `compare_conditions.py` again, μ=0.01 (shared root)
+  vs each μ root — commands under Supporting results above. μ=0 (FedAvg) is
+  already inside the shared root, so it comes free from the RQ1
+  `compute_statistics.py` output.
+- **Robustness roots:** the same two steps (`compute_statistics.py` then
+  `compare_conditions.py`) applied to the random-split mirrors — commands under
+  Robustness above.
 - **Case study:** `compare_lopo.py` → `lopo_comparison.csv` (LONG: holdout,
   condition, budget, metric, value) → crossover plot, plus the ceiling line above.
 
@@ -398,7 +489,8 @@ load — pooling rewards a model for encoding project identity.
    everything reuses and is the comparison arm for RQ2 and RQ3.
 4. `experiments_temporal_personalized` (RQ2).
 5. `experiments_temporal_fullft` (RQ3).
-6. Write the cross-root helper (can be done while runs are going — it needs no GPU).
+6. Run the `compare_conditions.py` stats commands for RQ2/RQ3 (needs no GPU —
+   can run any time both sides of a pair are on disk).
 7. LOPO case study (independent; can run in a parallel session).
 8. Random-split robustness roots.
 9. μ sweep — **cut this first if compute runs short.**
