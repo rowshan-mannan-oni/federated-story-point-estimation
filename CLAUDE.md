@@ -35,7 +35,7 @@ only. Whether/when to merge `thesis-final` into `main` is an open decision: ask,
 assume.
 
 **[RUN_PLAN.md](RUN_PLAN.md) is the source of truth for what to run.** It maps every run
-to one of the five locked RQs, fixes the method defaults that stay constant across runs
+to one of the three RQs defined in [RQs.md](RQs.md), fixes the method defaults that stay constant across runs
 (codebert-base, CORN head, FFA-LoRA, temporal primary + random robustness, seeds 42–44),
 and gives the compute-aware execution order. If RUN_PLAN.md and this file disagree about
 a *run*, RUN_PLAN.md wins and this file must be corrected. This file remains the source
@@ -253,9 +253,11 @@ fl/metrics.py           evaluate_classification(), run_prediction() — accuracy
                         per-class F1, CM, MAE, quadratic-weighted Cohen's Kappa.
 fl/checkpoint.py        Save/load/resume logic shared by centralized, local-only, and
                         federated paths (gap #13). See gap #13 for the contract.
-fl/classic_baselines.py Classic within-project comparators for RQ5: per-project
-                        TF-IDF+LinearSVM and a median-SP constant predictor, on the
-                        SAME split as the deep conditions. Per-project entries only —
+fl/classic_baselines.py Classic within-project comparators contextualizing RQ1
+                        (RUN_PLAN.md "Supporting results", not a numbered RQ):
+                        per-project TF-IDF+LinearSVM and a median-SP constant
+                        predictor, on the SAME split as the deep conditions.
+                        Per-project entries only —
                         NO pooled "global" (pooling inflates per-project models; see
                         the reporting rule under External baselines). Runs before any
                         deep training; RNG-neutral. Toggle: --skip-classic-baselines.
@@ -301,9 +303,9 @@ The thesis argument rests on comparing training conditions on the same data and 
 | Federated (FedProx) | `prox_mu=0.01`, proximal regularisation, shared head | ✅ Implemented (auto-labeled "FedProx (mu=X)") |
 | Federated (FedProx + personalized head) | Head local per client; B + embeddings aggregated | ✅ Implemented (`--personalized-head`, auto-labeled "… + P-head") |
 
-Local-only (gap #1) is now implemented: each client trains from the same warm-start checkpoint as federated, with `rounds * local_epochs` total local epochs (matching federated's per-client exposure) and no aggregation. The run output prints "<condition> Macro-F1 improvement vs local-only" automatically. The federated-vs-centralized gap measures the cost of privacy preservation. The personalized-vs-shared-head comparison (everything else identical) is the RQ4 experiment.
+Local-only (gap #1) is now implemented: each client trains from the same warm-start checkpoint as federated, with `rounds * local_epochs` total local epochs (matching federated's per-client exposure) and no aggregation. The run output prints "<condition> Macro-F1 improvement vs local-only" automatically. The federated-vs-centralized gap measures the cost of privacy preservation. The personalized-vs-shared-head comparison (everything else identical) is the RQ2 experiment.
 
-### External baselines for empirical comparison (RQ5)
+### External baselines for empirical comparison (supporting results, not a numbered RQ)
 
 **Why they exist:** majority-class alone is too weak a floor. Tawosi et al. (2023) showed simple models match deep ones on this task, so "FL is competitive" is meaningless without a *simple* comparator ("competitive with what?"). This is the weakness an empirical-SE examiner probes first.
 
@@ -317,24 +319,39 @@ Both train on the SAME split as the deep conditions (`bundle.train_df`/`test_df`
 **⬜ Cited, not run** — reimplementation is not worth the time; compare on the same projects and state split/label-set differences honestly:
 
 3. **Deep-SE (Choetkiertikul et al. 2018)** — LSTM+RHN, the canonical deep SPE baseline. The Tawosi et al. (2022/2023) replication publishes Deep-SE numbers per TAWOS project — CITE those.
-4. **GPT2SP (Fu & Tantithamthavorn 2022)** — transformer regression SPE, within-project. Cite published numbers. Strongest within-project deep comparator; also supports the "prior SPE is within-project only" motivation for personalization (RQ3/RQ4).
+4. **GPT2SP (Fu & Tantithamthavorn 2022)** — transformer regression SPE, within-project. Cite published numbers. Strongest within-project deep comparator; also supports the "prior SPE is within-project only" motivation for personalization (RQ2 / the onboarding case study).
 
 **⚠️ Reporting rule — these have NO pooled "global" row, by design.** They are per-project models, so a pooled metric rewards them for merely encoding project identity. Measured on the real corpus: the constant median predictor scores quadratic κ **0.0000 in all 18 projects** (correct — it is exactly chance) but pools to **0.5006**; pooled macro-F1 inflates the same way (~0.10 → 0.3023). Quoting a pooled κ for these would put a trivial baseline next to the deep models on an inflated scale. Report per-project + mean/median only.
 
-**Framing (keep honest):** these are *empirical-comparison* baselines, not FL conditions — they train centrally/per-project with no federation and no privacy constraint, so they contextualize the FL numbers rather than compete on privacy. The goal is NOT to beat them outright but to show the federated (cross-project, privacy-preserving) model lands in the same ballpark without sharing raw data — and that personalization (RQ4) closes the within-project gap. Deep-SE / GPT2SP / TF-IDF-SVM are all already in the "Key papers to cite" list.
+**Framing (keep honest):** these are *empirical-comparison* baselines, not FL conditions — they train centrally/per-project with no federation and no privacy constraint, so they contextualize the FL numbers rather than compete on privacy. The goal is NOT to beat them outright but to show the federated (cross-project, privacy-preserving) model lands in the same ballpark without sharing raw data — and that personalization (RQ2) closes the within-project gap. Deep-SE / GPT2SP / TF-IDF-SVM are all already in the "Key papers to cite" list.
 
 ### Ablations
 
 **Promoted to an RQ — not an ablation any more:**
-- `prox_mu` sensitivity 0.0 / 0.001 / 0.01 / 0.1 → **RQ2.2**, with its own roots in RUN_PLAN.md.
+- LoRA-only vs fully fine-tuning and federating the whole encoder, in **quality
+  and communication cost** → **RQ3**, `--no-lora`, its own root
+  (`experiments_temporal_fullft`) in RUN_PLAN.md, compared cross-root against
+  the RQ1 shared root via `compare_conditions.py`.
+
+**Supporting results — run and reported, but not a numbered RQ** (RUN_PLAN.md
+"Supporting results"; demoted from a promoted-RQ status in an earlier draft of
+this plan — see the RQ-redesign note under Thesis framing):
+- `prox_mu` sensitivity 0.0 / 0.001 / 0.01 / 0.1. μ=0 (FedAvg) and μ=0.01
+  (FedProx) come free from the RQ1 shared root; μ=0.001 and μ=0.1 are their
+  own `run_experiments.py` roots, compared cross-root against the shared
+  root's μ=0.01 via `compare_conditions.py`.
 
 **Fixed method defaults — deliberately NOT ablated** (holding them constant is what makes the RQ comparisons clean):
 - Encoder: locked to `microsoft/codebert-base`. bert-tiny is the smoke model, never a comparison arm.
-- FFA-LoRA: on. Communication cost is reported descriptively, not as an RQ.
+- FFA-LoRA: on for every LoRA arm (RQ1, RQ2, and the LoRA side of RQ3) — this
+  is a different axis from RQ3's LoRA-vs-full-FT comparison; see the "Still
+  open" FFA-LoRA bullet below for the on/off-A ablation itself.
 - Head: CORN.
 
-**Still open, in rough priority order (all optional — the five RQs come first):**
-- FFA-LoRA on vs off (`--no-ffa-lora`) — the aggregation-exactness argument is theoretical; showing it empirically is a bonus.
+**Still open, in rough priority order (all optional — the three RQs come
+first; mirrors RQs.md's "Optional RQs" O1–O7):**
+- FFA-LoRA on vs off (`--no-ffa-lora`) — the aggregation-exactness argument is theoretical; showing it empirically is a bonus. (Not RQ3: this toggles whether LoRA's A matrix is frozen; RQ3 toggles whether the encoder is LoRA-adapted at all vs fully fine-tuned.)
+- Frozen encoder vs LoRA-adapted (`--no-lora --freeze-encoder`) — adds a third point to RQ3's axis (frozen → LoRA → full fine-tuning) and answers whether the adapters are doing anything at all. Cheapest run in the plan: gradients stop at the head, so the encoder is forward-only.
 - Warm-start on vs off (`--run-no-warmstart-fl`, roughly doubles federated time)
 - **Head/loss: CE vs CORN** (`--head-type ce`) — expect CORN to move MAE/Kappa more than macro-F1; that pattern is itself a finding (the model learns ordinal structure)
 - **max_length 128 vs 256** (big-VRAM machine; RUN_PLAN locks 256)
@@ -375,7 +392,7 @@ Run **3 seeds (42–44)** per condition via `python run_experiments.py --data-di
 
 ## Known gaps — ALL IMPLEMENTED (#1–#14)
 
-**Note:** every gap below is done; the entries are kept as the *specification* of how each feature behaves, which is still the reference when touching that code. Gaps #11–#14 map to the old Task Checklist (Task 1 = #12 CORN, Task 2 = #11 personalized head, Task 3 = #13 checkpointing, Task 4 = #14 LOPO) and are tagged `task-1-done` … `task-4-done`. Beyond these, the classic RQ5 baselines (`fl/classic_baselines.py`) are implemented too. If a spec here and the code ever conflict, trust the code and fix the spec.
+**Note:** every gap below is done; the entries are kept as the *specification* of how each feature behaves, which is still the reference when touching that code. Gaps #11–#14 map to the old Task Checklist (Task 1 = #12 CORN, Task 2 = #11 personalized head, Task 3 = #13 checkpointing, Task 4 = #14 LOPO) and are tagged `task-1-done` … `task-4-done`. Beyond these, the classic within-project baselines (`fl/classic_baselines.py`, part of RUN_PLAN.md's Supporting results) are implemented too. If a spec here and the code ever conflict, trust the code and fix the spec.
 
 **1. Local-only training condition** ✅ Implemented
 Each client (`train_local_only` in `train_federated_dl.py`) trains independently from the same warm-start checkpoint as federated, for `rounds * local_epochs` total epochs, with no server/aggregation. Each client's model is evaluated on its own test split via `evaluate_local_only`, which also produces a "global" pooled entry. Results: `results/local_only_per_project.json`, plus `local_acc`/`local_macro_f1`/`local_f1_sp{1,2,3,5,8}` columns in `summary_df`/`summary.csv`. Toggle: `--skip-local-only`.
@@ -492,14 +509,22 @@ The external-client / cold-start evaluation — arguably the strongest experimen
 
 **Working title:** "Privacy-Preserving Story Point Estimation via Federated Learning with Parameter-Efficient Fine-Tuning"
 
-**Core research questions (LOCKED — mirrored in [RUN_PLAN.md](RUN_PLAN.md), which maps each to its runs):**
-- **RQ1 — Feasibility & the cost of privacy.** How much of the local-only → centralized gap does federated training recover, without sharing raw issue data across projects? Runs: local-only vs centralized vs federated, plus the classic within-project baselines that make "competitive" mean something.
-- **RQ2 — Heterogeneity.** Does FedProx's proximal regularization improve over FedAvg under the non-IID project heterogeneity in TAWOS (RQ2.1), and how sensitive is that to μ ∈ {0, 0.001, 0.01, 0.1} (RQ2.2)?
-- **RQ3 — Personalization.** Given the project-specific semantics of story points, does personalizing the estimation head (federating representations, not decision layers) improve federated SPE over a fully shared model?
-- **RQ4 — Onboarding crossover.** How much of its own history does an external project need before joining pays off? Leave-one-project-out cold start, head-only adaptation over budgets {0, 10, 25, 50, 100}.
-- **RQ5 — SOTA positioning.** Where does this land against the cheap comparators and the published deep SPE models? Classic baselines (TF-IDF+SVM, median-SP) are **run and statistically tested**; published deep SOTA (Deep-SE, GPT2SP, EGPT-SPE, Llama3SP) is a **citation table**, not re-run.
+**Core research questions (LOCKED — defined in [RQs.md](RQs.md), mirrored in
+[RUN_PLAN.md](RUN_PLAN.md), which maps each to its runs):**
+- **RQ1 — Feasibility & the cost of privacy.** How does FedSP-PEFT compare to centralized pooling and to per-project local training for story point estimation? Runs: local-only vs centralized vs federated (`experiments_temporal_shared`), plus the classic within-project baselines (TF-IDF+SVM, median-SP) that make "competitive" mean something.
+- **RQ2 — Personalization.** Does story point estimation improve when each project keeps its own prediction head, instead of federating the head along with the representation? Runs: `experiments_temporal_personalized` (shared representation, per-client head) vs the RQ1 shared root, paired cross-root via `compare_conditions.py`.
+- **RQ3 — Parameter efficiency.** How does federating only LoRA adapters compare with fully fine-tuning and federating the whole encoder, in estimation quality **and** communication cost? Runs: `experiments_temporal_fullft` (`--no-lora`) vs the RQ1 shared root, same cross-root comparison; communication cost is read directly from both roots' `results/communication_cost.json` (no extra run needed for that half).
 
-**Note on the reframing:** communication cost used to be an RQ of its own ("does FFA-LoRA cut cost without degrading accuracy?"). It is no longer — FFA-LoRA is a fixed method default, not a variable, and communication cost is **reported descriptively** (from `results/communication_cost.json`) in the method/results chapters. Do not re-promote it to an RQ. Personalization and onboarding, formerly one RQ, are now split (RQ3 / RQ4) because they need different runs and answer different questions.
+**Not RQs — supporting results and a case study** (still run, still reported, just don't carry an RQ number; see RUN_PLAN.md "Supporting results" and "Case study"):
+- FedProx vs FedAvg, and μ ∈ {0, 0.001, 0.01, 0.1} sensitivity — contextualizes RQ1's federated condition. FedProx (μ=0.01) and FedAvg (μ=0) come free from the RQ1 shared root; μ=0.001 and μ=0.1 are their own roots.
+- Classic within-project baselines (TF-IDF+SVM, median-SP) — run and statistically tested; published deep SOTA (Deep-SE, GPT2SP, EGPT-SPE, Llama3SP) is a **citation table**, not re-run.
+- **New-project onboarding (case study, not an RQ).** How much of its own history does an external project need before joining pays off? Leave-one-project-out cold start, head-only adaptation over budgets {0, 10, 25, 50, 100(, 200, 400, 758)}, Hyperledger_Sawtooth held out. **One holdout cannot support a general claim** — write it up as a case study, not a generalizable finding.
+
+**Note on the RQ redesign (most recent commit on this branch: "Redesigned the RQs and run plan").** The RQ set shrank from an earlier five-RQ draft to the three above. This is more than renumbering:
+- **Onboarding was demoted from a numbered RQ to a case study** — a single holdout (Sawtooth) can't support a general claim, so it belongs in the discussion chapter as a case study, not phrased as an RQ finding.
+- **Communication cost moved *into* RQ3** as its second half ("...in quality and communication cost"), alongside a genuinely new comparison axis — LoRA-only vs full fine-tuning — that wasn't an RQ before. FFA-LoRA itself (A frozen vs trained) stays a fixed method default / optional micro-ablation (see Ablations); don't conflate it with RQ3's LoRA-vs-full-FT axis, which is about whether the encoder is adapted via LoRA at all vs fully fine-tuned.
+- FedProx-vs-FedAvg and the μ sweep, formerly a promoted RQ2.2, are now supporting results contextualizing RQ1 rather than their own RQ.
+- If RQs.md and this section ever disagree, RQs.md wins — it is the explicit source of truth for RQ wording (RUN_PLAN.md line 4).
 
 **Central claim:** Federated training with FFA-LoRA and FedProx bridges a meaningful fraction of the gap between local-only and centralized training, while transmitting less than 1% of model parameters per round — and personalizing the classification head addresses the project-specific calibration of story points, making cross-project collaboration practical under data privacy constraints.
 
