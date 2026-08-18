@@ -1,0 +1,203 @@
+/* ==========================================================================
+   components.css — the fittings: the two bars, buttons, tags, the power-on.
+   The full parts bin (knobs, dials, gauges, drawers) arrives in step 3.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   THE BARS — bands of the shell grid, so they reserve their own space and
+   can never sit on top of the view.
+   -------------------------------------------------------------------------- */
+.topbar,
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--frame);
+  background-color: color-mix(in srgb, var(--c-panel) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  min-width: 0;
+}
+.topbar    { border-bottom: 1px solid var(--c-line); }
+.statusbar { border-top: 1px solid var(--c-line); }
+
+/* --------------------------------------------------------------------------
+   BRAND
+   -------------------------------------------------------------------------- */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.brand .mark {
+  width: 30px; height: 30px; flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--r-sm);
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  letter-spacing: .02em;
+  color: var(--c-ink);
+}
+.brand .lines { min-width: 0; }
+.brand .name {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.brand .where {
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spacer { flex: 1 1 auto; }
+
+/* --------------------------------------------------------------------------
+   CONTROLS
+   -------------------------------------------------------------------------- */
+.ctrl {
+  font: inherit;
+  font-size: var(--t-xs);
+  letter-spacing: .04em;
+  color: var(--c-ink);
+  background-color: var(--c-panel);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  box-shadow: var(--e1);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  white-space: nowrap;
+  transition: transform var(--m-tap) var(--ease),
+              box-shadow var(--m-tap) var(--ease),
+              background-color var(--m-quick) var(--ease);
+}
+.ctrl:hover  { background-color: var(--c-panel-2); }
+.ctrl:active { transform: translateY(1px); box-shadow: var(--inset-1); }
+.ctrl[aria-pressed="true"] { box-shadow: var(--inset-1); background-color: var(--c-recess); }
+
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--c-ink);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* --------------------------------------------------------------------------
+   STATUS STRIP
+   -------------------------------------------------------------------------- */
+.tag {
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  letter-spacing: .06em;
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+  color: var(--c-ink-soft);
+}
+.statusbar .msg {
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.statusbar .msg strong { color: var(--c-ink); font-weight: 600; }
+
+/* --------------------------------------------------------------------------
+   POWER ON — one quiet bar filling, then out of the way.
+   -------------------------------------------------------------------------- */
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  background: var(--c-bg-deep);
+  transition: opacity 480ms var(--ease), visibility 480ms;
+}
+body[data-boot="on"] .boot { opacity: 0; visibility: hidden; }
+
+.boot-inner { display: grid; justify-items: center; gap: var(--s-4); text-align: center; }
+.boot-lamps { display: flex; gap: var(--s-2); }
+.boot-bar {
+  width: 190px; height: 4px;
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+.boot-bar span {
+  display: block; height: 100%; width: 0%;
+  background: var(--c-ink);
+  transition: width 760ms var(--ease);
+}
+body[data-boot="on"] .boot-bar span { width: 100%; }
+.boot-note { font-size: var(--t-xs); color: var(--c-ink-faint); margin: 0; }
+
+/* --------------------------------------------------------------------------
+   The file:// warning.
+   -------------------------------------------------------------------------- */
+.file-warning {
+  position: fixed;
+  left: var(--frame); right: var(--frame); bottom: var(--frame);
+  z-index: 120;
+  max-width: 46rem;
+  margin-inline: auto;
+  padding: var(--s-4);
+  font-size: var(--t-sm);
+  line-height: 1.55;
+}
+.file-warning code {
+  font-family: var(--f-mono);
+  font-size: .93em;
+  background: var(--c-recess);
+  padding: 1px var(--s-2);
+  border-radius: var(--r-sm);
+}
+
+/* --------------------------------------------------------------------------
+   Utilities
+   -------------------------------------------------------------------------- */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.skip {
+  position: fixed; top: var(--s-3); left: var(--s-3);
+  z-index: 130;
+  transform: translateY(-200%);
+  transition: transform var(--m-quick) var(--ease);
+  padding: var(--s-2) var(--s-3);
+  background: var(--c-panel);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  box-shadow: var(--e3);
+  color: var(--c-ink);
+  text-decoration: none;
+  font-size: var(--t-sm);
+}
+.skip:focus { transform: translateY(0); }
+
+/* --------------------------------------------------------------------------
+   Narrow windows: the toolbar keeps only what still fits.
+   -------------------------------------------------------------------------- */
+@media (max-width: 860px) {
+  .ctrl .ctrl-label { display: none; }     /* lamp + icon-free chip remains */
+  .ctrl { padding: var(--s-2); }
+  .ctrl::after {
+    content: attr(data-short);
+    font-size: var(--t-xs);
+    letter-spacing: .06em;
+  }
+}
+@media (max-width: 560px) {
+  .brand .where { display: none; }
+  .statusbar .msg { white-space: nowrap; }
+}

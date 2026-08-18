@@ -1,0 +1,214 @@
+/* ==========================================================================
+   spatial.css — the shape of the place.
+
+   The site is one room you move through, but the room is built as a LAYOUT,
+   not as a set of free-floating props. Three fixed bands: a bar at the top,
+   the view in the middle, a status strip at the bottom. Nothing overlaps
+   anything, at any window size, because nothing is positioned by guesswork.
+
+   Depth comes from three quiet sources: a light falling from above, a floor
+   fading into the distance, and the shadow ladder in tokens.css. Step 2 moves
+   the camera by transforming .world — everything inside it comes along.
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--f-sans);
+  font-size: var(--t-base);
+  line-height: 1.6;
+  color: var(--c-ink);
+  background: var(--c-bg-deep);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* --------------------------------------------------------------------------
+   THE SHELL — three bands that can never collide.
+   -------------------------------------------------------------------------- */
+.shell {
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;   /* minmax(0,·) = may shrink */
+  gap: 0;
+}
+
+/* --------------------------------------------------------------------------
+   THE STAGE — the view. Everything inside is centred and bounded.
+   -------------------------------------------------------------------------- */
+.stage {
+  position: relative;
+  min-height: 0;                     /* lets the middle band actually shrink */
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: clamp(var(--s-4), 3vh, var(--s-8)) var(--frame);
+  isolation: isolate;
+}
+
+/* the light and the floor, behind everything, touchable by nothing */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(90% 62% at 50% -8%, color-mix(in srgb, var(--c-panel) 55%, transparent), transparent 68%),
+    linear-gradient(180deg, var(--c-bg), var(--c-bg-deep));
+}
+
+/* a floor receding into the distance: perspective lines that fade out */
+.backdrop::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 42%;
+  background-image:
+    repeating-linear-gradient(90deg, transparent 0 78px, var(--c-line) 78px 79px),
+    repeating-linear-gradient(0deg,  transparent 0 46px, var(--c-line) 46px 47px);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 62%, #000);
+          mask-image: linear-gradient(180deg, transparent, #000 62%, #000);
+  opacity: .55;
+  transform: perspective(520px) rotateX(58deg);
+  transform-origin: 50% 100%;
+}
+
+/* --------------------------------------------------------------------------
+   THE WORLD — what the camera will move in step 2.
+   Bounded in rem, never in viewport units, so it cannot outgrow the screen.
+   -------------------------------------------------------------------------- */
+.world {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 68rem;
+  max-height: 100%;
+  overflow-y: auto;                  /* short windows scroll, never clip */
+  overscroll-behavior: contain;
+  display: grid;
+  justify-items: center;
+  gap: var(--s-5);
+  transform-origin: 50% 50%;
+  transition: transform var(--m-fly) var(--ease);
+}
+.world::-webkit-scrollbar { width: 10px; }
+.world::-webkit-scrollbar-thumb {
+  background: var(--c-line-strong);
+  border-radius: var(--r-pill);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* --------------------------------------------------------------------------
+   THE TITLE CARD — stop 1's content.
+   -------------------------------------------------------------------------- */
+.card {
+  width: 100%;
+  padding: clamp(var(--s-5), 3.2vw, var(--s-8));
+  display: grid;
+  gap: var(--s-4);
+}
+
+.card .overline {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.card .overline .bar {
+  height: 1px;
+  flex: 1 1 auto;
+  background: var(--c-line-strong);
+}
+
+.card h1 {
+  font-size: var(--t-display);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.12;
+  margin: 0;
+  max-width: 20ch;                   /* keeps the headline in 2–3 tidy lines */
+  text-wrap: balance;
+}
+
+.card .lead {
+  margin: 0;
+  max-width: var(--measure);
+  color: var(--c-ink-soft);
+  font-size: clamp(var(--t-base), .93rem + .25vw, var(--t-lg));
+}
+
+.card .note {
+  margin: 0;
+  max-width: var(--measure);
+  color: var(--c-ink-faint);
+  font-size: var(--t-sm);
+}
+
+/* --------------------------------------------------------------------------
+   THE CHIP ROW — the four areas this walk-through covers. Wraps, never
+   overflows, and each one becomes a real stop later.
+   -------------------------------------------------------------------------- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chip {
+  display: grid;
+  gap: 2px;
+  padding: var(--s-3) var(--s-4);
+  min-width: 8.5rem;
+  flex: 1 1 8.5rem;
+}
+.chip .n {
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+}
+.chip .t {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+
+/* --------------------------------------------------------------------------
+   Narrow windows: give the text more of the screen, drop decoration.
+   -------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .backdrop::after { opacity: .3; }
+  .card h1 { max-width: none; }
+  .chip { flex-basis: 100%; }
+}
+
+/* Short windows (a laptop with dev tools open): tighten vertical rhythm. */
+@media (max-height: 620px) {
+  .stage { padding-block: var(--s-3); }
+  .world { gap: var(--s-3); }
+  .card  { gap: var(--s-3); }
+}
+
+/* --------------------------------------------------------------------------
+   Reduced motion — by operating-system setting, or by the toolbar switch.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+  animation-duration: .001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .001ms !important;
+  scroll-behavior: auto !important;
+}

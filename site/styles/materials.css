@@ -1,0 +1,124 @@
+/* ==========================================================================
+   materials.css — what things are made of.
+
+   Restrained on purpose. A surface here is: a flat greyscale ground, a very
+   fine grain, one lit top edge, and a shadow from the ladder in tokens.css.
+   That is enough to feel physical. Anything louder starts fighting the words,
+   which are the actual content of this site.
+
+   Everything below is switched off by :root[data-materials="flat"].
+   ========================================================================== */
+
+:root {
+  /* One shared speck of grain, inlined so nothing is ever downloaded. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+}
+
+/* --------------------------------------------------------------------------
+   PANEL — the default raised surface. Most things in this site are a panel.
+   -------------------------------------------------------------------------- */
+.mat-panel {
+  background-color: var(--c-panel);
+  background-image: var(--grain), linear-gradient(180deg, var(--c-panel), var(--c-panel-2));
+  background-size: 140px 140px, auto;
+  background-blend-mode: soft-light, normal;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e2);
+  color: var(--c-ink);
+}
+
+/* A quieter panel, for things sitting ON a panel. */
+.mat-sub {
+  background-color: var(--c-panel-2);
+  background-image: var(--grain);
+  background-size: 140px 140px;
+  background-blend-mode: soft-light;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  box-shadow: var(--e1);
+  color: var(--c-ink);
+}
+
+/* --------------------------------------------------------------------------
+   RECESS — anything cut INTO a surface: a slot, a channel, a readout well.
+   -------------------------------------------------------------------------- */
+.mat-recess {
+  background-color: var(--c-recess);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  box-shadow: var(--inset-1);
+  color: var(--c-ink);
+}
+
+/* --------------------------------------------------------------------------
+   GLASS — the bars fixed over the view.
+   -------------------------------------------------------------------------- */
+.mat-glass {
+  background-color: color-mix(in srgb, var(--c-panel) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(1.05);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e3);
+  color: var(--c-ink);
+}
+
+/* --------------------------------------------------------------------------
+   EDGES AND LETTERING
+   -------------------------------------------------------------------------- */
+.hairline    { border-bottom: 1px solid var(--c-line); }
+.hairline-t  { border-top: 1px solid var(--c-line); }
+
+/* A rule that fades out at both ends — used to separate blocks of text. */
+.rule {
+  height: 1px;
+  border: 0;
+  margin: var(--s-5) 0;
+  background: linear-gradient(90deg, transparent, var(--c-line-strong) 18%, var(--c-line-strong) 82%, transparent);
+}
+
+/* Letters pressed into the surface. Kept subtle: readability first. */
+.pressed {
+  text-shadow: 0 1px 0 var(--c-hi);
+}
+
+/* Small engraved-style labels: wide tracking, upper case, quiet colour. */
+.label {
+  font-size: var(--t-xs);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+/* --------------------------------------------------------------------------
+   LAMP — a state light. Greyscale: it is simply bright, or it is not.
+   -------------------------------------------------------------------------- */
+.lamp {
+  width: 9px; height: 9px; flex: none;
+  border-radius: 50%;
+  background: var(--c-off);
+  box-shadow: var(--inset-1);
+  transition: background-color var(--m-quick) var(--ease),
+              box-shadow var(--m-quick) var(--ease);
+}
+.lamp[data-on="true"] {
+  background: var(--c-on);
+  box-shadow: 0 0 0 3px var(--c-on-glow);
+}
+
+/* --------------------------------------------------------------------------
+   FLAT MODE — every texture off, every word and position unchanged.
+   -------------------------------------------------------------------------- */
+:root[data-materials="flat"] .mat-panel,
+:root[data-materials="flat"] .mat-sub,
+:root[data-materials="flat"] .mat-recess {
+  background-image: none;
+}
+:root[data-materials="flat"] .mat-panel  { background-color: var(--c-panel); }
+:root[data-materials="flat"] .mat-glass  {
+  background-color: var(--c-panel);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root[data-materials="flat"] .pressed { text-shadow: none; }

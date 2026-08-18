@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en" data-materials="rich" data-motion="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>The story point workshop</title>
+  <meta name="description" content="A walk-through explainer for a thesis on federated story point estimation: teaching a model to guess how much work a software task is, without any project handing over its data." />
+
+  <!-- Settings are applied before the first paint, so the room never flashes
+       the wrong shade on load. Kept inline and tiny on purpose. -->
+  <script>
+    try {
+      var s = JSON.parse(localStorage.getItem("fedsp.site.v1") || "{}");
+      if (s.theme && s.theme !== "auto") document.documentElement.setAttribute("data-theme", s.theme);
+      if (s.materials) document.documentElement.setAttribute("data-materials", s.materials);
+      if (s.motion) document.documentElement.setAttribute("data-motion", s.motion);
+    } catch (e) {}
+  </script>
+
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/materials.css" />
+  <link rel="stylesheet" href="styles/spatial.css" />
+  <link rel="stylesheet" href="styles/components.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%2317181a'/><text x='16' y='23' font-size='18' font-family='monospace' fill='%23f1f2f3' text-anchor='middle'>SP</text></svg>" />
+</head>
+
+<body data-boot="pending">
+
+<a class="skip" href="#view">Skip to the content</a>
+
+<div class="shell">
+
+  <!-- ======================================================================
+       TOP BAR
+       ====================================================================== -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark mat-recess" aria-hidden="true">SP</div>
+      <div class="lines">
+        <div class="name">The story point workshop</div>
+        <div class="where">Stop 1 of 29 &middot; the room</div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <button class="ctrl" type="button" data-setting="theme" data-short="LGT">
+      <span class="lamp" data-on="false" aria-hidden="true"></span>
+      <span class="ctrl-label">Light: auto</span>
+    </button>
+
+    <button class="ctrl" type="button" data-setting="materials" data-short="SRF">
+      <span class="lamp" data-on="false" aria-hidden="true"></span>
+      <span class="ctrl-label">Surfaces: real</span>
+    </button>
+
+    <button class="ctrl" type="button" data-setting="motion" data-short="MOT">
+      <span class="lamp" data-on="false" aria-hidden="true"></span>
+      <span class="ctrl-label">Motion: on</span>
+    </button>
+  </header>
+
+  <!-- ======================================================================
+       THE VIEW
+       ====================================================================== -->
+  <main class="stage" id="view" tabindex="-1">
+    <div class="backdrop" aria-hidden="true"></div>
+
+    <div class="world" id="world">
+
+      <article class="card mat-panel">
+        <p class="overline label">
+          <span>FedSP-PEFT</span>
+          <span class="bar" aria-hidden="true"></span>
+          <span>Stop 1 &mdash; the room</span>
+        </p>
+
+        <h1>Guessing effort, without sharing the evidence</h1>
+
+        <p class="lead">
+          Software teams estimate how much work a task will take. They are not very
+          good at it. This thesis asks whether a model can learn to estimate from the
+          text of the task itself &mdash; and whether nineteen separate projects can
+          teach that model together <em>without any of them handing over their data</em>.
+        </p>
+
+        <hr class="rule" />
+
+        <p class="note">
+          This is a walk-through, not a report. Each stop solves the problem the stop
+          before it ran into, so you can start here and keep going. Four areas are ahead:
+        </p>
+
+        <ul class="chips">
+          <li class="chip mat-sub">
+            <span class="n">01</span>
+            <span class="t">The data</span>
+          </li>
+          <li class="chip mat-sub">
+            <span class="n">02</span>
+            <span class="t">The model</span>
+          </li>
+          <li class="chip mat-sub">
+            <span class="n">03</span>
+            <span class="t">The merge</span>
+          </li>
+          <li class="chip mat-sub">
+            <span class="n">04</span>
+            <span class="t">The scores</span>
+          </li>
+        </ul>
+      </article>
+
+    </div>
+  </main>
+
+  <!-- ======================================================================
+       STATUS STRIP
+       ====================================================================== -->
+  <footer class="statusbar">
+    <span class="tag mat-recess">STOP 1 / 29</span>
+    <span class="msg">
+      <strong>The room is built.</strong>
+      Surfaces, light, the two bars and the three switches. Next: moving between stops.
+    </span>
+  </footer>
+
+</div>
+
+<!-- ==========================================================================
+     POWER ON
+     ========================================================================== -->
+<div class="boot" id="boot">
+  <div class="boot-inner">
+    <div class="boot-lamps" aria-hidden="true">
+      <span class="lamp" data-on="false"></span>
+      <span class="lamp" data-on="false"></span>
+      <span class="lamp" data-on="false"></span>
+    </div>
+    <div class="boot-bar mat-recess"><span></span></div>
+    <p class="boot-note">Click anywhere to skip</p>
+  </div>
+</div>
+
+<!-- Shown only when the page was opened straight from disk. -->
+<div class="file-warning mat-panel" id="file-warning" hidden>
+  <strong>This page needs a small local server.</strong>
+  Browsers refuse to load the site&rsquo;s JavaScript over <code>file://</code>.
+  From the project folder run <code>python -m http.server 8000</code>, then open
+  <code>http://localhost:8000/site/</code>.
+</div>
+
+<script type="module" src="js/boot.js"></script>
+</body>
+</html>
