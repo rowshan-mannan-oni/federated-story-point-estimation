@@ -62,3 +62,4 @@ analysis_figures/
 
 # Machine-local run plans (RUN_PLAN.md is the committed source of truth)
 RUN_PLAN_Linux.md
+linux.command.txt

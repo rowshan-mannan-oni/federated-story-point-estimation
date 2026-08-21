@@ -128,6 +128,8 @@ def main() -> None:
     parser.add_argument("--seeds", type=str, default=None, help="e.g. '42-44'. Default: auto-discover per root.")
     parser.add_argument("--alpha", type=float, default=0.05)
     parser.add_argument("--out-csv", type=str, default=None)
+    parser.add_argument("--out-dir", type=str, default=None,
+                         help="Directory to save summary.json and paired_values.csv (created if missing).")
     args = parser.parse_args()
 
     root_a, root_b = Path(args.root_a), Path(args.root_b)
@@ -186,6 +188,40 @@ def main() -> None:
         merged.rename(columns={f"{args.metric}_a": f"{args.metric}_{args.label_a}",
                                 f"{args.metric}_b": f"{args.metric}_{args.label_b}"}).to_csv(out_path, index=False)
         print(f"\nPer-(seed,project) values saved to {out_path}")
+
+    if args.out_dir:
+        out_dir = Path(args.out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        merged.rename(columns={f"{args.metric}_a": f"{args.metric}_{args.label_a}",
+                                f"{args.metric}_b": f"{args.metric}_{args.label_b}"}).to_csv(
+            out_dir / "paired_values.csv", index=False)
+
+        summary = {
+            "metric": args.metric,
+            "direction": direction,
+            "root_a": str(root_a), "label_a": args.label_a,
+            "root_b": str(root_b), "label_b": args.label_b,
+            "seeds": seeds,
+            "n_paired_blocks": len(merged),
+            "n_projects": int(merged["project"].nunique()),
+            "n_dropped_a_only": len(dropped_a),
+            "n_dropped_b_only": len(dropped_b),
+            "mean_a": float(a_vals.mean()), "std_a": float(a_vals.std()),
+            "mean_b": float(b_vals.mean()), "std_b": float(b_vals.std()),
+            "wilcoxon_stat": None if stat != stat else float(stat),
+            "wilcoxon_p": float(p_value),
+            "alpha": args.alpha,
+            "significant": bool(p_value < args.alpha),
+            "vargha_delaney_a12": float(a12),
+            "cliffs_delta": float(2 * a12 - 1),
+            "effect_size": effect_size_label(a12),
+            "prob_a_better": float(prob_a_better),
+            "n_a_wins": n_a_wins, "n_b_wins": n_b_wins, "n_ties": n_ties,
+        }
+        with (out_dir / "summary.json").open("w", encoding="utf-8") as fh:
+            json.dump(summary, fh, indent=2)
+        print(f"\nComparison summary + paired values saved to {out_dir}")
 
 
 if __name__ == "__main__":
