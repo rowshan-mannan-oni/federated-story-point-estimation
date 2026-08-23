@@ -22,12 +22,33 @@ then open <http://localhost:8000/site/>.
 Nothing is downloaded while the site runs: no fonts, no libraries, no trackers. It works
 with the network cable pulled out.
 
+## Getting around
+
+The walk-through is **25 stops** long. Each one answers the question the stop before it
+ran into, so the intended way through is simply forward.
+
+| | |
+|---|---|
+| **Next / Back** | the two buttons at the bottom |
+| **&larr; &rarr;** | same thing, from the keyboard |
+| **Home / End** | first stop, last stop |
+| **M** | open the map — the whole path on one screen |
+| **The rail** | jump to any stop; solid ticks are built, hollow ones are not yet |
+
+Every stop has its own address, so any of them can be linked to or bookmarked:
+`http://localhost:8000/site/#/archive`. The browser's Back and Forward buttons work
+normally.
+
 ## What's here so far
 
-| Stop | What it covers | State |
+| Build step | What it added | State |
 |---|---|---|
-| 1 | The room — surfaces, lighting, the toolbar, power-on | built |
-| 2–29 | The walk-through itself | being built, one stop at a time |
+| 1 | The room — surfaces, light, the two bars, the three switches | done |
+| 2 | Movement — the track, the router, the rail, the map | done |
+| 3–29 | The stops themselves | one at a time |
+
+Stops that have no content yet say so plainly, and name the build step that will fill
+them, rather than pretending to be finished or hiding from the map.
 
 ## The three switches in the toolbar
 
@@ -49,14 +70,25 @@ layout from breaking on a different screen.
 ## How the files fit together
 
 ```
-index.html            the room
-styles/tokens.css     greys, spacing, type, and the depth ladder — everything starts here
-styles/materials.css  what things are made of: panel, recess, glass, lamps
-styles/spatial.css    the shell, the view, the backdrop, and the sense of depth
-styles/components.css the fittings: the two bars, buttons, tags, the power-on
-js/core/store.js      the reader's three settings, remembered between visits
-js/boot.js            powers the room on and wires the toolbar
+index.html              the room: two bars and the view between them
+styles/tokens.css       greys, spacing, type, depth ladder — everything starts here
+styles/materials.css    what things are made of: panel, recess, glass, lamps
+styles/spatial.css      the shell, the track, a stop, the backdrop
+styles/components.css   the fittings: bars, buttons, rail, map, power-on
+js/app.js               the entry point: builds the track, keeps everything in step
+js/boot.js              powers the room on, wires the three switches
+js/core/store.js        the reader's settings, remembered between visits
+js/core/stops.js        THE PATH — 25 stops in order. The spine of the whole site.
+js/core/router.js       which stop you are on; the address bar is the source of truth
+js/core/camera.js       slides the track, drifts the floor behind it
+js/ui/rail.js           the progress rail
+js/ui/map.js            the map dialog
+js/stations/<id>.js     one file per stop, loaded only when you walk to it
 ```
+
+To add a stop: write `js/stations/<id>.js` exporting `mount(el)`, then flip `built: true`
+on that stop in `js/core/stops.js`. Nothing else needs to change — the router, rail and
+map all read that one list.
 
 Four rules the rest of the build follows:
 

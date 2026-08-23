@@ -90,6 +90,26 @@
   border-radius: var(--r-sm);
 }
 
+.ctrl:disabled {
+  opacity: .4;
+  cursor: default;
+  box-shadow: none;
+}
+.ctrl:disabled:hover { background-color: var(--c-panel); }
+
+/* A key cap, for the keyboard shortcut printed on a control. */
+.kbd {
+  font-family: var(--f-mono);
+  font-size: .68rem;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-line);
+  box-shadow: 0 1px 0 var(--c-line-strong);
+  background: var(--c-panel-2);
+  color: var(--c-ink-soft);
+}
+
 /* --------------------------------------------------------------------------
    STATUS STRIP
    -------------------------------------------------------------------------- */
@@ -102,14 +122,148 @@
   white-space: nowrap;
   color: var(--c-ink-soft);
 }
-.statusbar .msg {
-  font-size: var(--t-sm);
-  color: var(--c-ink-soft);
-  min-width: 0;
+.where-now {
+  max-width: 22ch;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: none;
 }
-.statusbar .msg strong { color: var(--c-ink); font-weight: 600; }
+
+/* --------------------------------------------------------------------------
+   THE RAIL — one tick per stop. Solid = built, hollow = not yet. The tick you
+   are on is taller and darker, so position is readable at a glance.
+   -------------------------------------------------------------------------- */
+.rail {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: var(--s-2) var(--s-1);
+}
+.tick {
+  flex: 1 1 auto;
+  min-width: 4px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+  background: var(--c-line-strong);
+  transition: height var(--m-quick) var(--ease),
+              background-color var(--m-quick) var(--ease),
+              opacity var(--m-quick) var(--ease);
+}
+.tick[data-built="false"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--c-line-strong);
+}
+.tick[data-state="past"]    { opacity: .85; }
+.tick[data-state="ahead"]   { opacity: .5; }
+.tick[data-state="current"] {
+  height: 18px;
+  background: var(--c-ink);
+  box-shadow: none;
+  opacity: 1;
+}
+.tick:hover  { background: var(--c-ink-soft); opacity: 1; }
+.tick:hover[data-built="false"] { box-shadow: inset 0 0 0 1px var(--c-ink-soft); }
+
+/* --------------------------------------------------------------------------
+   THE MAP — the whole path, in one dialog.
+   -------------------------------------------------------------------------- */
+.map {
+  width: min(64rem, calc(100vw - 2 * var(--frame)));
+  max-height: min(46rem, calc(100dvh - 2 * var(--frame)));
+  padding: 0;
+  border: 1px solid var(--c-line);
+  color: var(--c-ink);
+  overflow: hidden;
+}
+
+/* A <dialog> is hidden by the browser's own `dialog:not([open])` rule. Setting
+   `display` on the bare .map selector overrides that rule, and the dialog then
+   stays on screen after close() — it looks like closing is broken when in fact
+   it worked. So the layout is attached to [open], and the closed state is
+   spelled out rather than left to specificity. */
+.map:not([open]) { display: none; }
+.map[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.map::backdrop {
+  background: #0009;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.map-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  border-bottom: 1px solid var(--c-line);
+}
+.map-title {
+  margin: 0;
+  font-size: var(--t-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.map-sub {
+  margin: 2px 0 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: 52ch;
+}
+.map-head .ctrl { margin-left: auto; flex: none; }
+
+.map-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--s-5);
+  display: grid;
+  gap: var(--s-5);
+}
+.map-group { display: grid; gap: var(--s-3); }
+.map-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: var(--s-3);
+}
+.map-item {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--c-ink);
+  cursor: pointer;
+  padding: var(--s-3) var(--s-4);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "n t" ". b";
+  gap: 2px var(--s-3);
+  transition: transform var(--m-tap) var(--ease),
+              box-shadow var(--m-quick) var(--ease),
+              background-color var(--m-quick) var(--ease);
+}
+.map-item:hover { background-color: var(--c-panel); box-shadow: var(--e2); }
+.map-item:active { transform: translateY(1px); }
+.map-item .n {
+  grid-area: n;
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+  padding-top: 2px;
+}
+.map-item .t { grid-area: t; font-size: var(--t-sm); font-weight: 600; }
+.map-item .b { grid-area: b; font-size: var(--t-xs); color: var(--c-ink-soft); }
+.map-item[data-built="false"] .t { color: var(--c-ink-soft); font-weight: 500; }
+.map-item[data-built="false"] { border-style: dashed; }
+.map-item[aria-current="true"] {
+  box-shadow: var(--e2), inset 0 0 0 2px var(--c-ink);
+}
 
 /* --------------------------------------------------------------------------
    POWER ON — one quiet bar filling, then out of the way.
@@ -188,16 +342,30 @@ body[data-boot="on"] .boot-bar span { width: 100%; }
 /* --------------------------------------------------------------------------
    Narrow windows: the toolbar keeps only what still fits.
    -------------------------------------------------------------------------- */
-@media (max-width: 860px) {
-  .ctrl .ctrl-label { display: none; }     /* lamp + icon-free chip remains */
-  .ctrl { padding: var(--s-2); }
-  .ctrl::after {
+@media (max-width: 980px) {
+  /* The three setting switches shrink to their three-letter tags; the Back
+     and Next buttons keep their words, because they are the main way through. */
+  .topbar .ctrl[data-setting] .ctrl-label { display: none; }
+  .topbar .ctrl[data-setting] { padding: var(--s-2); }
+  .topbar .ctrl[data-setting]::after {
     content: attr(data-short);
     font-size: var(--t-xs);
     letter-spacing: .06em;
   }
 }
+
+@media (max-width: 720px) {
+  /* The rail needs room to be useful; below this it stops being clickable in
+     any meaningful way, so it goes and Back/Next/counter carry navigation. */
+  .rail { display: none; }
+  .where-now { margin-left: auto; }
+}
+
 @media (max-width: 560px) {
   .brand .where { display: none; }
-  .statusbar .msg { white-space: nowrap; }
+  .statusbar { gap: var(--s-2); }
+  .statusbar .ctrl .ctrl-label { display: none; }
+  #open-map .kbd { display: none; }
+  .map-head { padding: var(--s-4); }
+  .map-body { padding: var(--s-4); }
 }

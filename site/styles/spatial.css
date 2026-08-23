@@ -42,10 +42,7 @@ body {
 .stage {
   position: relative;
   min-height: 0;                     /* lets the middle band actually shrink */
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-  padding: clamp(var(--s-4), 3vh, var(--s-8)) var(--frame);
+  overflow: hidden;                  /* the track is wider than the view */
   isolation: isolate;
 }
 
@@ -60,46 +57,81 @@ body {
     linear-gradient(180deg, var(--c-bg), var(--c-bg-deep));
 }
 
-/* a floor receding into the distance: perspective lines that fade out */
+/* A floor receding into the distance. It slides a fraction of the distance
+   the track does (--cam counts stops), which is what turns a sideways slide
+   into a feeling of travelling through a room. */
 .backdrop::after {
   content: "";
   position: absolute;
-  left: 0; right: 0; bottom: 0;
+  left: -20%; right: -20%; bottom: 0;
   height: 42%;
   background-image:
     repeating-linear-gradient(90deg, transparent 0 78px, var(--c-line) 78px 79px),
     repeating-linear-gradient(0deg,  transparent 0 46px, var(--c-line) 46px 47px);
+  background-position:
+    calc(var(--cam, 0) * -46px) 0,
+    calc(var(--cam, 0) * -46px) 0;
   -webkit-mask-image: linear-gradient(180deg, transparent, #000 62%, #000);
           mask-image: linear-gradient(180deg, transparent, #000 62%, #000);
   opacity: .55;
   transform: perspective(520px) rotateX(58deg);
   transform-origin: 50% 100%;
+  transition: background-position var(--m-fly) var(--ease);
 }
 
 /* --------------------------------------------------------------------------
-   THE WORLD — what the camera will move in step 2.
-   Bounded in rem, never in viewport units, so it cannot outgrow the screen.
+   THE TRACK — every stop, side by side. The camera slides this.
+
+   Each stop is exactly as wide as the view, so the arithmetic stays trivial
+   (stop n sits at -n × 100%) and nothing can ever be half on screen.
    -------------------------------------------------------------------------- */
-.world {
+.track {
   position: relative;
   z-index: 1;
-  width: 100%;
-  max-width: 68rem;
-  max-height: 100%;
-  overflow-y: auto;                  /* short windows scroll, never clip */
-  overscroll-behavior: contain;
-  display: grid;
-  justify-items: center;
-  gap: var(--s-5);
-  transform-origin: 50% 50%;
+  height: 100%;
+  display: flex;
+  flex-wrap: nowrap;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
   transition: transform var(--m-fly) var(--ease);
 }
-.world::-webkit-scrollbar { width: 10px; }
-.world::-webkit-scrollbar-thumb {
+
+.stop {
+  flex: 0 0 100%;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;                  /* a long stop scrolls on its own */
+  overscroll-behavior: contain;
+  display: grid;
+  place-items: center;
+  padding: clamp(var(--s-4), 3vh, var(--s-8)) var(--frame);
+}
+.stop:focus { outline: none; }       /* focus moves here on navigation only */
+.stop:focus-visible { outline: 2px solid var(--c-ink); outline-offset: -4px; }
+
+.stop::-webkit-scrollbar { width: 10px; }
+.stop::-webkit-scrollbar-thumb {
   background: var(--c-line-strong);
   border-radius: var(--r-pill);
   border: 3px solid transparent;
   background-clip: content-box;
+}
+
+.stop-inner {
+  width: 100%;
+  max-width: 68rem;
+  display: grid;
+  justify-items: stretch;
+  gap: var(--s-5);
+  /* Stops you are not on sit back a little, so the one you are on is
+     obviously the subject. */
+  transform: scale(.97);
+  opacity: .35;
+  transition: transform var(--m-fly) var(--ease), opacity var(--m-fly) var(--ease);
+}
+.stop[data-current="true"] .stop-inner {
+  transform: scale(1);
+  opacity: 1;
 }
 
 /* --------------------------------------------------------------------------
@@ -148,33 +180,70 @@ body {
 }
 
 /* --------------------------------------------------------------------------
-   THE CHIP ROW — the four areas this walk-through covers. Wraps, never
-   overflows, and each one becomes a real stop later.
+   "HOW TO GET AROUND" — a key/value list. Two columns when there is room,
+   one when there is not.
    -------------------------------------------------------------------------- */
-.chips {
-  display: flex;
-  flex-wrap: wrap;
+.how {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
   gap: var(--s-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.chip {
+.how-item {
   display: grid;
   gap: 2px;
   padding: var(--s-3) var(--s-4);
-  min-width: 8.5rem;
-  flex: 1 1 8.5rem;
+  min-width: 0;
 }
-.chip .n {
-  font-family: var(--f-mono);
-  font-size: var(--t-xs);
-  color: var(--c-ink-faint);
-}
-.chip .t {
+.how-item .k {
   font-size: var(--t-sm);
   font-weight: 600;
-  letter-spacing: .01em;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.how-item .k .sep { font-weight: 400; color: var(--c-ink-faint); }
+.how-item .v { font-size: var(--t-sm); color: var(--c-ink-soft); }
+
+/* --------------------------------------------------------------------------
+   A STOP THAT IS NOT BUILT YET — said plainly rather than hidden.
+   -------------------------------------------------------------------------- */
+.card.is-pending h2 {
+  font-size: var(--t-xl);
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.pending-plate {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-faint);
+  justify-self: start;
+}
+
+.err {
+  margin: 0;
+  padding: var(--s-3);
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  white-space: pre-wrap;
+  overflow-x: auto;
+  color: var(--c-ink-soft);
+}
+
+.noscript-note {
+  position: absolute;
+  inset: auto var(--frame) var(--frame);
+  max-width: 40rem;
+  margin-inline: auto;
+  padding: var(--s-4);
+  font-size: var(--t-sm);
 }
 
 /* --------------------------------------------------------------------------
@@ -183,14 +252,13 @@ body {
 @media (max-width: 640px) {
   .backdrop::after { opacity: .3; }
   .card h1 { max-width: none; }
-  .chip { flex-basis: 100%; }
 }
 
 /* Short windows (a laptop with dev tools open): tighten vertical rhythm. */
 @media (max-height: 620px) {
-  .stage { padding-block: var(--s-3); }
-  .world { gap: var(--s-3); }
-  .card  { gap: var(--s-3); }
+  .stop { padding-block: var(--s-3); }
+  .stop-inner { gap: var(--s-3); }
+  .card { gap: var(--s-3); }
 }
 
 /* --------------------------------------------------------------------------
