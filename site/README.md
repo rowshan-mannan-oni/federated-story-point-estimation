@@ -45,7 +45,8 @@ normally.
 |---|---|---|
 | 1 | The room — surfaces, light, the two bars, the three switches | done |
 | 2 | Movement — the track, the router, the rail, the map | done |
-| 3–29 | The stops themselves | one at a time |
+| 3 | The parts bin — every control and readout the stops are built from | done |
+| 4–29 | The stops themselves | one at a time |
 
 Stops that have no content yet say so plainly, and name the build step that will fill
 them, rather than pretending to be finished or hiding from the map.
@@ -89,6 +90,34 @@ js/stations/<id>.js     one file per stop, loaded only when you walk to it
 To add a stop: write `js/stations/<id>.js` exporting `mount(el)`, then flip `built: true`
 on that stop in `js/core/stops.js`. Nothing else needs to change — the router, rail and
 map all read that one list.
+
+## The parts bin
+
+Open <http://localhost:8000/site/parts.html> to see every control and readout the stops
+are built from, live. It is a reference page, not a stop on the path.
+
+```
+js/ui/format.js     number formatting — one place, so "1.01 MB" looks the same everywhere
+js/ui/controls.js   switch · dial · slider · segmented · stepper
+js/ui/readouts.js   readout · meter · gauge · stat plate · drawer
+styles/parts.css    how all of them look
+```
+
+Every part shares one shape, so a stop can wire any control to any display without
+either knowing about the other:
+
+```js
+const dial = createDial({ label: "Pull towards the group", min: 0, max: 0.1, step: 0.001,
+                          value: 0.01, onInput: (v) => meter.set(v) });
+parent.append(dial.el);
+dial.get();      // read it
+dial.set(0.05);  // change it — deliberately does NOT fire onInput, so wiring cannot loop
+```
+
+Two rules these follow. **Everything works from the keyboard** with the right ARIA role —
+a knob that only answers to dragging is a knob half the readers of this site cannot use.
+And **a control never formats its own meaning**: it reports a number, and the stop decides
+what that number says.
 
 Four rules the rest of the build follows:
 

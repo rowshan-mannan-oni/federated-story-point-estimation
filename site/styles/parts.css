@@ -1,0 +1,559 @@
+/* ==========================================================================
+   parts.css — the workshop's controls and readouts.
+
+   Still greyscale, still lit from above. These are the pieces the stops are
+   assembled from, so they are deliberately plain: a control should look
+   touchable and then get out of the way of the number it is showing.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Shared bits
+   -------------------------------------------------------------------------- */
+.part {
+  display: grid;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.part-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.part-label {
+  font-size: var(--t-xs);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+  min-width: 0;
+}
+.part-value {
+  font-family: var(--f-mono);
+  font-size: var(--t-sm);
+  color: var(--c-ink);
+  white-space: nowrap;
+}
+.part-hint {
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+  max-width: 46ch;
+}
+
+/* A row of parts that wraps instead of overflowing. */
+.part-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-5);
+  align-items: flex-start;
+}
+.part-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--s-4) var(--s-5);
+  align-items: start;
+}
+
+/* --------------------------------------------------------------------------
+   SWITCH
+   -------------------------------------------------------------------------- */
+.part-switch {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--s-3);
+}
+.part-switch .part-hint { grid-column: 1 / -1; }
+
+.switch-track {
+  width: 46px;
+  height: 26px;
+  padding: 3px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-pill);
+  background: var(--c-recess);
+  box-shadow: var(--inset-1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background-color var(--m-quick) var(--ease);
+}
+.switch-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--c-panel);
+  border: 1px solid var(--c-line);
+  box-shadow: var(--e2);
+  transition: transform var(--m-quick) var(--ease),
+              background-color var(--m-quick) var(--ease);
+}
+.part-switch[data-on="true"] .switch-track { background: var(--c-ink); }
+.part-switch[data-on="true"] .switch-thumb {
+  transform: translateX(20px);
+  background: var(--c-panel);
+}
+.part-switch .part-label { cursor: pointer; text-transform: none; letter-spacing: 0;
+  font-size: var(--t-sm); color: var(--c-ink); }
+
+/* --------------------------------------------------------------------------
+   DIAL
+   -------------------------------------------------------------------------- */
+.part-dial { justify-items: center; text-align: center; }
+
+.dial-body {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+}
+
+.dial-ticks { position: absolute; inset: 0; pointer-events: none; }
+.dial-tick {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 1px; height: 6px;
+  background: var(--c-line-strong);
+  transform: rotate(var(--a)) translateY(-44px);
+  transform-origin: 50% 50%;
+}
+
+.dial-knob {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;                 /* dragging must not scroll the stop */
+  background:
+    radial-gradient(circle at 50% 18%, var(--c-panel), var(--c-panel-2) 62%, var(--c-recess));
+  border: 1px solid var(--c-line);
+  box-shadow: var(--e3);
+  display: grid;
+  place-items: center;
+}
+.part-dial[data-dragging="true"] .dial-knob { cursor: grabbing; box-shadow: var(--e2); }
+
+.dial-face {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  position: relative;
+  transform: rotate(var(--turn, -135deg));
+  transition: transform var(--m-quick) var(--ease);
+}
+.part-dial[data-dragging="true"] .dial-face { transition: none; }
+
+.dial-pointer {
+  position: absolute;
+  top: 6px; left: 50%;
+  width: 2px; height: 18px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--c-ink);
+}
+
+.dial-value {
+  font-family: var(--f-mono);
+  font-size: var(--t-sm);
+  color: var(--c-ink);
+}
+.part-dial .part-label { text-align: center; }
+
+/* --------------------------------------------------------------------------
+   SLIDER — a real <input type=range>, dressed.
+   -------------------------------------------------------------------------- */
+.slider-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+.slider-input::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background:
+    linear-gradient(90deg, var(--c-ink) calc(var(--f, 0) * 100%), transparent 0),
+    var(--c-recess);
+  box-shadow: var(--inset-1);
+  border: 1px solid var(--c-line);
+}
+.slider-input::-moz-range-track {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--c-recess);
+  box-shadow: var(--inset-1);
+  border: 1px solid var(--c-line);
+}
+.slider-input::-moz-range-progress {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--c-ink);
+}
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px; height: 20px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 22%, var(--c-panel), var(--c-panel-2));
+  border: 1px solid var(--c-line-strong);
+  box-shadow: var(--e2);
+}
+.slider-input::-moz-range-thumb {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--c-panel);
+  border: 1px solid var(--c-line-strong);
+  box-shadow: var(--e2);
+}
+.slider-input:focus-visible { outline: 2px solid var(--c-ink); outline-offset: 4px; }
+
+/* --------------------------------------------------------------------------
+   SEGMENTED
+   -------------------------------------------------------------------------- */
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-recess);
+  box-shadow: var(--inset-1);
+  max-width: 100%;
+  overflow-x: auto;
+}
+.segment {
+  font: inherit;
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  padding: var(--s-2) var(--s-4);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--m-quick) var(--ease),
+              color var(--m-quick) var(--ease);
+}
+.segment:hover { color: var(--c-ink); }
+.segment[aria-checked="true"] {
+  background: var(--c-panel);
+  color: var(--c-ink);
+  box-shadow: var(--e2);
+}
+
+/* --------------------------------------------------------------------------
+   STEPPER
+   -------------------------------------------------------------------------- */
+.stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-panel);
+  box-shadow: var(--e1);
+  overflow: hidden;
+}
+.stepper-btn {
+  font: inherit;
+  font-size: var(--t-lg);
+  line-height: 1;
+  width: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--c-ink);
+  cursor: pointer;
+  transition: background-color var(--m-quick) var(--ease);
+}
+.stepper-btn:hover:not(:disabled) { background: var(--c-panel-2); }
+.stepper-btn:disabled { opacity: .35; cursor: default; }
+.stepper-value {
+  min-width: 4.5rem;
+  padding: var(--s-2) var(--s-3);
+  display: grid;
+  place-items: center;
+  font-family: var(--f-mono);
+  font-size: var(--t-sm);
+  background: var(--c-recess);
+  box-shadow: var(--inset-1);
+}
+
+/* --------------------------------------------------------------------------
+   READOUT
+   -------------------------------------------------------------------------- */
+.readout-well {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;   /* digits must not jitter as they count */
+  overflow-x: auto;
+}
+.readout-value { font-size: var(--t-xl); color: var(--c-ink); white-space: nowrap; }
+.readout-unit  { font-size: var(--t-sm); color: var(--c-ink-faint); }
+.part-readout.is-lg .readout-value { font-size: clamp(1.6rem, 1.2rem + 1.4vw, 2.4rem); }
+.part-readout.is-sm .readout-value { font-size: var(--t-base); }
+
+/* --------------------------------------------------------------------------
+   METER
+   -------------------------------------------------------------------------- */
+.meter-bar {
+  position: relative;
+  height: 14px;
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+.meter-fill {
+  display: block;
+  height: 100%;
+  width: calc(var(--f, 0) * 100%);
+  background: var(--c-ink);
+  border-radius: var(--r-pill);
+  transition: width var(--m-quick) var(--ease);
+}
+.meter-marker {
+  position: absolute;
+  top: -3px; bottom: -3px;
+  left: calc(var(--f, 0) * 100%);
+  width: 2px;
+  margin-left: -1px;
+  background: var(--c-ink-faint);
+  border-radius: 1px;
+}
+
+/* --------------------------------------------------------------------------
+   GAUGE
+   -------------------------------------------------------------------------- */
+.part-gauge { justify-items: center; text-align: center; gap: var(--s-1); }
+.gauge-svg { width: 148px; height: auto; overflow: visible; }
+.gauge-track {
+  fill: none;
+  stroke: var(--c-recess);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+.gauge-tick { stroke: var(--c-line-strong); stroke-width: .8; }
+.gauge-tick.is-major { stroke: var(--c-ink-faint); stroke-width: 1.2; }
+.gauge-needle {
+  stroke: var(--c-ink);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  transition: transform var(--m-quick) var(--ease);
+  transform-box: view-box;
+}
+.gauge-hub { fill: var(--c-ink); }
+.gauge-value {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-lg);
+  margin-top: calc(-1 * var(--s-2));
+}
+
+/* --------------------------------------------------------------------------
+   STAT PLATE
+   -------------------------------------------------------------------------- */
+.part-stat {
+  padding: var(--s-4);
+  display: grid;
+  gap: 2px;
+  align-content: start;
+}
+.stat-value {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.25rem, 1rem + .9vw, 1.75rem);
+  font-weight: 600;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.stat-label {
+  font-size: var(--t-xs);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+.stat-caption { font-size: var(--t-sm); color: var(--c-ink-soft); }
+/* "quiet" is for a supporting number that must not compete with the main one */
+.part-stat.is-quiet .stat-value { font-weight: 500; color: var(--c-ink-soft); }
+
+/* --------------------------------------------------------------------------
+   DRAWER
+   -------------------------------------------------------------------------- */
+.part-drawer { padding: 0; gap: 0; }
+.drawer-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  cursor: pointer;
+  list-style: none;
+  min-width: 0;
+}
+.drawer-head::-webkit-details-marker { display: none; }
+.drawer-title { font-size: var(--t-sm); font-weight: 600; }
+.drawer-summary {
+  font-size: var(--t-sm);
+  color: var(--c-ink-faint);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.drawer-chevron {
+  margin-left: auto;
+  flex: none;
+  width: 8px; height: 8px;
+  border-right: 1.5px solid var(--c-ink-faint);
+  border-bottom: 1.5px solid var(--c-ink-faint);
+  transform: rotate(45deg);
+  transition: transform var(--m-quick) var(--ease);
+}
+.part-drawer[open] .drawer-chevron { transform: rotate(-135deg); }
+.drawer-body {
+  padding: 0 var(--s-4) var(--s-4);
+  border-top: 1px solid var(--c-line);
+  padding-top: var(--s-4);
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+}
+.part-drawer:focus-within { box-shadow: var(--e2); }
+
+/* --------------------------------------------------------------------------
+   TABLE — plain, and always able to scroll sideways on its own.
+   -------------------------------------------------------------------------- */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+}
+table.data {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--t-sm);
+}
+table.data th,
+table.data td {
+  padding: var(--s-2) var(--s-3);
+  text-align: left;
+  border-bottom: 1px solid var(--c-line);
+  white-space: nowrap;
+}
+table.data th {
+  font-size: var(--t-xs);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  background: var(--c-panel);
+}
+table.data td.n {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+table.data tr:last-child td { border-bottom: 0; }
+table.data tbody tr:hover { background: var(--c-panel-2); }
+
+/* --------------------------------------------------------------------------
+   BADGE — a stamped word. Step 4 builds the real provenance stamps on top.
+   -------------------------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 2px var(--s-2);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-sm);
+  font-size: var(--t-xs);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--c-ink-soft);
+  white-space: nowrap;
+}
+.badge.is-strong { border-color: var(--c-ink); color: var(--c-ink); }
+.badge.is-dashed { border-style: dashed; }
+
+/* ==========================================================================
+   THE REFERENCE PAGE (parts.html) — a plain scrolling document, not the
+   walk-through. Kept here because it exists only to show these parts off.
+   ========================================================================== */
+.page-shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--c-bg);
+}
+.topbar.is-sticky { position: sticky; top: 0; z-index: 10; }
+
+.page {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding: var(--s-6) var(--frame) var(--s-8);
+  display: grid;
+  gap: var(--s-7);
+  align-content: start;
+}
+.page-head { display: grid; gap: var(--s-3); }
+.page-head h1 {
+  margin: 0;
+  font-size: var(--t-display);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.page-section { display: grid; gap: var(--s-3); }
+.section-title {
+  margin: 0;
+  font-size: var(--t-lg);
+  font-weight: 600;
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--c-line);
+}
+.section-blurb {
+  margin: 0 0 var(--s-2);
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: var(--measure);
+}
+
+.demo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--s-4);
+  align-items: start;
+}
+.demo { padding: var(--s-5); display: grid; gap: var(--s-3); align-content: start; }
+.demo-head { display: flex; align-items: baseline; gap: var(--s-3); }
+.demo-name { font-size: var(--t-sm); font-weight: 600; }
+.demo-note { margin: 0; font-size: var(--t-sm); color: var(--c-ink-soft); }
+.demo-stage {
+  display: grid;
+  gap: var(--s-4);
+  padding-top: var(--s-2);
+  justify-items: stretch;
+}
+.demo-state {
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+}
+/* The wiring demo wants the full width, not a column. */
+.page-section:last-of-type .demo-grid { grid-template-columns: 1fr; }
+
+/* --------------------------------------------------------------------------
+   Flat surfaces: keep every control legible without its bevel.
+   -------------------------------------------------------------------------- */
+:root[data-materials="flat"] .dial-knob {
+  background: var(--c-panel);
+  border-color: var(--c-line-strong);
+}
+:root[data-materials="flat"] .switch-thumb { box-shadow: none; }
+:root[data-materials="flat"] .segment[aria-checked="true"] { box-shadow: none; border: 1px solid var(--c-ink); }
