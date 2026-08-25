@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en" data-materials="rich" data-motion="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>What the site knows — the story point workshop</title>
+  <meta name="description" content="Every number this site can show, where it came from, and how it was worked out." />
+
+  <script>
+    try {
+      var s = JSON.parse(localStorage.getItem("fedsp.site.v1") || "{}");
+      if (s.theme && s.theme !== "auto") document.documentElement.setAttribute("data-theme", s.theme);
+      if (s.materials) document.documentElement.setAttribute("data-materials", s.materials);
+      if (s.motion) document.documentElement.setAttribute("data-motion", s.motion);
+    } catch (e) {}
+  </script>
+
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/materials.css" />
+  <link rel="stylesheet" href="styles/spatial.css" />
+  <link rel="stylesheet" href="styles/components.css" />
+  <link rel="stylesheet" href="styles/parts.css" />
+  <link rel="stylesheet" href="styles/facts.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%2317181a'/><text x='16' y='23' font-size='18' font-family='monospace' fill='%23f1f2f3' text-anchor='middle'>SP</text></svg>" />
+</head>
+
+<body data-boot="on">
+
+<div class="page-shell">
+
+  <header class="topbar is-sticky">
+    <div class="brand">
+      <div class="mark mat-recess" aria-hidden="true">SP</div>
+      <div class="lines">
+        <div class="name">What the site knows</div>
+        <div class="where">Reference &middot; not part of the walk-through</div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <a class="ctrl" href="./">
+      <span aria-hidden="true">&larr;</span>
+      <span class="ctrl-label">Back to the walk-through</span>
+    </a>
+
+    <button class="ctrl" type="button" data-setting="theme" data-short="LGT">
+      <span class="lamp" data-on="false" aria-hidden="true"></span>
+      <span class="ctrl-label">Light: auto</span>
+    </button>
+
+    <button class="ctrl" type="button" data-setting="materials" data-short="SRF">
+      <span class="lamp" data-on="false" aria-hidden="true"></span>
+      <span class="ctrl-label">Surfaces: real</span>
+    </button>
+
+    <button class="ctrl" type="button" data-setting="motion" data-short="MOT">
+      <span class="lamp" data-on="false" aria-hidden="true"></span>
+      <span class="ctrl-label">Motion: on</span>
+    </button>
+  </header>
+
+  <main class="page" id="page">
+    <header class="page-head">
+      <h1>What the site knows</h1>
+      <p class="lead">
+        Every figure the walk-through can show, listed with where it came from and
+        how it was worked out. No number is typed into a page by hand: they are all
+        produced by one script that reads the project&rsquo;s own data and results.
+      </p>
+      <p class="note">
+        Re-run <code>python site/tools/extract_facts.py</code> after any change to the
+        data or the results, and the whole site updates. If a figure is missing here,
+        it is missing on the site too &mdash; shown as a dash, never as a plausible zero.
+      </p>
+    </header>
+  </main>
+
+</div>
+
+<script type="module" src="js/facts-page.js"></script>
+</body>
+</html>

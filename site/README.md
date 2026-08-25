@@ -46,10 +46,34 @@ normally.
 | 1 | The room — surfaces, light, the two bars, the three switches | done |
 | 2 | Movement — the track, the router, the rail, the map | done |
 | 3 | The parts bin — every control and readout the stops are built from | done |
-| 4–29 | The stops themselves | one at a time |
+| 4 | The facts pipeline — real numbers, provenance, stamps, glossary | done |
+| 5–29 | The stops themselves | one at a time |
 
 Stops that have no content yet say so plainly, and name the build step that will fill
 them, rather than pretending to be finished or hiding from the map.
+
+## Where the numbers come from
+
+**No figure is ever typed into a page.** `tools/extract_facts.py` reads the project's own
+data and results and writes `data/*.json`; the pages read only from there.
+
+```
+python site/tools/extract_facts.py
+```
+
+It reads `data_to_train_on/*.csv` and `results/*.json`, writes nothing outside
+`site/data/`, never trains anything, and carries on with a clear note when an input is
+absent. Re-run it whenever the data or the results change, and the whole site updates.
+
+Every number on the site is a button: hover it, or tab to it, and it names the file it
+came from and how it was worked out. Each is stamped with how solid it is —
+`MEASURED` (recomputed here), `FROM A RUN`, `WORKED OUT` (arithmetic), `SIMULATED`
+(a demonstration, never an experiment), or `NO DATA`.
+
+`data/glossary.json` is the one hand-written file in `data/`, because definitions are
+words rather than measurements. Terms marked in the prose are explained on hover.
+
+Everything the site knows is listed on **facts.html**.
 
 ## The three switches in the toolbar
 

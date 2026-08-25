@@ -1,0 +1,595 @@
+{
+  "about": {
+    "generated": "2026-08-25 15:13 UTC",
+    "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
+    "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
+    "run_available": true,
+    "data_available": true,
+    "notes": [
+      "19 of 19 CSVs here are the RAW export, which the training pipeline correctly refuses."
+    ]
+  },
+  "available": true,
+  "projects": [
+    {
+      "name": "Apache_Mesos",
+      "rows_raw": 3191,
+      "rows_clean": 3191,
+      "rows_dropped": 0,
+      "desc_missing_pct": 7.11,
+      "story_points": {
+        "1": 647,
+        "2": 742,
+        "3": 1026,
+        "5": 578,
+        "8": 198
+      },
+      "priorities": {
+        "High": 2544,
+        "Highest": 371,
+        "Low": 251,
+        "Lowest": 25
+      },
+      "types": 7,
+      "first_issue": "2012-11-19",
+      "last_issue": "2020-08-12",
+      "noise_pct": {
+        "code": 13.5,
+        "url": 21.8,
+        "html": 13.1,
+        "issue_ref": 12.6,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Appcelerator_Studio",
+      "rows_raw": 3094,
+      "rows_clean": 3094,
+      "rows_dropped": 0,
+      "desc_missing_pct": 1.23,
+      "story_points": {
+        "1": 174,
+        "2": 126,
+        "3": 680,
+        "5": 1284,
+        "8": 830
+      },
+      "priorities": {
+        "High": 1576,
+        "Medium": 804,
+        "Highest": 360,
+        "Low": 270,
+        "Unknown": 58,
+        "Lowest": 26
+      },
+      "types": 7,
+      "first_issue": "2011-03-01",
+      "last_issue": "2020-05-12",
+      "noise_pct": {
+        "code": 16.8,
+        "url": 11.6,
+        "html": 12.0,
+        "issue_ref": 7.6,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Aptana_Studio",
+      "rows_raw": 617,
+      "rows_clean": 617,
+      "rows_dropped": 0,
+      "desc_missing_pct": 7.94,
+      "story_points": {
+        "1": 85,
+        "2": 45,
+        "3": 48,
+        "5": 181,
+        "8": 258
+      },
+      "priorities": {
+        "High": 240,
+        "Medium": 191,
+        "Low": 156,
+        "Highest": 14,
+        "Lowest": 11,
+        "Unknown": 5
+      },
+      "types": 5,
+      "first_issue": "2011-03-07",
+      "last_issue": "2018-01-04",
+      "noise_pct": {
+        "code": 23.9,
+        "url": 13.6,
+        "html": 40.8,
+        "issue_ref": 4.4,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Atlassian_Confluence_Server",
+      "rows_raw": 639,
+      "rows_clean": 639,
+      "rows_dropped": 0,
+      "desc_missing_pct": 0.94,
+      "story_points": {
+        "1": 78,
+        "2": 144,
+        "3": 272,
+        "5": 113,
+        "8": 32
+      },
+      "priorities": {
+        "Low": 240,
+        "Medium": 211,
+        "High": 120,
+        "Unknown": 46,
+        "Highest": 22
+      },
+      "types": 2,
+      "first_issue": "2004-12-21",
+      "last_issue": "2020-09-29",
+      "noise_pct": {
+        "code": 26.1,
+        "url": 55.5,
+        "html": 58.1,
+        "issue_ref": 35.5,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "DotNetNuke_Platform",
+      "rows_raw": 2503,
+      "rows_clean": 2503,
+      "rows_dropped": 0,
+      "desc_missing_pct": 1.76,
+      "story_points": {
+        "1": 975,
+        "2": 963,
+        "3": 382,
+        "5": 130,
+        "8": 53
+      },
+      "priorities": {
+        "High": 1040,
+        "Low": 851,
+        "Medium": 479,
+        "Highest": 133
+      },
+      "types": 6,
+      "first_issue": "2012-01-16",
+      "last_issue": "2018-03-08",
+      "noise_pct": {
+        "code": 3.2,
+        "url": 15.0,
+        "html": 6.4,
+        "issue_ref": 7.3,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Hyperledger_Fabric",
+      "rows_raw": 550,
+      "rows_clean": 550,
+      "rows_dropped": 0,
+      "desc_missing_pct": 24.36,
+      "story_points": {
+        "1": 281,
+        "2": 140,
+        "3": 65,
+        "5": 19,
+        "8": 45
+      },
+      "priorities": {
+        "Medium": 486,
+        "High": 45,
+        "Highest": 17,
+        "Low": 2
+      },
+      "types": 4,
+      "first_issue": "2016-08-11",
+      "last_issue": "2020-09-25",
+      "noise_pct": {
+        "code": 5.0,
+        "url": 9.4,
+        "html": 5.5,
+        "issue_ref": 7.5,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Hyperledger_Indy_Node",
+      "rows_raw": 672,
+      "rows_clean": 672,
+      "rows_dropped": 0,
+      "desc_missing_pct": 9.38,
+      "story_points": {
+        "1": 90,
+        "2": 131,
+        "3": 226,
+        "5": 177,
+        "8": 48
+      },
+      "priorities": {
+        "Medium": 595,
+        "High": 64,
+        "Highest": 10,
+        "Low": 3
+      },
+      "types": 3,
+      "first_issue": "2017-05-12",
+      "last_issue": "2020-03-27",
+      "noise_pct": {
+        "code": 0.8,
+        "url": 23.3,
+        "html": 3.3,
+        "issue_ref": 28.7,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Hyperledger_Indy_SDK",
+      "rows_raw": 680,
+      "rows_clean": 680,
+      "rows_dropped": 0,
+      "desc_missing_pct": 23.38,
+      "story_points": {
+        "1": 63,
+        "2": 136,
+        "3": 244,
+        "5": 151,
+        "8": 86
+      },
+      "priorities": {
+        "Medium": 622,
+        "High": 36,
+        "Highest": 13,
+        "Low": 9
+      },
+      "types": 3,
+      "first_issue": "2017-06-16",
+      "last_issue": "2020-03-27",
+      "noise_pct": {
+        "code": 2.7,
+        "url": 18.4,
+        "html": 5.6,
+        "issue_ref": 11.3,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Hyperledger_Sawtooth",
+      "rows_raw": 950,
+      "rows_clean": 948,
+      "rows_dropped": 2,
+      "desc_missing_pct": 42.74,
+      "story_points": {
+        "1": 274,
+        "2": 300,
+        "3": 248,
+        "5": 122,
+        "8": 4
+      },
+      "priorities": {
+        "Medium": 884,
+        "High": 39,
+        "Highest": 11,
+        "Low": 11,
+        "Lowest": 3
+      },
+      "types": 4,
+      "first_issue": "2017-05-02",
+      "last_issue": "2019-07-16",
+      "noise_pct": {
+        "code": 0.9,
+        "url": 9.7,
+        "html": 3.9,
+        "issue_ref": 9.4,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Lsstcorp_Data_management",
+      "rows_raw": 10052,
+      "rows_clean": 10047,
+      "rows_dropped": 5,
+      "desc_missing_pct": 11.89,
+      "story_points": {
+        "1": 3799,
+        "2": 3282,
+        "3": 1257,
+        "5": 782,
+        "8": 927
+      },
+      "priorities": {
+        "Unknown": 10047
+      },
+      "types": 5,
+      "first_issue": "2014-03-04",
+      "last_issue": "2020-10-22",
+      "noise_pct": {
+        "code": 7.0,
+        "url": 12.0,
+        "html": 11.8,
+        "issue_ref": 22.0,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Lyrasis_Dura_Cloud",
+      "rows_raw": 628,
+      "rows_clean": 628,
+      "rows_dropped": 0,
+      "desc_missing_pct": 7.96,
+      "story_points": {
+        "1": 346,
+        "2": 156,
+        "3": 85,
+        "5": 32,
+        "8": 9
+      },
+      "priorities": {
+        "Low": 280,
+        "High": 188,
+        "Highest": 142,
+        "Lowest": 18
+      },
+      "types": 3,
+      "first_issue": "2009-11-24",
+      "last_issue": "2018-02-19",
+      "noise_pct": {
+        "code": 0.0,
+        "url": 9.2,
+        "html": 5.0,
+        "issue_ref": 6.2,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "MongoDB_Core_Server",
+      "rows_raw": 711,
+      "rows_clean": 711,
+      "rows_dropped": 0,
+      "desc_missing_pct": 6.47,
+      "story_points": {
+        "1": 240,
+        "2": 223,
+        "3": 146,
+        "5": 67,
+        "8": 35
+      },
+      "priorities": {
+        "High": 681,
+        "Low": 15,
+        "Highest": 6,
+        "Lowest": 5,
+        "Unknown": 4
+      },
+      "types": 5,
+      "first_issue": "2014-12-19",
+      "last_issue": "2020-10-21",
+      "noise_pct": {
+        "code": 8.1,
+        "url": 32.3,
+        "html": 8.7,
+        "issue_ref": 21.4,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Moodle",
+      "rows_raw": 978,
+      "rows_clean": 978,
+      "rows_dropped": 0,
+      "desc_missing_pct": 0.0,
+      "story_points": {
+        "1": 217,
+        "2": 153,
+        "3": 200,
+        "5": 224,
+        "8": 184
+      },
+      "priorities": {
+        "Low": 706,
+        "High": 148,
+        "Highest": 116,
+        "Lowest": 8
+      },
+      "types": 6,
+      "first_issue": "2007-04-20",
+      "last_issue": "2020-09-21",
+      "noise_pct": {
+        "code": 5.4,
+        "url": 19.2,
+        "html": 17.1,
+        "issue_ref": 16.9,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Mule",
+      "rows_raw": 2881,
+      "rows_clean": 2881,
+      "rows_dropped": 0,
+      "desc_missing_pct": 0.0,
+      "story_points": {
+        "1": 578,
+        "2": 602,
+        "3": 387,
+        "5": 520,
+        "8": 794
+      },
+      "priorities": {
+        "Highest": 1308,
+        "High": 1070,
+        "Unknown": 280,
+        "Low": 216,
+        "Lowest": 7
+      },
+      "types": 5,
+      "first_issue": "2012-02-23",
+      "last_issue": "2018-12-05",
+      "noise_pct": {
+        "code": 12.1,
+        "url": 8.5,
+        "html": 9.9,
+        "issue_ref": 7.5,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Sonatype_Nexus",
+      "rows_raw": 1476,
+      "rows_clean": 1476,
+      "rows_dropped": 0,
+      "desc_missing_pct": 1.69,
+      "story_points": {
+        "1": 740,
+        "2": 378,
+        "3": 245,
+        "5": 95,
+        "8": 18
+      },
+      "priorities": {
+        "High": 1017,
+        "Low": 281,
+        "Highest": 92,
+        "Lowest": 64,
+        "Medium": 22
+      },
+      "types": 5,
+      "first_issue": "2008-08-14",
+      "last_issue": "2020-03-05",
+      "noise_pct": {
+        "code": 14.4,
+        "url": 37.4,
+        "html": 21.8,
+        "issue_ref": 17.0,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Spring_XD",
+      "rows_raw": 3186,
+      "rows_clean": 3186,
+      "rows_dropped": 0,
+      "desc_missing_pct": 12.43,
+      "story_points": {
+        "1": 826,
+        "2": 639,
+        "3": 755,
+        "5": 572,
+        "8": 394
+      },
+      "priorities": {
+        "Low": 2725,
+        "High": 344,
+        "Highest": 102,
+        "Lowest": 15
+      },
+      "types": 5,
+      "first_issue": "2013-04-12",
+      "last_issue": "2018-11-16",
+      "noise_pct": {
+        "code": 7.0,
+        "url": 18.2,
+        "html": 6.5,
+        "issue_ref": 6.5,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "The_MongoDB_Engineering",
+      "rows_raw": 4388,
+      "rows_clean": 4388,
+      "rows_dropped": 0,
+      "desc_missing_pct": 32.91,
+      "story_points": {
+        "1": 2251,
+        "2": 2061,
+        "3": 34,
+        "5": 6,
+        "8": 36
+      },
+      "priorities": {
+        "High": 4259,
+        "Low": 76,
+        "Highest": 45,
+        "Lowest": 8
+      },
+      "types": 9,
+      "first_issue": "2014-06-03",
+      "last_issue": "2020-10-21",
+      "noise_pct": {
+        "code": 3.1,
+        "url": 30.3,
+        "html": 6.8,
+        "issue_ref": 6.5,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "The_Titanium_SDK",
+      "rows_raw": 3767,
+      "rows_clean": 3767,
+      "rows_dropped": 0,
+      "desc_missing_pct": 2.23,
+      "story_points": {
+        "1": 497,
+        "2": 333,
+        "3": 900,
+        "5": 1389,
+        "8": 648
+      },
+      "priorities": {
+        "High": 1385,
+        "Medium": 896,
+        "Highest": 831,
+        "Unknown": 343,
+        "Low": 298,
+        "Lowest": 14
+      },
+      "types": 7,
+      "first_issue": "2011-03-29",
+      "last_issue": "2020-10-17",
+      "noise_pct": {
+        "code": 49.8,
+        "url": 33.9,
+        "html": 42.7,
+        "issue_ref": 10.9,
+        "quote_wrapped_titles": 100.0
+      }
+    },
+    {
+      "name": "Titanium_Mobile_Platform",
+      "rows_raw": 1039,
+      "rows_clean": 1039,
+      "rows_dropped": 0,
+      "desc_missing_pct": 4.23,
+      "story_points": {
+        "1": 406,
+        "2": 150,
+        "3": 197,
+        "5": 124,
+        "8": 162
+      },
+      "priorities": {
+        "High": 382,
+        "Medium": 319,
+        "Low": 120,
+        "Highest": 109,
+        "Unknown": 70,
+        "Lowest": 39
+      },
+      "types": 7,
+      "first_issue": "2011-12-26",
+      "last_issue": "2020-02-18",
+      "noise_pct": {
+        "code": 9.3,
+        "url": 54.4,
+        "html": 13.7,
+        "issue_ref": 11.0,
+        "quote_wrapped_titles": 100.0
+      }
+    }
+  ]
+}

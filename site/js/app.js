@@ -18,6 +18,9 @@ import * as router from "./core/router.js";
 import * as camera from "./core/camera.js";
 import * as rail from "./ui/rail.js";
 import * as map from "./ui/map.js";
+import * as data from "./core/data.js";
+import * as glossary from "./ui/glossary.js";
+import { fillFacts } from "./ui/provenance.js";
 
 store.apply();
 warnIfOpenedFromDisk();
@@ -112,6 +115,11 @@ async function fill(index) {
   try {
     const module = await import(`./stations/${stop.id}.js`);
     await module.mount(inner, { stop, index });
+    // A stop writes <span data-fact="..."> and <span data-term="...">; the
+    // real figures and definitions are swapped in here, so no stop has to
+    // know where a number came from — only which one it wants.
+    fillFacts(inner);
+    glossary.fillTerms(inner);
   } catch (error) {
     filled.delete(index);            // let a later visit try again
     inner.append(errorFor(stop, error));
@@ -199,6 +207,12 @@ window.addEventListener("keydown", (event) => {
   }
   event.preventDefault();
 });
+
+/* The numbers and the glossary load before the first stop is drawn, so a fact
+   never appears as a dash for a moment and then pops into place. Both fail
+   softly: if their files are missing the site still runs, and says so. */
+await data.init();
+await glossary.init();
 
 router.subscribe(onStopChange);
 router.start();

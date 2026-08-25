@@ -1,0 +1,827 @@
+{
+  "about": {
+    "generated": "2026-08-25 15:13 UTC",
+    "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
+    "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
+    "run_available": true,
+    "data_available": true,
+    "notes": [
+      "19 of 19 CSVs here are the RAW export, which the training pipeline correctly refuses."
+    ]
+  },
+  "available": true,
+  "config": {
+    "data_dir": "/mnt/code/Oni/Shohel Ahmed CSE/federated-story-point-estimation/data_to_train_on_clean",
+    "random_state": 42,
+    "test_size": 0.2,
+    "val_size": 0.1,
+    "split_mode": "random",
+    "model_name": "microsoft/codebert-base",
+    "max_length": 256,
+    "categorical_emb_dim": 16,
+    "hidden_dim": 128,
+    "dropout": 0.2,
+    "freeze_encoder": false,
+    "use_lora": true,
+    "lora_r": 8,
+    "lora_alpha": 16,
+    "lora_dropout": 0.05,
+    "lora_target_modules": [
+      "query",
+      "value"
+    ],
+    "ffa_lora": true,
+    "warmstart_project": "Lsstcorp_Data_management",
+    "warmstart_val_size": 0.15,
+    "warmstart_epochs": 10,
+    "warmstart_patience": 3,
+    "warmstart_lr": 3e-05,
+    "skip_centralized": false,
+    "skip_local_only": false,
+    "run_no_warmstart_fl": false,
+    "batch_size": 64,
+    "local_epochs": 1,
+    "rounds": 60,
+    "clients_per_round_fraction": 1.0,
+    "local_sample_ratio_per_epoch": 1.0,
+    "sample_with_replacement": false,
+    "learning_rate": 3e-05,
+    "weight_decay": 0.0001,
+    "prox_mu": 0.01,
+    "num_classes": 5,
+    "head_type": "corn",
+    "personalized_head": true,
+    "generic_head": true,
+    "holdout_project": null,
+    "checkpoint_every": 5,
+    "resume": true,
+    "resume_from": null,
+    "checkpoint_keep": 2,
+    "device": "cuda",
+    "federated_condition": "FedProx (mu=0.01) + P-head"
+  },
+  "conditions": {
+    "federated": {
+      "per_project": {
+        "Apache_Mesos": {
+          "accuracy": 0.374,
+          "macro_f1": 0.2595,
+          "mae": 1.1487,
+          "cohen_kappa": 0.3845,
+          "n_test": 639
+        },
+        "Appcelerator_Studio": {
+          "accuracy": 0.4459,
+          "macro_f1": 0.2968,
+          "mae": 1.5283,
+          "cohen_kappa": 0.3158,
+          "n_test": 619
+        },
+        "Aptana_Studio": {
+          "accuracy": 0.3952,
+          "macro_f1": 0.3111,
+          "mae": 1.9194,
+          "cohen_kappa": 0.3524,
+          "n_test": 124
+        },
+        "Atlassian_Confluence_Server": {
+          "accuracy": 0.3984,
+          "macro_f1": 0.1487,
+          "mae": 1.1797,
+          "cohen_kappa": 0.0718,
+          "n_test": 128
+        },
+        "DotNetNuke_Platform": {
+          "accuracy": 0.487,
+          "macro_f1": 0.2812,
+          "mae": 0.7804,
+          "cohen_kappa": 0.4091,
+          "n_test": 501
+        },
+        "Hyperledger_Fabric": {
+          "accuracy": 0.6091,
+          "macro_f1": 0.3366,
+          "mae": 0.7364,
+          "cohen_kappa": 0.3062,
+          "n_test": 110
+        },
+        "Hyperledger_Indy_Node": {
+          "accuracy": 0.3556,
+          "macro_f1": 0.2471,
+          "mae": 1.2593,
+          "cohen_kappa": 0.3455,
+          "n_test": 135
+        },
+        "Hyperledger_Indy_SDK": {
+          "accuracy": 0.4265,
+          "macro_f1": 0.2555,
+          "mae": 1.25,
+          "cohen_kappa": 0.4207,
+          "n_test": 136
+        },
+        "Hyperledger_Sawtooth": {
+          "accuracy": 0.3895,
+          "macro_f1": 0.2607,
+          "mae": 0.9263,
+          "cohen_kappa": 0.398,
+          "n_test": 190
+        },
+        "Lyrasis_Dura_Cloud": {
+          "accuracy": 0.5159,
+          "macro_f1": 0.2356,
+          "mae": 0.7063,
+          "cohen_kappa": 0.334,
+          "n_test": 126
+        },
+        "MongoDB_Core_Server": {
+          "accuracy": 0.4755,
+          "macro_f1": 0.2847,
+          "mae": 0.7692,
+          "cohen_kappa": 0.3537,
+          "n_test": 143
+        },
+        "Moodle": {
+          "accuracy": 0.2347,
+          "macro_f1": 0.1804,
+          "mae": 1.9082,
+          "cohen_kappa": 0.1933,
+          "n_test": 196
+        },
+        "Mule": {
+          "accuracy": 0.2877,
+          "macro_f1": 0.2846,
+          "mae": 1.9168,
+          "cohen_kappa": 0.3906,
+          "n_test": 577
+        },
+        "Sonatype_Nexus": {
+          "accuracy": 0.5068,
+          "macro_f1": 0.2391,
+          "mae": 0.8547,
+          "cohen_kappa": 0.2625,
+          "n_test": 296
+        },
+        "Spring_XD": {
+          "accuracy": 0.3229,
+          "macro_f1": 0.2766,
+          "mae": 1.3683,
+          "cohen_kappa": 0.4088,
+          "n_test": 638
+        },
+        "The_MongoDB_Engineering": {
+          "accuracy": 0.5877,
+          "macro_f1": 0.2351,
+          "mae": 0.451,
+          "cohen_kappa": 0.1701,
+          "n_test": 878
+        },
+        "The_Titanium_SDK": {
+          "accuracy": 0.3156,
+          "macro_f1": 0.1652,
+          "mae": 1.7891,
+          "cohen_kappa": 0.1327,
+          "n_test": 754
+        },
+        "Titanium_Mobile_Platform": {
+          "accuracy": 0.4279,
+          "macro_f1": 0.2859,
+          "mae": 1.3894,
+          "cohen_kappa": 0.458,
+          "n_test": 208
+        }
+      },
+      "pooled": null,
+      "means": {
+        "accuracy": 0.4198,
+        "macro_f1": 0.2547,
+        "mae": 1.2156,
+        "cohen_kappa": 0.3171
+      }
+    },
+    "centralized": {
+      "per_project": {
+        "Apache_Mesos": {
+          "accuracy": 0.3725,
+          "macro_f1": 0.2739,
+          "mae": 1.1878,
+          "cohen_kappa": 0.3544,
+          "n_test": 639
+        },
+        "Appcelerator_Studio": {
+          "accuracy": 0.4087,
+          "macro_f1": 0.2313,
+          "mae": 1.6446,
+          "cohen_kappa": 0.2407,
+          "n_test": 619
+        },
+        "Aptana_Studio": {
+          "accuracy": 0.2661,
+          "macro_f1": 0.2166,
+          "mae": 2.5726,
+          "cohen_kappa": 0.2104,
+          "n_test": 124
+        },
+        "Atlassian_Confluence_Server": {
+          "accuracy": 0.3594,
+          "macro_f1": 0.2277,
+          "mae": 1.2734,
+          "cohen_kappa": 0.1598,
+          "n_test": 128
+        },
+        "DotNetNuke_Platform": {
+          "accuracy": 0.4391,
+          "macro_f1": 0.2631,
+          "mae": 0.8643,
+          "cohen_kappa": 0.3678,
+          "n_test": 501
+        },
+        "Hyperledger_Fabric": {
+          "accuracy": 0.4364,
+          "macro_f1": 0.2408,
+          "mae": 1.0364,
+          "cohen_kappa": 0.2499,
+          "n_test": 110
+        },
+        "Hyperledger_Indy_Node": {
+          "accuracy": 0.3333,
+          "macro_f1": 0.205,
+          "mae": 1.3111,
+          "cohen_kappa": 0.2761,
+          "n_test": 135
+        },
+        "Hyperledger_Indy_SDK": {
+          "accuracy": 0.4118,
+          "macro_f1": 0.2739,
+          "mae": 1.3088,
+          "cohen_kappa": 0.3917,
+          "n_test": 136
+        },
+        "Hyperledger_Sawtooth": {
+          "accuracy": 0.3632,
+          "macro_f1": 0.2521,
+          "mae": 0.9789,
+          "cohen_kappa": 0.3392,
+          "n_test": 190
+        },
+        "Lyrasis_Dura_Cloud": {
+          "accuracy": 0.4365,
+          "macro_f1": 0.2612,
+          "mae": 0.8413,
+          "cohen_kappa": 0.3477,
+          "n_test": 126
+        },
+        "MongoDB_Core_Server": {
+          "accuracy": 0.4056,
+          "macro_f1": 0.2648,
+          "mae": 0.8531,
+          "cohen_kappa": 0.3177,
+          "n_test": 143
+        },
+        "Moodle": {
+          "accuracy": 0.2704,
+          "macro_f1": 0.2365,
+          "mae": 1.8929,
+          "cohen_kappa": 0.2753,
+          "n_test": 196
+        },
+        "Mule": {
+          "accuracy": 0.3016,
+          "macro_f1": 0.2945,
+          "mae": 1.8856,
+          "cohen_kappa": 0.3884,
+          "n_test": 577
+        },
+        "Sonatype_Nexus": {
+          "accuracy": 0.348,
+          "macro_f1": 0.2155,
+          "mae": 0.9966,
+          "cohen_kappa": 0.2744,
+          "n_test": 296
+        },
+        "Spring_XD": {
+          "accuracy": 0.3166,
+          "macro_f1": 0.2741,
+          "mae": 1.4263,
+          "cohen_kappa": 0.406,
+          "n_test": 638
+        },
+        "The_MongoDB_Engineering": {
+          "accuracy": 0.5399,
+          "macro_f1": 0.2246,
+          "mae": 0.5421,
+          "cohen_kappa": 0.1496,
+          "n_test": 878
+        },
+        "The_Titanium_SDK": {
+          "accuracy": 0.3289,
+          "macro_f1": 0.1794,
+          "mae": 1.7666,
+          "cohen_kappa": 0.1713,
+          "n_test": 754
+        },
+        "Titanium_Mobile_Platform": {
+          "accuracy": 0.3365,
+          "macro_f1": 0.3073,
+          "mae": 1.4519,
+          "cohen_kappa": 0.4447,
+          "n_test": 208
+        }
+      },
+      "pooled": {
+        "accuracy": 0.3822,
+        "macro_f1": 0.3459,
+        "mae": 1.3049,
+        "cohen_kappa": 0.53,
+        "n_test": 6398
+      },
+      "means": {
+        "accuracy": 0.3708,
+        "macro_f1": 0.2468,
+        "mae": 1.3241,
+        "cohen_kappa": 0.2981
+      }
+    },
+    "local_only": {
+      "per_project": {
+        "Apache_Mesos": {
+          "accuracy": 0.3803,
+          "macro_f1": 0.2899,
+          "mae": 1.1283,
+          "cohen_kappa": 0.4366,
+          "n_test": 639
+        },
+        "Appcelerator_Studio": {
+          "accuracy": 0.4491,
+          "macro_f1": 0.3244,
+          "mae": 1.5396,
+          "cohen_kappa": 0.3409,
+          "n_test": 619
+        },
+        "Aptana_Studio": {
+          "accuracy": 0.3306,
+          "macro_f1": 0.2586,
+          "mae": 2.0806,
+          "cohen_kappa": 0.2693,
+          "n_test": 124
+        },
+        "Atlassian_Confluence_Server": {
+          "accuracy": 0.4141,
+          "macro_f1": 0.147,
+          "mae": 1.1719,
+          "cohen_kappa": 0.0495,
+          "n_test": 128
+        },
+        "DotNetNuke_Platform": {
+          "accuracy": 0.493,
+          "macro_f1": 0.29,
+          "mae": 0.7725,
+          "cohen_kappa": 0.4134,
+          "n_test": 501
+        },
+        "Hyperledger_Fabric": {
+          "accuracy": 0.5727,
+          "macro_f1": 0.2805,
+          "mae": 0.7727,
+          "cohen_kappa": 0.2821,
+          "n_test": 110
+        },
+        "Hyperledger_Indy_Node": {
+          "accuracy": 0.2815,
+          "macro_f1": 0.1994,
+          "mae": 1.3704,
+          "cohen_kappa": 0.3409,
+          "n_test": 135
+        },
+        "Hyperledger_Indy_SDK": {
+          "accuracy": 0.4632,
+          "macro_f1": 0.2792,
+          "mae": 1.1691,
+          "cohen_kappa": 0.4435,
+          "n_test": 136
+        },
+        "Hyperledger_Sawtooth": {
+          "accuracy": 0.4474,
+          "macro_f1": 0.2965,
+          "mae": 0.8526,
+          "cohen_kappa": 0.483,
+          "n_test": 190
+        },
+        "Lyrasis_Dura_Cloud": {
+          "accuracy": 0.5317,
+          "macro_f1": 0.2154,
+          "mae": 0.6905,
+          "cohen_kappa": 0.3353,
+          "n_test": 126
+        },
+        "MongoDB_Core_Server": {
+          "accuracy": 0.4545,
+          "macro_f1": 0.2479,
+          "mae": 0.7972,
+          "cohen_kappa": 0.3427,
+          "n_test": 143
+        },
+        "Moodle": {
+          "accuracy": 0.2704,
+          "macro_f1": 0.2357,
+          "mae": 1.8673,
+          "cohen_kappa": 0.2305,
+          "n_test": 196
+        },
+        "Mule": {
+          "accuracy": 0.2877,
+          "macro_f1": 0.2853,
+          "mae": 1.9289,
+          "cohen_kappa": 0.4124,
+          "n_test": 577
+        },
+        "Sonatype_Nexus": {
+          "accuracy": 0.4899,
+          "macro_f1": 0.231,
+          "mae": 0.8784,
+          "cohen_kappa": 0.237,
+          "n_test": 296
+        },
+        "Spring_XD": {
+          "accuracy": 0.3386,
+          "macro_f1": 0.3141,
+          "mae": 1.3527,
+          "cohen_kappa": 0.4463,
+          "n_test": 638
+        },
+        "The_MongoDB_Engineering": {
+          "accuracy": 0.5763,
+          "macro_f1": 0.272,
+          "mae": 0.4601,
+          "cohen_kappa": 0.1828,
+          "n_test": 878
+        },
+        "The_Titanium_SDK": {
+          "accuracy": 0.3037,
+          "macro_f1": 0.1729,
+          "mae": 1.7865,
+          "cohen_kappa": 0.1687,
+          "n_test": 754
+        },
+        "Titanium_Mobile_Platform": {
+          "accuracy": 0.4615,
+          "macro_f1": 0.305,
+          "mae": 1.3077,
+          "cohen_kappa": 0.5152,
+          "n_test": 208
+        }
+      },
+      "pooled": {
+        "accuracy": 0.4148,
+        "macro_f1": 0.3791,
+        "mae": 1.2326,
+        "cohen_kappa": 0.5898,
+        "n_test": 6398
+      },
+      "means": {
+        "accuracy": 0.4192,
+        "macro_f1": 0.258,
+        "mae": 1.2182,
+        "cohen_kappa": 0.3294
+      }
+    }
+  },
+  "confusion_matrix": [
+    [
+      806,
+      590,
+      267,
+      87,
+      4
+    ],
+    [
+      380,
+      707,
+      309,
+      86,
+      11
+    ],
+    [
+      84,
+      332,
+      583,
+      213,
+      6
+    ],
+    [
+      27,
+      141,
+      483,
+      479,
+      31
+    ],
+    [
+      10,
+      80,
+      233,
+      374,
+      75
+    ]
+  ],
+  "history": [
+    {
+      "round": 1,
+      "loss": 0.6467,
+      "val": 0.1536
+    },
+    {
+      "round": 2,
+      "loss": 0.5935,
+      "val": 0.1744
+    },
+    {
+      "round": 3,
+      "loss": 0.5749,
+      "val": 0.1789
+    },
+    {
+      "round": 4,
+      "loss": 0.5635,
+      "val": 0.1806
+    },
+    {
+      "round": 5,
+      "loss": 0.5585,
+      "val": 0.1836
+    },
+    {
+      "round": 6,
+      "loss": 0.5518,
+      "val": 0.1866
+    },
+    {
+      "round": 7,
+      "loss": 0.5492,
+      "val": 0.187
+    },
+    {
+      "round": 8,
+      "loss": 0.5481,
+      "val": 0.1843
+    },
+    {
+      "round": 9,
+      "loss": 0.5456,
+      "val": 0.188
+    },
+    {
+      "round": 10,
+      "loss": 0.5421,
+      "val": 0.19
+    },
+    {
+      "round": 11,
+      "loss": 0.5402,
+      "val": 0.1914
+    },
+    {
+      "round": 12,
+      "loss": 0.54,
+      "val": 0.1921
+    },
+    {
+      "round": 13,
+      "loss": 0.5377,
+      "val": 0.1961
+    },
+    {
+      "round": 14,
+      "loss": 0.5362,
+      "val": 0.1975
+    },
+    {
+      "round": 15,
+      "loss": 0.5336,
+      "val": 0.1994
+    },
+    {
+      "round": 16,
+      "loss": 0.5354,
+      "val": 0.2021
+    },
+    {
+      "round": 17,
+      "loss": 0.5342,
+      "val": 0.205
+    },
+    {
+      "round": 18,
+      "loss": 0.5312,
+      "val": 0.2075
+    },
+    {
+      "round": 19,
+      "loss": 0.5318,
+      "val": 0.2085
+    },
+    {
+      "round": 20,
+      "loss": 0.5321,
+      "val": 0.2073
+    },
+    {
+      "round": 21,
+      "loss": 0.5315,
+      "val": 0.2103
+    },
+    {
+      "round": 22,
+      "loss": 0.5338,
+      "val": 0.2135
+    },
+    {
+      "round": 23,
+      "loss": 0.5255,
+      "val": 0.2113
+    },
+    {
+      "round": 24,
+      "loss": 0.5275,
+      "val": 0.2153
+    },
+    {
+      "round": 25,
+      "loss": 0.5265,
+      "val": 0.2173
+    },
+    {
+      "round": 26,
+      "loss": 0.5257,
+      "val": 0.2186
+    },
+    {
+      "round": 27,
+      "loss": 0.524,
+      "val": 0.2182
+    },
+    {
+      "round": 28,
+      "loss": 0.5215,
+      "val": 0.2187
+    },
+    {
+      "round": 29,
+      "loss": 0.521,
+      "val": 0.2207
+    },
+    {
+      "round": 30,
+      "loss": 0.5211,
+      "val": 0.2264
+    },
+    {
+      "round": 31,
+      "loss": 0.5229,
+      "val": 0.2267
+    },
+    {
+      "round": 32,
+      "loss": 0.5191,
+      "val": 0.2244
+    },
+    {
+      "round": 33,
+      "loss": 0.5175,
+      "val": 0.2236
+    },
+    {
+      "round": 34,
+      "loss": 0.5168,
+      "val": 0.222
+    },
+    {
+      "round": 35,
+      "loss": 0.5135,
+      "val": 0.2291
+    },
+    {
+      "round": 36,
+      "loss": 0.5149,
+      "val": 0.2315
+    },
+    {
+      "round": 37,
+      "loss": 0.5166,
+      "val": 0.2323
+    },
+    {
+      "round": 38,
+      "loss": 0.5157,
+      "val": 0.2331
+    },
+    {
+      "round": 39,
+      "loss": 0.5114,
+      "val": 0.2328
+    },
+    {
+      "round": 40,
+      "loss": 0.5104,
+      "val": 0.2384
+    },
+    {
+      "round": 41,
+      "loss": 0.5082,
+      "val": 0.2361
+    },
+    {
+      "round": 42,
+      "loss": 0.5114,
+      "val": 0.2389
+    },
+    {
+      "round": 43,
+      "loss": 0.5094,
+      "val": 0.2359
+    },
+    {
+      "round": 44,
+      "loss": 0.5079,
+      "val": 0.2388
+    },
+    {
+      "round": 45,
+      "loss": 0.5033,
+      "val": 0.2391
+    },
+    {
+      "round": 46,
+      "loss": 0.5057,
+      "val": 0.2389
+    },
+    {
+      "round": 47,
+      "loss": 0.5068,
+      "val": 0.2401
+    },
+    {
+      "round": 48,
+      "loss": 0.5023,
+      "val": 0.2408
+    },
+    {
+      "round": 49,
+      "loss": 0.5024,
+      "val": 0.241
+    },
+    {
+      "round": 50,
+      "loss": 0.5022,
+      "val": 0.2401
+    },
+    {
+      "round": 51,
+      "loss": 0.5022,
+      "val": 0.246
+    },
+    {
+      "round": 52,
+      "loss": 0.5024,
+      "val": 0.2448
+    },
+    {
+      "round": 53,
+      "loss": 0.4988,
+      "val": 0.2452
+    },
+    {
+      "round": 54,
+      "loss": 0.5007,
+      "val": 0.2477
+    },
+    {
+      "round": 55,
+      "loss": 0.4979,
+      "val": 0.2478
+    },
+    {
+      "round": 56,
+      "loss": 0.4957,
+      "val": 0.2474
+    },
+    {
+      "round": 57,
+      "loss": 0.4954,
+      "val": 0.2483
+    },
+    {
+      "round": 58,
+      "loss": 0.4935,
+      "val": 0.2488
+    },
+    {
+      "round": 59,
+      "loss": 0.4939,
+      "val": 0.2516
+    },
+    {
+      "round": 60,
+      "loss": 0.4928,
+      "val": 0.2533
+    }
+  ]
+}

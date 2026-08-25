@@ -1,0 +1,110 @@
+{
+  "about": {
+    "generated": "2026-08-25 15:13 UTC",
+    "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
+    "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
+    "run_available": true,
+    "data_available": true,
+    "notes": [
+      "19 of 19 CSVs here are the RAW export, which the training pipeline correctly refuses."
+    ]
+  },
+  "available": true,
+  "files": [
+    {
+      "file": "Apache_Mesos.csv",
+      "passes": false,
+      "reason": "[Apache_Mesos.csv] Column 'Description' has 13.5% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "Appcelerator_Studio.csv",
+      "passes": false,
+      "reason": "[Appcelerator_Studio.csv] Column 'Description' has 16.8% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "Aptana_Studio.csv",
+      "passes": false,
+      "reason": "[Aptana_Studio.csv] Column 'Description' has 23.9% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "Atlassian_Confluence_Server.csv",
+      "passes": false,
+      "reason": "[Atlassian_Confluence_Server.csv] Column 'Description' has 26.1% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "DotNetNuke_Platform.csv",
+      "passes": false,
+      "reason": "[DotNetNuke_Platform.csv] Column 'Description' has 3.2% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "Hyperledger_Fabric.csv",
+      "passes": false,
+      "reason": "[Hyperledger_Fabric.csv] Column 'Description' has 5.0% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "Hyperledger_Indy_Node.csv",
+      "passes": false,
+      "reason": "[Hyperledger_Indy_Node.csv] Column 'Title' has 100.0% quote-wrapped values (export artifact)."
+    },
+    {
+      "file": "Hyperledger_Indy_SDK.csv",
+      "passes": false,
+      "reason": "[Hyperledger_Indy_SDK.csv] Column 'Description' has 2.7% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "Hyperledger_Sawtooth.csv",
+      "passes": false,
+      "reason": "[Hyperledger_Sawtooth.csv] Column 'Description' has 1.8% uncleaned '{noformat' Jira markup."
+    },
+    {
+      "file": "Lsstcorp_Data_management.csv",
+      "passes": false,
+      "reason": "[Lsstcorp_Data_management.csv] Column 'Description' has 7.0% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "Lyrasis_Dura_Cloud.csv",
+      "passes": false,
+      "reason": "[Lyrasis_Dura_Cloud.csv] Column 'Title' has 100.0% quote-wrapped values (export artifact)."
+    },
+    {
+      "file": "MongoDB_Core_Server.csv",
+      "passes": false,
+      "reason": "[MongoDB_Core_Server.csv] Column 'Description' has 8.1% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "Moodle.csv",
+      "passes": false,
+      "reason": "[Moodle.csv] Column 'Description' has 5.4% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "Mule.csv",
+      "passes": false,
+      "reason": "[Mule.csv] Column 'Description' has 12.1% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "Sonatype_Nexus.csv",
+      "passes": false,
+      "reason": "[Sonatype_Nexus.csv] Column 'Description' has 14.4% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "Spring_XD.csv",
+      "passes": false,
+      "reason": "[Spring_XD.csv] Column 'Description' has 7.0% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "The_MongoDB_Engineering.csv",
+      "passes": false,
+      "reason": "[The_MongoDB_Engineering.csv] Column 'Description' has 3.1% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "The_Titanium_SDK.csv",
+      "passes": false,
+      "reason": "[The_Titanium_SDK.csv] Column 'Description' has 49.8% uncleaned '{code' Jira markup."
+    },
+    {
+      "file": "Titanium_Mobile_Platform.csv",
+      "passes": false,
+      "reason": "[Titanium_Mobile_Platform.csv] Column 'Description' has 9.3% uncleaned '{code' Jira markup."
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "about": {
+    "generated": "2026-08-25 15:13 UTC",
+    "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
+    "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
+    "run_available": true,
+    "data_available": true,
+    "notes": [
+      "19 of 19 CSVs here are the RAW export, which the training pipeline correctly refuses."
+    ]
+  },
+  "available": true,
+  "cost": {
+    "head_type": "corn",
+    "trainable_params": 252484,
+    "total_params": 125045572,
+    "bytes_per_client_per_round": 1009936,
+    "bytes_per_client_per_round_full_finetune": 500182288,
+    "rounds": 60,
+    "num_clients": 18,
+    "total_upload_bytes": 1090730880,
+    "total_upload_bytes_full_finetune": 540196871040,
+    "reduction_factor": 495.26137101756945
+  },
+  "breakdown": {
+    "parts": {
+      "lora_b": 147456,
+      "embeddings": 384,
+      "head": 104644
+    },
+    "sum": 252484,
+    "recorded": 252484,
+    "adds_up": true
+  }
+}

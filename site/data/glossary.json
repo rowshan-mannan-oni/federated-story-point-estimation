@@ -1,0 +1,137 @@
+{
+  "about": "Plain-English definitions. These are words, not measurements, so unlike everything else in site/data/ this file is written by hand rather than generated. Keep every definition to one or two sentences a non-programmer could read out loud.",
+  "terms": {
+    "story point": {
+      "short": "A team's own unit for how much work a task is.",
+      "more": "Teams pick from a fixed set — 1, 2, 3, 5, 8 — a bit like choosing a T-shirt size. The numbers mean nothing outside the team that chose them: one team's 8 can be another team's 3."
+    },
+    "issue": {
+      "short": "One task in a project's tracker: a bug, a feature, a chore.",
+      "more": "It has a title, usually a description, a type and a priority. That text is all this project's model gets to look at."
+    },
+    "federated learning": {
+      "short": "Training one shared model without collecting the data in one place.",
+      "more": "Each participant trains on its own data and sends only what it learned — never the data itself. A server averages those contributions and sends the result back."
+    },
+    "client": {
+      "short": "One participant in federated training. Here, one software project.",
+      "more": "Eighteen projects take part. Each keeps its own issues and only ever uploads a small bundle of trained numbers."
+    },
+    "round": {
+      "short": "One turn of federated training: everyone trains, the server merges.",
+      "more": "The run on this site used sixty rounds. A round is not the same as an epoch — inside one round, each project does its own local training."
+    },
+    "epoch": {
+      "short": "One pass through a set of training examples.",
+      "more": "If a project has 1,000 issues, one epoch means the model has seen all thousand once."
+    },
+    "encoder": {
+      "short": "The part that turns words into numbers.",
+      "more": "It reads the issue text and produces a long list of numbers standing for its meaning. Everything after it works on those numbers, never on the words."
+    },
+    "codebert": {
+      "short": "The particular encoder this project uses.",
+      "more": "A model trained on both English and source code, which suits issue text full of class names and stack traces."
+    },
+    "token": {
+      "short": "A chunk of text — roughly a word or part of one.",
+      "more": "Models read tokens, not letters. A long issue has to be cut off at some limit, which is why very long issues lose their endings."
+    },
+    "head": {
+      "short": "The small final part that turns the numbers into an answer.",
+      "more": "The encoder understands the text; the head decides which story point that means. In the personalised setup, each project keeps its own head."
+    },
+    "lora": {
+      "short": "A way to adjust a big model by training a small patch instead of all of it.",
+      "more": "The original model is left frozen, and a small pair of matrices is trained alongside it. That patch is a fraction of a percent of the model's size, which is what makes sending it around practical."
+    },
+    "adapter": {
+      "short": "Another word for the small trained patch.",
+      "more": "It sits alongside a frozen model and nudges its behaviour, without the model itself being changed."
+    },
+    "ffa-lora": {
+      "short": "LoRA with one half of the patch frozen, so that merging is exact.",
+      "more": "A patch is two matrices multiplied together. Averaging them separately does not give the average of the products. Freezing one half — everyone shares the same one — makes the difference exactly zero."
+    },
+    "fedavg": {
+      "short": "The plain way to merge: average what every participant sends.",
+      "more": "Each project's contribution is weighted by how much data it trained on."
+    },
+    "fedprox": {
+      "short": "FedAvg plus a pull back towards the shared model.",
+      "more": "Projects with very different data drift apart during their local training. A tension term holds each one loosely to the group, so the merge stays useful."
+    },
+    "personalised head": {
+      "short": "Each project keeps its own final layer instead of sharing it.",
+      "more": "The shared part learns what a complicated issue looks like; the private part learns what this particular team calls an 8."
+    },
+    "warm start": {
+      "short": "Training on one large project first, to give everyone a sensible starting point.",
+      "more": "It is also the one place in this design where data is pooled, which the site says plainly rather than glossing over."
+    },
+    "training set": {
+      "short": "The issues the model learns from.",
+      "more": "Here it is about 23,000 issues, kept separate from everything used to judge the model."
+    },
+    "check set": {
+      "short": "Issues held back to choose between versions of the model.",
+      "more": "Usually called the validation set. Using it to pick the best round is fine; using the test set for that would be cheating."
+    },
+    "test set": {
+      "short": "Issues held back to the very end, to measure the model once.",
+      "more": "Around 6,400 issues. Looking at them more than once turns a measurement into a decision, and the number stops meaning anything."
+    },
+    "ordinal": {
+      "short": "Ordered categories: 1, 2, 3, 5, 8 have an order, but not fixed spacing.",
+      "more": "This is why guessing 8 when the answer is 3 should count as a worse mistake than guessing 2 — even though both are simply 'wrong'."
+    },
+    "corn": {
+      "short": "A way of predicting ordered answers by asking a chain of yes/no questions.",
+      "more": "Is it bigger than 1? Bigger than 2? Bigger than 3? A distant miss gets more of those questions wrong, so being far out costs more than being close."
+    },
+    "macro-f1": {
+      "short": "How well the model does on every class, counting rare ones as much as common ones.",
+      "more": "It says nothing about how near a miss was: predicting 8 for a 3 is penalised exactly like predicting 2."
+    },
+    "mae": {
+      "short": "Mean absolute error: on average, how far off the guess is.",
+      "more": "In story points. An error of 1.2 means the typical guess is a little over one step away from the truth."
+    },
+    "kappa": {
+      "short": "A score that asks whether you did better than lucky guessing.",
+      "more": "Zero means no better than chance. The weighted version used here also counts how far off each mistake was."
+    },
+    "confusion matrix": {
+      "short": "A grid of what was guessed against what was true.",
+      "more": "Its shape matters more than its total: mistakes clustered next to the diagonal mean the model has the right idea and the wrong step."
+    },
+    "baseline": {
+      "short": "A deliberately simple method, there to make a result mean something.",
+      "more": "'Our model scores 0.25' says nothing until you know what always guessing the middle value scores."
+    },
+    "tf-idf": {
+      "short": "An old, simple way of turning text into numbers by counting words.",
+      "more": "It weighs a word by how often it appears here against how rare it is everywhere. No understanding of meaning at all — which is what makes it such a useful comparison."
+    },
+    "svm": {
+      "short": "A classic, small machine-learning method that draws dividing lines between classes.",
+      "more": "Paired with word counts it is the standard 'simple model' comparison in this field."
+    },
+    "seed": {
+      "short": "The number that fixes all the random choices, so a run can be repeated.",
+      "more": "Same seed, same shuffles, same starting values, same result."
+    },
+    "overfitting": {
+      "short": "Learning the training examples rather than the pattern behind them.",
+      "more": "It looks like improvement on data the model has seen and gets worse on anything new."
+    },
+    "non-iid": {
+      "short": "Participants whose data does not look alike.",
+      "more": "Some projects here mostly use 1s and 2s; others spread across the whole range. That unevenness is the central difficulty this design has to cope with."
+    },
+    "pooling": {
+      "short": "Throwing every project's results into one pile and scoring that.",
+      "more": "It can flatter a model badly: a predictor that only knows which project a row came from scores well pooled and nothing at all per project."
+    }
+  }
+}

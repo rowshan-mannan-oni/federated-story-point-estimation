@@ -1,0 +1,667 @@
+{
+  "about": {
+    "generated": "2026-08-25 15:13 UTC",
+    "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
+    "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
+    "run_available": true,
+    "data_available": true,
+    "notes": [
+      "19 of 19 CSVs here are the RAW export, which the training pipeline correctly refuses."
+    ]
+  },
+  "facts": {
+    "run.condition": {
+      "value": "FedProx (mu=0.01) + P-head",
+      "text": "FedProx (mu=0.01) + P-head",
+      "unit": null,
+      "source": "results/config.json",
+      "how": "what the run called itself",
+      "kind": "run"
+    },
+    "run.model": {
+      "value": "microsoft/codebert-base",
+      "text": "microsoft/codebert-base",
+      "unit": null,
+      "source": "results/config.json",
+      "how": "the encoder used",
+      "kind": "run"
+    },
+    "run.rounds": {
+      "value": 60,
+      "text": "60",
+      "unit": null,
+      "source": "results/config.json",
+      "how": "training rounds",
+      "kind": "run"
+    },
+    "run.seed": {
+      "value": 42,
+      "text": "42",
+      "unit": null,
+      "source": "results/config.json",
+      "how": "the random seed",
+      "kind": "run"
+    },
+    "run.split_mode": {
+      "value": "random",
+      "text": "random",
+      "unit": null,
+      "source": "results/config.json",
+      "how": "how the data was split",
+      "kind": "run"
+    },
+    "run.head_type": {
+      "value": "corn",
+      "text": "corn",
+      "unit": null,
+      "source": "results/config.json",
+      "how": "the prediction head",
+      "kind": "run"
+    },
+    "run.personalized": {
+      "value": true,
+      "text": "yes",
+      "unit": null,
+      "source": "results/config.json",
+      "how": "whether each project kept its own head",
+      "kind": "run"
+    },
+    "run.max_length": {
+      "value": 256,
+      "text": "256",
+      "unit": null,
+      "source": "results/config.json",
+      "how": "how many tokens of each issue the model reads",
+      "kind": "run"
+    },
+    "result.federated.accuracy": {
+      "value": 0.4198,
+      "text": "0.4198",
+      "unit": null,
+      "source": "results/federated_per_project.json",
+      "how": "mean across the 18 projects",
+      "kind": "run"
+    },
+    "result.federated.macro_f1": {
+      "value": 0.2547,
+      "text": "0.2547",
+      "unit": null,
+      "source": "results/federated_per_project.json",
+      "how": "mean across the 18 projects",
+      "kind": "run"
+    },
+    "result.federated.mae": {
+      "value": 1.2156,
+      "text": "1.2156",
+      "unit": null,
+      "source": "results/federated_per_project.json",
+      "how": "mean across the 18 projects",
+      "kind": "run"
+    },
+    "result.federated.cohen_kappa": {
+      "value": 0.3171,
+      "text": "0.3171",
+      "unit": null,
+      "source": "results/federated_per_project.json",
+      "how": "mean across the 18 projects",
+      "kind": "run"
+    },
+    "result.centralized.accuracy": {
+      "value": 0.3708,
+      "text": "0.3708",
+      "unit": null,
+      "source": "results/centralized_per_project.json",
+      "how": "mean across the 18 projects",
+      "kind": "run"
+    },
+    "result.centralized.macro_f1": {
+      "value": 0.2468,
+      "text": "0.2468",
+      "unit": null,
+      "source": "results/centralized_per_project.json",
+      "how": "mean across the 18 projects",
+      "kind": "run"
+    },
+    "result.centralized.mae": {
+      "value": 1.3241,
+      "text": "1.3241",
+      "unit": null,
+      "source": "results/centralized_per_project.json",
+      "how": "mean across the 18 projects",
+      "kind": "run"
+    },
+    "result.centralized.cohen_kappa": {
+      "value": 0.2981,
+      "text": "0.2981",
+      "unit": null,
+      "source": "results/centralized_per_project.json",
+      "how": "mean across the 18 projects",
+      "kind": "run"
+    },
+    "result.local_only.accuracy": {
+      "value": 0.4192,
+      "text": "0.4192",
+      "unit": null,
+      "source": "results/local_only_per_project.json",
+      "how": "mean across the 18 projects",
+      "kind": "run"
+    },
+    "result.local_only.macro_f1": {
+      "value": 0.258,
+      "text": "0.258",
+      "unit": null,
+      "source": "results/local_only_per_project.json",
+      "how": "mean across the 18 projects",
+      "kind": "run"
+    },
+    "result.local_only.mae": {
+      "value": 1.2182,
+      "text": "1.2182",
+      "unit": null,
+      "source": "results/local_only_per_project.json",
+      "how": "mean across the 18 projects",
+      "kind": "run"
+    },
+    "result.local_only.cohen_kappa": {
+      "value": 0.3294,
+      "text": "0.3294",
+      "unit": null,
+      "source": "results/local_only_per_project.json",
+      "how": "mean across the 18 projects",
+      "kind": "run"
+    },
+    "result.fed_beats_central_mae": {
+      "value": "15/18",
+      "text": "15 of 18",
+      "unit": null,
+      "source": "results/*_per_project.json",
+      "how": "projects where federated training had the smaller average error",
+      "kind": "run"
+    },
+    "result.fed_beats_local_mae": {
+      "value": "8/18",
+      "text": "8 of 18",
+      "unit": null,
+      "source": "results/*_per_project.json",
+      "how": "projects where federated beat training alone",
+      "kind": "run"
+    },
+    "confusion.exact": {
+      "value": 41.4,
+      "text": "41.4%",
+      "unit": "%",
+      "source": "results/federated_per_project.json",
+      "how": "share of test issues guessed exactly right",
+      "kind": "run"
+    },
+    "confusion.within_one": {
+      "value": 83.8,
+      "text": "83.8%",
+      "unit": "%",
+      "source": "results/federated_per_project.json",
+      "how": "share of test issues right, or one step away",
+      "kind": "run"
+    },
+    "confusion.far": {
+      "value": 3.4,
+      "text": "3.4%",
+      "unit": "%",
+      "source": "results/federated_per_project.json",
+      "how": "share of test issues three or more steps away",
+      "kind": "run"
+    },
+    "rounds.count": {
+      "value": 60,
+      "text": "60",
+      "unit": null,
+      "source": "results/federated_round_history.json",
+      "how": "rounds recorded",
+      "kind": "run"
+    },
+    "rounds.best": {
+      "value": 60,
+      "text": "60",
+      "unit": null,
+      "source": "results/federated_round_history.json",
+      "how": "the round whose model scored best on the check set",
+      "kind": "run"
+    },
+    "rounds.still_improving": {
+      "value": true,
+      "text": "yes — it had not levelled off",
+      "unit": null,
+      "source": "results/federated_round_history.json",
+      "how": "whether the best round was the very last one",
+      "kind": "run"
+    },
+    "rounds.loss_first": {
+      "value": 0.6467,
+      "text": "0.6467",
+      "unit": null,
+      "source": "results/federated_round_history.json",
+      "how": "round 1",
+      "kind": "run"
+    },
+    "rounds.loss_last": {
+      "value": 0.4928,
+      "text": "0.4928",
+      "unit": null,
+      "source": "results/federated_round_history.json",
+      "how": "the final round",
+      "kind": "run"
+    },
+    "corpus.projects": {
+      "value": 19,
+      "text": "19",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "counted the project files",
+      "kind": "measured"
+    },
+    "corpus.rows_raw": {
+      "value": 42002,
+      "text": "42,002",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "summed the rows in every file",
+      "kind": "measured"
+    },
+    "corpus.rows_clean": {
+      "value": 41995,
+      "text": "41,995",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "read every CSV and ran export_issues.preprocess_project_df on it",
+      "kind": "measured"
+    },
+    "corpus.rows_dropped": {
+      "value": 7,
+      "text": "7",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "rows whose cleaned text was under the 10-character floor",
+      "kind": "measured"
+    },
+    "cleaning.code_blocks": {
+      "value": 8862,
+      "text": "8,862",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "read every CSV and ran export_issues.preprocess_project_df on it",
+      "kind": "measured"
+    },
+    "cleaning.urls": {
+      "value": 11480,
+      "text": "11,480",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "read every CSV and ran export_issues.preprocess_project_df on it",
+      "kind": "measured"
+    },
+    "cleaning.issue_refs": {
+      "value": 6513,
+      "text": "6,513",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "read every CSV and ran export_issues.preprocess_project_df on it",
+      "kind": "measured"
+    },
+    "corpus.first_issue": {
+      "value": "2004-12-21",
+      "text": "2004-12-21",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "earliest Creation_Date across all projects",
+      "kind": "measured"
+    },
+    "corpus.last_issue": {
+      "value": "2020-10-22",
+      "text": "2020-10-22",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "latest Creation_Date across all projects",
+      "kind": "measured"
+    },
+    "corpus.desc_missing_worst_pct": {
+      "value": 42.74,
+      "text": "42.7%",
+      "unit": "%",
+      "source": "data_to_train_on/*.csv",
+      "how": "the project with the most empty descriptions (Hyperledger_Sawtooth)",
+      "kind": "measured"
+    },
+    "corpus.desc_missing_worst_project": {
+      "value": "Hyperledger_Sawtooth",
+      "text": "Hyperledger_Sawtooth",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "the project with the most empty descriptions",
+      "kind": "measured"
+    },
+    "corpus.sp_distribution": {
+      "value": {
+        "1": {
+          "count": 12567,
+          "pct": 29.9
+        },
+        "2": {
+          "count": 10704,
+          "pct": 25.5
+        },
+        "3": {
+          "count": 7397,
+          "pct": 17.6
+        },
+        "5": {
+          "count": 6566,
+          "pct": 15.6
+        },
+        "8": {
+          "count": 4761,
+          "pct": 11.3
+        }
+      },
+      "text": "1: 29.9% · 2: 25.5% · 3: 17.6% · 5: 15.6% · 8: 11.3%",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "counted each story point value after cleaning",
+      "kind": "measured"
+    },
+    "text.words_p50": {
+      "value": 43,
+      "text": "43",
+      "unit": "words",
+      "source": "data_to_train_on/*.csv",
+      "how": "word count of cleaned title + description",
+      "kind": "measured"
+    },
+    "text.words_p90": {
+      "value": 128,
+      "text": "128",
+      "unit": "words",
+      "source": "data_to_train_on/*.csv",
+      "how": "word count of cleaned title + description",
+      "kind": "measured"
+    },
+    "text.words_p95": {
+      "value": 169,
+      "text": "169",
+      "unit": "words",
+      "source": "data_to_train_on/*.csv",
+      "how": "word count of cleaned title + description",
+      "kind": "measured"
+    },
+    "text.over_128_pct": {
+      "value": 9.8,
+      "text": "9.8%",
+      "unit": "%",
+      "source": "data_to_train_on/*.csv",
+      "how": "share of issues longer than 128 words",
+      "kind": "measured"
+    },
+    "text.over_256_pct": {
+      "value": 1.6,
+      "text": "1.6%",
+      "unit": "%",
+      "source": "data_to_train_on/*.csv",
+      "how": "share of issues longer than 256 words",
+      "kind": "measured"
+    },
+    "validation.passing": {
+      "value": 0,
+      "text": "0",
+      "unit": null,
+      "source": "fl/data.py::validate_cleaned_dataframe",
+      "how": "ran the loader's own check over all 19 files",
+      "kind": "measured"
+    },
+    "validation.failing": {
+      "value": 19,
+      "text": "19",
+      "unit": null,
+      "source": "fl/data.py::validate_cleaned_dataframe",
+      "how": "files the pipeline would refuse to train on",
+      "kind": "measured"
+    },
+    "split.train": {
+      "value": 22986,
+      "text": "22,986",
+      "unit": "issues",
+      "source": "rebuilt with fl.data.prepare_tabular_bundle",
+      "how": "same settings as the run: seed 42, random split, test 0.2, val 0.1",
+      "kind": "measured"
+    },
+    "split.val": {
+      "value": 2564,
+      "text": "2,564",
+      "unit": "issues",
+      "source": "rebuilt with fl.data.prepare_tabular_bundle",
+      "how": "same settings as the run: seed 42, random split, test 0.2, val 0.1",
+      "kind": "measured"
+    },
+    "split.test": {
+      "value": 6398,
+      "text": "6,398",
+      "unit": "issues",
+      "source": "rebuilt with fl.data.prepare_tabular_bundle",
+      "how": "same settings as the run: seed 42, random split, test 0.2, val 0.1",
+      "kind": "measured"
+    },
+    "split.clients": {
+      "value": 18,
+      "text": "18",
+      "unit": null,
+      "source": "rebuilt with fl.data.prepare_tabular_bundle",
+      "how": "projects in the pool (Lsstcorp_Data_management is held back for the head start)",
+      "kind": "measured"
+    },
+    "split.type_vocab": {
+      "value": 18,
+      "text": "18",
+      "unit": null,
+      "source": "rebuilt with fl.data.prepare_tabular_bundle",
+      "how": "distinct issue types seen in training",
+      "kind": "measured"
+    },
+    "split.priority_vocab": {
+      "value": 6,
+      "text": "6",
+      "unit": null,
+      "source": "rebuilt with fl.data.prepare_tabular_bundle",
+      "how": "distinct priorities after normalising",
+      "kind": "measured"
+    },
+    "split.matches_run": {
+      "value": true,
+      "text": "yes — identical",
+      "unit": null,
+      "source": "results/test_split.csv",
+      "how": "compared the rebuilt test rows against the ones the run saved",
+      "kind": "measured"
+    },
+    "baseline.median.macro_f1": {
+      "value": 0.1042,
+      "text": "0.1042",
+      "unit": null,
+      "source": "fl/classic_baselines.py, on the rebuilt split",
+      "how": "mean across the 18 projects",
+      "kind": "measured"
+    },
+    "baseline.median.mae": {
+      "value": 1.3584,
+      "text": "1.3584",
+      "unit": null,
+      "source": "fl/classic_baselines.py, on the rebuilt split",
+      "how": "mean across the 18 projects",
+      "kind": "measured"
+    },
+    "baseline.median.cohen_kappa": {
+      "value": 0.0,
+      "text": "0",
+      "unit": null,
+      "source": "fl/classic_baselines.py, on the rebuilt split",
+      "how": "mean across the 18 projects",
+      "kind": "measured"
+    },
+    "baseline.svm.macro_f1": {
+      "value": 0.3375,
+      "text": "0.3375",
+      "unit": null,
+      "source": "fl/classic_baselines.py, on the rebuilt split",
+      "how": "mean across the 18 projects",
+      "kind": "measured"
+    },
+    "baseline.svm.mae": {
+      "value": 1.3049,
+      "text": "1.3049",
+      "unit": null,
+      "source": "fl/classic_baselines.py, on the rebuilt split",
+      "how": "mean across the 18 projects",
+      "kind": "measured"
+    },
+    "baseline.svm.cohen_kappa": {
+      "value": 0.2955,
+      "text": "0.2955",
+      "unit": null,
+      "source": "fl/classic_baselines.py, on the rebuilt split",
+      "how": "mean across the 18 projects",
+      "kind": "measured"
+    },
+    "artifact.per_project_kappa": {
+      "value": 0.0,
+      "text": "0.0000",
+      "unit": null,
+      "source": "fl/classic_baselines.py, on the rebuilt split",
+      "how": "the BEST any project managed — a constant predictor cannot beat chance",
+      "kind": "measured"
+    },
+    "artifact.pooled_kappa": {
+      "value": 0.5006,
+      "text": "0.5006",
+      "unit": null,
+      "source": "fl/classic_baselines.py, on the rebuilt split",
+      "how": "the constant predictor, scored per project and then pooled",
+      "kind": "measured"
+    },
+    "artifact.pooled_shuffled": {
+      "value": 0.5006,
+      "text": "0.5006",
+      "unit": null,
+      "source": "fl/classic_baselines.py, on the rebuilt split",
+      "how": "answers shuffled inside each project — no issue-level skill left",
+      "kind": "measured"
+    },
+    "artifact.pooled_same_constant": {
+      "value": 0.0,
+      "text": "0.0000",
+      "unit": null,
+      "source": "fl/classic_baselines.py, on the rebuilt split",
+      "how": "every project forced to guess the same number",
+      "kind": "measured"
+    },
+    "artifact.pooled_scrambled": {
+      "value": -0.016,
+      "text": "-0.0160",
+      "unit": null,
+      "source": "fl/classic_baselines.py, on the rebuilt split",
+      "how": "the link between project and answers broken",
+      "kind": "measured"
+    },
+    "params.trainable": {
+      "value": 252484,
+      "text": "252,484",
+      "unit": null,
+      "source": "results/communication_cost.json",
+      "how": "the numbers each project actually trains and sends",
+      "kind": "run"
+    },
+    "params.total": {
+      "value": 125045572,
+      "text": "125,045,572",
+      "unit": null,
+      "source": "results/communication_cost.json",
+      "how": "the whole model",
+      "kind": "run"
+    },
+    "params.share_pct": {
+      "value": 0.2019,
+      "text": "0.2019%",
+      "unit": "%",
+      "source": "results/communication_cost.json",
+      "how": "trainable ÷ total",
+      "kind": "derived"
+    },
+    "comms.per_round_bytes": {
+      "value": 1009936,
+      "text": "1,009,936",
+      "unit": "bytes",
+      "source": "results/communication_cost.json",
+      "how": "uploaded by one project, once per round",
+      "kind": "run"
+    },
+    "comms.per_round_bytes_full": {
+      "value": 500182288,
+      "text": "500,182,288",
+      "unit": "bytes",
+      "source": "results/communication_cost.json",
+      "how": "what the same round would cost if the whole model were sent",
+      "kind": "run"
+    },
+    "comms.reduction": {
+      "value": 495.3,
+      "text": "495×",
+      "unit": null,
+      "source": "results/communication_cost.json",
+      "how": "how many times smaller that is",
+      "kind": "run"
+    },
+    "comms.total_bytes": {
+      "value": 1090730880,
+      "text": "1,090,730,880",
+      "unit": "bytes",
+      "source": "results/communication_cost.json",
+      "how": "every project, every round, added up",
+      "kind": "run"
+    },
+    "comms.total_bytes_full": {
+      "value": 540196871040,
+      "text": "540,196,871,040",
+      "unit": "bytes",
+      "source": "results/communication_cost.json",
+      "how": "the same run without the patches",
+      "kind": "run"
+    },
+    "params.breakdown_adds_up": {
+      "value": true,
+      "text": "yes — exactly",
+      "unit": null,
+      "source": "results/communication_cost.json",
+      "how": "the parts added up and compared against the recorded total",
+      "kind": "derived"
+    },
+    "params.lora_b": {
+      "value": 147456,
+      "text": "147,456",
+      "unit": null,
+      "source": "arithmetic from results/config.json",
+      "how": "counted from the model's shape",
+      "kind": "derived"
+    },
+    "params.embeddings": {
+      "value": 384,
+      "text": "384",
+      "unit": null,
+      "source": "arithmetic from results/config.json",
+      "how": "counted from the model's shape",
+      "kind": "derived"
+    },
+    "params.head": {
+      "value": 104644,
+      "text": "104,644",
+      "unit": null,
+      "source": "arithmetic from results/config.json",
+      "how": "counted from the model's shape",
+      "kind": "derived"
+    }
+  }
+}

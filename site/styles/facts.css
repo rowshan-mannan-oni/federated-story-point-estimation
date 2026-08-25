@@ -1,0 +1,219 @@
+/* ==========================================================================
+   facts.css — how a number, a stamp, a term and a tip look.
+
+   These four are the site's honesty layer, so they follow one visual rule:
+   they must be noticeable enough to invite a check, and quiet enough that a
+   paragraph full of them is still a paragraph.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   A NUMBER YOU CAN QUESTION
+   Set in the reading font, not monospace: these sit inside sentences.
+   The dotted underline is the only signal, until you touch it.
+   -------------------------------------------------------------------------- */
+.fact {
+  font: inherit;
+  color: var(--c-ink);
+  background: none;
+  border: 0;
+  padding: 0 1px;
+  margin: 0;
+  cursor: help;
+  border-radius: var(--r-sm);
+  border-bottom: 1px dotted var(--c-line-strong);
+  transition: background-color var(--m-quick) var(--ease),
+              border-color var(--m-quick) var(--ease);
+}
+.fact:hover,
+.fact[aria-describedby] {
+  background-color: var(--c-panel-2);
+  border-bottom-color: var(--c-ink);
+}
+.fact-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.fact-label { color: var(--c-ink-soft); font-weight: 400; }
+
+/* A figure that has not been produced yet must look absent, not like a zero. */
+.fact[data-kind="missing"] {
+  color: var(--c-ink-faint);
+  border-bottom-style: dashed;
+}
+.fact[data-kind="missing"] .fact-value { font-weight: 400; }
+
+/* --------------------------------------------------------------------------
+   A TERM YOU CAN LOOK UP
+   -------------------------------------------------------------------------- */
+.term {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: help;
+  border-bottom: 1px dashed var(--c-line-strong);
+  transition: border-color var(--m-quick) var(--ease),
+              background-color var(--m-quick) var(--ease);
+}
+.term:hover,
+.term[aria-describedby] {
+  border-bottom-color: var(--c-ink);
+  background-color: var(--c-panel-2);
+}
+
+/* --------------------------------------------------------------------------
+   STAMPS — how solid a figure is, said out loud.
+   -------------------------------------------------------------------------- */
+.stamp {
+  display: inline-block;
+  font-family: var(--f-mono);
+  font-size: .64rem;
+  letter-spacing: .12em;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  vertical-align: middle;
+  border: 1px solid var(--c-line-strong);
+  color: var(--c-ink-soft);
+}
+/* Solid: a real measurement. Quiet, because this is the normal case. */
+.stamp[data-tone="solid"] {
+  color: var(--c-ink-soft);
+  border-color: var(--c-line-strong);
+}
+/* Loud: anything that is NOT a finished measurement. Deliberately hard to
+   miss — the whole point is that it cannot be mistaken for a result. */
+.stamp[data-tone="loud"] {
+  color: var(--c-ink);
+  border-color: var(--c-ink);
+  border-style: dashed;
+  font-weight: 700;
+}
+.stamp[data-tone="quiet"] {
+  color: var(--c-ink-faint);
+  border-style: dotted;
+}
+
+.stamp-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px dashed var(--c-line-strong);
+  background: var(--c-panel-2);
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+}
+.stamp-banner[data-tone="loud"] { border-color: var(--c-ink-soft); }
+.stamp-banner .stamp { flex: none; margin-top: 1px; }
+.stamp-message { min-width: 0; }
+
+/* --------------------------------------------------------------------------
+   THE TIP — one popup, used by both numbers and terms.
+   Fixed to the window and attached to <body>, so a transformed ancestor
+   cannot drag it out of place.
+   -------------------------------------------------------------------------- */
+.tip {
+  position: fixed;
+  z-index: 200;
+  max-width: min(30rem, calc(100vw - 2 * var(--s-4)));
+  padding: var(--s-4);
+  box-shadow: var(--e4);
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity var(--m-quick) var(--ease), transform var(--m-quick) var(--ease);
+  pointer-events: none;              /* never steals the pointer from the page */
+}
+.tip[data-open="true"] { opacity: 1; transform: none; }
+
+.tip-body { display: grid; gap: var(--s-2); }
+.tip-head { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.tip-kind { font-size: var(--t-xs); color: var(--c-ink-faint); }
+
+.tip-how   { margin: 0; font-size: var(--t-sm); color: var(--c-ink); }
+.tip-source { margin: 0; display: flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap; }
+.tip-source code {
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  color: var(--c-ink-soft);
+  background: var(--c-recess);
+  padding: 2px 5px;
+  border-radius: var(--r-sm);
+  word-break: break-all;
+}
+.tip-id {
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: .66rem;
+  color: var(--c-ink-faint);
+}
+
+.tip-term {
+  margin: 0;
+  font-weight: 600;
+  font-size: var(--t-sm);
+  text-transform: capitalize;
+}
+.tip-short { margin: 0; font-size: var(--t-sm); color: var(--c-ink); }
+.tip-more  { margin: 0; font-size: var(--t-sm); color: var(--c-ink-soft); }
+
+/* --------------------------------------------------------------------------
+   THE FACTS REFERENCE PAGE
+   -------------------------------------------------------------------------- */
+.facts-page { display: grid; gap: var(--s-6); }
+
+.facts-about {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-5);
+  font-size: var(--t-sm);
+}
+.facts-about dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s-1) var(--s-4);
+  font-size: var(--t-sm);
+}
+.facts-about dt { color: var(--c-ink-faint); }
+.facts-about dd { margin: 0; font-family: var(--f-mono); font-size: var(--t-xs); word-break: break-all; }
+
+.facts-group { display: grid; gap: var(--s-3); }
+.facts-table { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+.facts-table th {
+  text-align: left;
+  font-size: var(--t-xs);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+  font-weight: 500;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--c-line-strong);
+}
+.facts-table td {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--c-line);
+  vertical-align: top;
+}
+.facts-table tr:last-child td { border-bottom: 0; }
+.facts-table .k { font-family: var(--f-mono); font-size: var(--t-xs); color: var(--c-ink-soft); white-space: nowrap; }
+.facts-table .v { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.facts-table .h { color: var(--c-ink-soft); }
+.facts-table .s { font-family: var(--f-mono); font-size: var(--t-xs); color: var(--c-ink-faint); word-break: break-all; }
+
+@media (max-width: 720px) {
+  .facts-table .h, .facts-table th:nth-child(3) { display: none; }
+}
+
+/* Links inside a stop's prose. */
+.reference-line a {
+  color: var(--c-ink);
+  text-decoration-color: var(--c-line-strong);
+  text-underline-offset: 3px;
+}
+.reference-line a:hover { text-decoration-color: var(--c-ink); }
