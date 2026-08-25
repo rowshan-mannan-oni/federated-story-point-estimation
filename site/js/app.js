@@ -114,7 +114,16 @@ async function fill(index) {
 
   try {
     const module = await import(`./stations/${stop.id}.js`);
-    await module.mount(inner, { stop, index });
+    // Every stop is handed the same context: which stop it is, and the means
+    // to send the reader onward. Stops never import the router themselves —
+    // navigation stays in one place.
+    await module.mount(inner, {
+      stop,
+      index,
+      next: () => router.next(),
+      goTo: (target) => router.goTo(target),
+      goToId: (id) => router.goToId(id),
+    });
     // A stop writes <span data-fact="..."> and <span data-term="...">; the
     // real figures and definitions are swapped in here, so no stop has to
     // know where a number came from — only which one it wants.

@@ -1,0 +1,157 @@
+/* ==========================================================================
+   stops.css — how the content of a stop is laid out.
+
+   Every stop has the same bones (see js/ui/stop-parts.js), so their styling
+   lives together here rather than being reinvented per stop. Anything used by
+   exactly one stop belongs in that stop's own section at the bottom.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   BLOCKS — a stop is a stack of titled sections.
+   -------------------------------------------------------------------------- */
+.stop-block {
+  display: grid;
+  gap: var(--s-3);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--c-line);
+}
+.block-title {
+  margin: 0;
+  font-size: var(--t-xs);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   THE SIX SENTENCES — numbered, because the count is the point.
+   -------------------------------------------------------------------------- */
+.six-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: six;
+  display: grid;
+  gap: var(--s-3);
+}
+.six-list li {
+  counter-increment: six;
+  display: grid;
+  grid-template-columns: 1.9rem 1fr;
+  gap: var(--s-3);
+  align-items: baseline;
+  max-width: var(--measure);
+}
+.six-list li::before {
+  content: counter(six, decimal-leading-zero);
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+}
+
+/* --------------------------------------------------------------------------
+   STAT ROW
+   -------------------------------------------------------------------------- */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--s-3);
+}
+
+/* --------------------------------------------------------------------------
+   THE RESEARCH QUESTIONS
+   -------------------------------------------------------------------------- */
+.rq-list { display: grid; gap: var(--s-3); }
+.rq-what { margin: 0; max-width: var(--measure); color: var(--c-ink); }
+
+/* The thesis's own wording, set apart so it reads as a quotation rather than
+   as more explanation. */
+.rq-exact {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  margin-top: var(--s-3);
+}
+.rq-exact p {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: var(--measure);
+}
+.rq-where {
+  margin: var(--s-3) 0 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-faint);
+}
+
+/* --------------------------------------------------------------------------
+   THE ROAD AHEAD
+   -------------------------------------------------------------------------- */
+.path-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--s-2);
+}
+.path-row {
+  width: 100%;
+  font: inherit;
+  color: var(--c-ink);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  transition: background-color var(--m-quick) var(--ease),
+              box-shadow var(--m-quick) var(--ease),
+              transform var(--m-tap) var(--ease);
+}
+.path-row:hover { background-color: var(--c-panel); box-shadow: var(--e2); }
+.path-row:active { transform: translateY(1px); }
+.path-n {
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+}
+.path-words { display: grid; gap: 1px; min-width: 0; }
+.path-title { font-size: var(--t-sm); font-weight: 600; }
+.path-count { font-size: var(--t-xs); color: var(--c-ink-faint); }
+
+/* --------------------------------------------------------------------------
+   THE HANDOVER — the question a stop leaves you with, and the way onward.
+   -------------------------------------------------------------------------- */
+.handover {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  padding: var(--s-4) var(--s-5);
+  margin-top: var(--s-5);
+}
+.handover-question {
+  margin: 0;
+  flex: 1 1 20rem;
+  min-width: 0;
+  font-size: var(--t-base);
+  color: var(--c-ink);
+  max-width: var(--measure);
+}
+.handover-next {
+  flex: none;
+  font-size: var(--t-sm);
+  padding: var(--s-3) var(--s-4);
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   Narrow windows
+   -------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .six-list li { grid-template-columns: 1.4rem 1fr; gap: var(--s-2); }
+  .handover { padding: var(--s-4); }
+  .handover-next { width: 100%; justify-content: center; }
+}
