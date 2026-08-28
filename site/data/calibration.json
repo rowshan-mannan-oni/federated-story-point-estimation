@@ -1,0 +1,248 @@
+{
+  "about": {
+    "generated": "2026-08-28 12:11 UTC",
+    "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
+    "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
+    "run_available": true,
+    "data_available": true,
+    "notes": [
+      "19 of 19 CSVs here are the RAW export, which the training pipeline correctly refuses."
+    ]
+  },
+  "per_project": [
+    {
+      "name": "Apache_Mesos",
+      "mean": 3.03,
+      "small_pct": 44.1,
+      "counts": {
+        "1": 470,
+        "2": 542,
+        "3": 719,
+        "5": 425,
+        "8": 140
+      },
+      "n": 2296
+    },
+    {
+      "name": "Appcelerator_Studio",
+      "mean": 5.01,
+      "small_pct": 9.7,
+      "counts": {
+        "1": 121,
+        "2": 94,
+        "3": 498,
+        "5": 918,
+        "8": 596
+      },
+      "n": 2227
+    },
+    {
+      "name": "Aptana_Studio",
+      "mean": 5.26,
+      "small_pct": 21.4,
+      "counts": {
+        "1": 63,
+        "2": 32,
+        "3": 39,
+        "5": 128,
+        "8": 181
+      },
+      "n": 443
+    },
+    {
+      "name": "Atlassian_Confluence_Server",
+      "mean": 3.08,
+      "small_pct": 36.2,
+      "counts": {
+        "1": 59,
+        "2": 107,
+        "3": 191,
+        "5": 82,
+        "8": 20
+      },
+      "n": 459
+    },
+    {
+      "name": "DotNetNuke_Platform",
+      "mean": 2.03,
+      "small_pct": 77.6,
+      "counts": {
+        "1": 700,
+        "2": 697,
+        "3": 280,
+        "5": 92,
+        "8": 32
+      },
+      "n": 1801
+    },
+    {
+      "name": "Hyperledger_Fabric",
+      "mean": 2.27,
+      "small_pct": 74.7,
+      "counts": {
+        "1": 199,
+        "2": 97,
+        "3": 49,
+        "5": 16,
+        "8": 35
+      },
+      "n": 396
+    },
+    {
+      "name": "Hyperledger_Indy_Node",
+      "mean": 3.41,
+      "small_pct": 33.1,
+      "counts": {
+        "1": 70,
+        "2": 90,
+        "3": 159,
+        "5": 131,
+        "8": 33
+      },
+      "n": 483
+    },
+    {
+      "name": "Hyperledger_Indy_SDK",
+      "mean": 3.7,
+      "small_pct": 29.2,
+      "counts": {
+        "1": 49,
+        "2": 94,
+        "3": 171,
+        "5": 114,
+        "8": 61
+      },
+      "n": 489
+    },
+    {
+      "name": "Hyperledger_Sawtooth",
+      "mean": 2.36,
+      "small_pct": 61.1,
+      "counts": {
+        "1": 198,
+        "2": 219,
+        "3": 182,
+        "5": 79,
+        "8": 4
+      },
+      "n": 682
+    },
+    {
+      "name": "Lyrasis_Dura_Cloud",
+      "mean": 1.81,
+      "small_pct": 80.0,
+      "counts": {
+        "1": 254,
+        "2": 107,
+        "3": 59,
+        "5": 26,
+        "8": 5
+      },
+      "n": 451
+    },
+    {
+      "name": "MongoDB_Core_Server",
+      "mean": 2.53,
+      "small_pct": 62.8,
+      "counts": {
+        "1": 169,
+        "2": 152,
+        "3": 111,
+        "5": 49,
+        "8": 30
+      },
+      "n": 511
+    },
+    {
+      "name": "Moodle",
+      "mean": 3.78,
+      "small_pct": 37.7,
+      "counts": {
+        "1": 164,
+        "2": 101,
+        "3": 145,
+        "5": 163,
+        "8": 130
+      },
+      "n": 703
+    },
+    {
+      "name": "Mule",
+      "mean": 4.15,
+      "small_pct": 40.9,
+      "counts": {
+        "1": 414,
+        "2": 433,
+        "3": 274,
+        "5": 371,
+        "8": 581
+      },
+      "n": 2073
+    },
+    {
+      "name": "Sonatype_Nexus",
+      "mean": 1.9,
+      "small_pct": 76.9,
+      "counts": {
+        "1": 534,
+        "2": 283,
+        "3": 171,
+        "5": 62,
+        "8": 12
+      },
+      "n": 1062
+    },
+    {
+      "name": "Spring_XD",
+      "mean": 3.28,
+      "small_pct": 45.7,
+      "counts": {
+        "1": 588,
+        "2": 461,
+        "3": 543,
+        "5": 407,
+        "8": 294
+      },
+      "n": 2293
+    },
+    {
+      "name": "The_MongoDB_Engineering",
+      "mean": 1.55,
+      "small_pct": 98.2,
+      "counts": {
+        "1": 1622,
+        "2": 1479,
+        "3": 26,
+        "5": 5,
+        "8": 27
+      },
+      "n": 3159
+    },
+    {
+      "name": "The_Titanium_SDK",
+      "mean": 4.22,
+      "small_pct": 21.9,
+      "counts": {
+        "1": 351,
+        "2": 243,
+        "3": 663,
+        "5": 1003,
+        "8": 451
+      },
+      "n": 2711
+    },
+    {
+      "name": "Titanium_Mobile_Platform",
+      "mean": 3.15,
+      "small_pct": 52.1,
+      "counts": {
+        "1": 286,
+        "2": 103,
+        "3": 147,
+        "5": 89,
+        "8": 122
+      },
+      "n": 747
+    }
+  ]
+}

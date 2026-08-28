@@ -1,6 +1,6 @@
 {
   "about": {
-    "generated": "2026-08-25 15:13 UTC",
+    "generated": "2026-08-28 12:11 UTC",
     "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
     "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
     "run_available": true,
@@ -477,6 +477,78 @@
       "unit": null,
       "source": "results/test_split.csv",
       "how": "compared the rebuilt test rows against the ones the run saved",
+      "kind": "measured"
+    },
+    "calibration.lowest_project": {
+      "value": "The_MongoDB_Engineering",
+      "text": "The_MongoDB_Engineering",
+      "unit": null,
+      "source": "the training split, grouped by project",
+      "how": "the project whose issues carry the smallest points on average",
+      "kind": "measured"
+    },
+    "calibration.lowest_mean": {
+      "value": 1.55,
+      "text": "1.55",
+      "unit": null,
+      "source": "the training split, grouped by project",
+      "how": "its mean story point",
+      "kind": "measured"
+    },
+    "calibration.highest_project": {
+      "value": "Aptana_Studio",
+      "text": "Aptana_Studio",
+      "unit": null,
+      "source": "the training split, grouped by project",
+      "how": "the project whose issues carry the largest points on average",
+      "kind": "measured"
+    },
+    "calibration.highest_mean": {
+      "value": 5.26,
+      "text": "5.26",
+      "unit": null,
+      "source": "the training split, grouped by project",
+      "how": "its mean story point",
+      "kind": "measured"
+    },
+    "calibration.mean_spread": {
+      "value": 3.71,
+      "text": "3.71",
+      "unit": null,
+      "source": "the training split, grouped by project",
+      "how": "the gap between those two averages",
+      "kind": "measured"
+    },
+    "calibration.small_share_max": {
+      "value": 98.0,
+      "text": "98%",
+      "unit": "%",
+      "source": "the training split, grouped by project",
+      "how": "share of The_MongoDB_Engineering's issues that are a 1 or a 2",
+      "kind": "measured"
+    },
+    "calibration.small_share_max_project": {
+      "value": "The_MongoDB_Engineering",
+      "text": "The_MongoDB_Engineering",
+      "unit": null,
+      "source": "the training split, grouped by project",
+      "how": "the project that calls the most of its work small",
+      "kind": "measured"
+    },
+    "calibration.small_share_min": {
+      "value": 10.0,
+      "text": "10%",
+      "unit": "%",
+      "source": "the training split, grouped by project",
+      "how": "share of Appcelerator_Studio's issues that are a 1 or a 2",
+      "kind": "measured"
+    },
+    "calibration.small_share_min_project": {
+      "value": "Appcelerator_Studio",
+      "text": "Appcelerator_Studio",
+      "unit": null,
+      "source": "the training split, grouped by project",
+      "how": "the project that calls the least of its work small",
       "kind": "measured"
     },
     "baseline.median.macro_f1": {

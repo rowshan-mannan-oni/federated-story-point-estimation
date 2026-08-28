@@ -1,0 +1,100 @@
+/* ==========================================================================
+   viz.css — charts, drawn in the same greyscale as everything else.
+
+   The five story points get five shades, light to dark. They are mixed from
+   the page's own ink and panel colours, so the ramp survives both themes and
+   the "flat surfaces" setting without a second palette.
+   ========================================================================== */
+
+:root {
+  --sp-1: color-mix(in srgb, var(--c-ink) 14%, var(--c-panel));
+  --sp-2: color-mix(in srgb, var(--c-ink) 31%, var(--c-panel));
+  --sp-3: color-mix(in srgb, var(--c-ink) 48%, var(--c-panel));
+  --sp-5: color-mix(in srgb, var(--c-ink) 68%, var(--c-panel));
+  --sp-8: color-mix(in srgb, var(--c-ink) 88%, var(--c-panel));
+}
+
+/* --------------------------------------------------------------------------
+   DISTRIBUTION STRIP
+   -------------------------------------------------------------------------- */
+.dist { display: grid; gap: var(--s-2); min-width: 0; }
+
+.dist-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.dist-title {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dist-note {
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex: none;
+}
+
+.dist-bar {
+  display: flex;
+  height: 26px;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+}
+.dist-seg {
+  flex: var(--share, 0) 1 0;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  transition: flex-grow var(--m-move) var(--ease);
+}
+.dist-seg[data-cls="1"] { background: var(--sp-1); }
+.dist-seg[data-cls="2"] { background: var(--sp-2); }
+.dist-seg[data-cls="3"] { background: var(--sp-3); }
+.dist-seg[data-cls="5"] { background: var(--sp-5); }
+.dist-seg[data-cls="8"] { background: var(--sp-8); }
+
+.dist-seg-label {
+  font-family: var(--f-mono);
+  font-size: .66rem;
+  line-height: 1;
+  /* The label has to read on both the palest and the darkest segment, so it
+     takes its colour from the segment it sits on rather than from the page. */
+  color: var(--c-panel);
+  mix-blend-mode: difference;
+  opacity: .85;
+}
+
+.dist-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.dist-key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: var(--t-xs);
+  color: var(--c-ink-soft);
+  font-family: var(--f-mono);
+}
+.dist-swatch {
+  width: 11px; height: 11px;
+  border-radius: 2px;
+  border: 1px solid var(--c-line);
+}
+.dist-swatch[data-cls="1"] { background: var(--sp-1); }
+.dist-swatch[data-cls="2"] { background: var(--sp-2); }
+.dist-swatch[data-cls="3"] { background: var(--sp-3); }
+.dist-swatch[data-cls="5"] { background: var(--sp-5); }
+.dist-swatch[data-cls="8"] { background: var(--sp-8); }
+
+/* A set of strips stacked for comparison. */
+.dist-set { display: grid; gap: var(--s-4); }

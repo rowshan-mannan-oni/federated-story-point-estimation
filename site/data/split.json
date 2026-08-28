@@ -1,6 +1,6 @@
 {
   "about": {
-    "generated": "2026-08-25 15:13 UTC",
+    "generated": "2026-08-28 12:11 UTC",
     "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
     "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
     "run_available": true,
@@ -123,6 +123,471 @@
       "test": 208
     }
   ],
+  "examples": [
+    {
+      "project": "Hyperledger_Sawtooth",
+      "title": "Develop edit approach for Sawtooth doc (consistency, clarity, and style)",
+      "description": "Triage the Sawtooth doc to determine what text needs to be improved (inconsistencies, unclear content, format, wording, etc.) and prioritize changes for the 1.0 release.",
+      "type": "improvement",
+      "priority": "medium",
+      "story_point": 3,
+      "words": 35
+    },
+    {
+      "project": "Sonatype_Nexus",
+      "title": "Security role can be added to itself",
+      "description": "It is currently possible to add a role to itself in the administration user interface. Validation and the UI should make this impossible to prevent downstream problems",
+      "type": "bug",
+      "priority": "high",
+      "story_point": 2,
+      "words": 34
+    },
+    {
+      "project": "Hyperledger_Indy_SDK",
+      "title": "State proofs: compatibility with nodes without state proofs should be updated",
+      "description": "check only data field in get transactions for consensus * remove returned errors from process reply method in pool/mod.rs done in scope of [ISSUE_REF]",
+      "type": "task",
+      "priority": "medium",
+      "story_point": 2,
+      "words": 35
+    },
+    {
+      "project": "The_Titanium_SDK",
+      "title": "Windows: Ti.UI.View.center is incorrectly calculated",
+      "description": "The {{center}} property of {{View}} is incorrectly calculated, producing invalid positioning. [CODE] Expected: The \"center\" property is supposed to be relative to the parent's top-left corner.",
+      "type": "bug",
+      "priority": "highest",
+      "story_point": 3,
+      "words": 31
+    },
+    {
+      "project": "Atlassian_Confluence_Server",
+      "title": "5.7 Comments Not Working on Headings when other Macros on page",
+      "description": "Hi there, This page won't allow me to add comments to the headings. Running Confluence 5.7. Any ideas? !testing.png|thumbnail! Here's the page's source code: !testing.png|thumbnail! [CODE]",
+      "type": "bug",
+      "priority": "low",
+      "story_point": 3,
+      "words": 37
+    },
+    {
+      "project": "Moodle",
+      "title": "Accessibility implementation & audit of activity chooser - Sub task of [ISSUE_REF]",
+      "description": "Review the new Activity picker and make sure that it works with: JAWS NVDA Acceptance criteria: Focus lock Tabbing from inside a grid item goes to exit once done rather than the next or previous",
+      "type": "task",
+      "priority": "low",
+      "story_point": 5,
+      "words": 47
+    },
+    {
+      "project": "Appcelerator_Studio",
+      "title": "Studio: Grammatical error on a dialog window",
+      "description": "I noticed a grammatical error, when trying to launch the project as Android Emulator (2.2). Test steps: Run the project as Android emulator 2.2. Notice the word \"require\" on the dialod window. Expected result: the word should be \"requires\" (see the screenshot)",
+      "type": "bug",
+      "priority": "low",
+      "story_point": 2,
+      "words": 49
+    },
+    {
+      "project": "Mule",
+      "title": "Update mule-jetty.xsd that contains references to old Jetty classes in its comments",
+      "description": "The mule-jetty.xsd file still contains references to old Jetty clases (org.mortbay) in the comments. Update this file.",
+      "type": "task",
+      "priority": "high",
+      "story_point": 2,
+      "words": 29
+    },
+    {
+      "project": "Hyperledger_Indy_SDK",
+      "title": "indy_create_pool_ledger_config fails if path to genesis_txn contains backslashes on Windows",
+      "description": "When calling indy_create_pool_ledger_config and specifying the following config as the 3rd parameter it fails with CommonInvalidStructure:113 \\{\"genesis_txn\":\"C:\\Users\\srott\\AppData\\Local\\Temp\\.indy\\temp.txn\"} Changing the genesis_txn path to use forward slashes as the directory separator functions as a workaround. Ideally this should also handle backslashes in Windows.",
+      "type": "task",
+      "priority": "medium",
+      "story_point": 1,
+      "words": 51
+    },
+    {
+      "project": "Spring_XD",
+      "title": "Enable Job deployment properties for job deploy",
+      "description": "Support the ability to provide deployment properties for \"job deploy\".",
+      "type": "story",
+      "priority": "low",
+      "story_point": 8,
+      "words": 17
+    },
+    {
+      "project": "The_MongoDB_Engineering",
+      "title": "Test names get cut off on Evergreen task page",
+      "description": "When viewing [certain test results|[URL] on an Evergreen task page, the names of tests get cut off on the left. This occurs in Chrome: !chrome_default_zoom.png|thumbnail! Safari: !safari_default_zoom.png|thumbnail! and Firefox: !firefox_default_zoom.png|thumbnail! all at default browser zoom levels on a 13 inch Macbook Pro. The problem seems ...",
+      "type": "bug",
+      "priority": "high",
+      "story_point": 2,
+      "words": 68
+    },
+    {
+      "project": "Hyperledger_Sawtooth",
+      "title": "Add thread pool to C++ SDK transaction Processor",
+      "description": "Add threading to allow for the Transaction processing requests to be handled asyncronously.",
+      "type": "improvement",
+      "priority": "medium",
+      "story_point": 5,
+      "words": 21
+    },
+    {
+      "project": "DotNetNuke_Platform",
+      "title": "Develop Repackaging Plan",
+      "description": "In order to repackage DNN we need to work with the other teams to develop a plan.",
+      "type": "story",
+      "priority": "low",
+      "story_point": 8,
+      "words": 20
+    },
+    {
+      "project": "Aptana_Studio",
+      "title": "PHP autocomplete for php magic functions",
+      "description": "Autocomplete suggestions for php magic functions inside a class. If I type: I want to get PHP suggestions for magic functions like __construct, __destruct, __toString, etc. Please see screenshot attached.",
+      "type": "improvement",
+      "priority": "low",
+      "story_point": 8,
+      "words": 36
+    },
+    {
+      "project": "The_Titanium_SDK",
+      "title": "Can't build android module from studio, but CLI works well",
+      "description": "Reproduce Customer facing following problem They are not able to build android module through studio. But using CLI to build is working well. Error Attached screen shot of error, and the studio log when it happened. Note Attached diagnostic Test log as well",
+      "type": "bug",
+      "priority": "highest",
+      "story_point": 5,
+      "words": 53
+    },
+    {
+      "project": "Moodle",
+      "title": "Investigate deep linking options",
+      "description": "This is just an issue to summarize discussions about deep linking, and how it might be used to pick course modules from a shared course and any other potential uses in the Moodle tool case.",
+      "type": "task",
+      "priority": "low",
+      "story_point": 1,
+      "words": 39
+    },
+    {
+      "project": "Hyperledger_Indy_Node",
+      "title": "Integrate and run PBFT View Changer simulation tests with a real implementation",
+      "description": "Acceptance criteria: Property-based tests need to be integrated with a real (no mocks) implementations of View Changer Service 3PC State Orderer service Checkpointer service WriteReqManager Database manager needs to use real instances of Ledgers and states (especially audit ledger one). It can use in-memory storages ...",
+      "type": "task",
+      "priority": "medium",
+      "story_point": 3,
+      "words": 67
+    },
+    {
+      "project": "MongoDB_Core_Server",
+      "title": "Sys-perf: change v4.0 branch batch time to once a week",
+      "description": "",
+      "type": "task",
+      "priority": "high",
+      "story_point": 1,
+      "words": 10
+    },
+    {
+      "project": "Appcelerator_Studio",
+      "title": "Enter/Return doesn't being Login on login splash screen",
+      "description": "When you first start TI Studio, it brings up a login screen. I entered my credentials, hit Return and... nothing. It should invoke the login button.",
+      "type": "story",
+      "priority": "medium",
+      "story_point": 1,
+      "words": 34
+    },
+    {
+      "project": "Titanium_Mobile_Platform",
+      "title": "Documentation Needed for Ti.Media.cameraFlashMode",
+      "description": "There is no documentation available for flash modes of camera (Ti.Media.cameraFlashMod) but there is an example for this on KitchenSink. Kitchen Sink Git link: [URL]",
+      "type": "bug",
+      "priority": "medium",
+      "story_point": 1,
+      "words": 29
+    },
+    {
+      "project": "MongoDB_Core_Server",
+      "title": "Remove UninterruptibleLockGuard in query yield",
+      "description": "restoreLockState() is used by [query yielding|[URL] and [transaction reaper|[URL] To make sure they don't conflict with prepared transactions on stepdown and shutdown, we need to guarantee they only restore IS or IX locks or they restore locks that won't conflict with transactions.",
+      "type": "task",
+      "priority": "high",
+      "story_point": 8,
+      "words": 47
+    },
+    {
+      "project": "DotNetNuke_Platform",
+      "title": "EVOQSOCIAL: SearchResults module > more query string parameters for advanced search",
+      "description": "The current search results module accepts Search and Tag query strings. We need to open it up to allow it to accept more advanced search options such as module name, date, etc. Ideally everything that one can do using Advanced Search Options should be possible ...",
+      "type": "improvement",
+      "priority": "medium",
+      "story_point": 5,
+      "words": 64
+    },
+    {
+      "project": "Hyperledger_Indy_SDK",
+      "title": "Rust Wrapper: Review and merge libindy rust wrapper PR",
+      "description": "Acceptance criteria PR reviewed PR merged",
+      "type": "new feature",
+      "priority": "medium",
+      "story_point": 5,
+      "words": 15
+    },
+    {
+      "project": "Mule",
+      "title": "Support stopping all outbound facing sources",
+      "description": "This task is to support stopping all outbound facing sources (not VM sources) so no more inbound messages are received. This feature would be used at the beginning of the graceful shutdown.",
+      "type": "task",
+      "priority": "unknown",
+      "story_point": 8,
+      "words": 38
+    },
+    {
+      "project": "Moodle",
+      "title": "Remove suggestions list for Keyword autocomplete",
+      "description": "When showing the Keyword filter, where we have no suggestions available to show, we shoudl not show the suggestions list.",
+      "type": "improvement",
+      "priority": "high",
+      "story_point": 3,
+      "words": 26
+    }
+  ],
+  "calibration": {
+    "per_project": [
+      {
+        "name": "Apache_Mesos",
+        "mean": 3.03,
+        "small_pct": 44.1,
+        "counts": {
+          "1": 470,
+          "2": 542,
+          "3": 719,
+          "5": 425,
+          "8": 140
+        },
+        "n": 2296
+      },
+      {
+        "name": "Appcelerator_Studio",
+        "mean": 5.01,
+        "small_pct": 9.7,
+        "counts": {
+          "1": 121,
+          "2": 94,
+          "3": 498,
+          "5": 918,
+          "8": 596
+        },
+        "n": 2227
+      },
+      {
+        "name": "Aptana_Studio",
+        "mean": 5.26,
+        "small_pct": 21.4,
+        "counts": {
+          "1": 63,
+          "2": 32,
+          "3": 39,
+          "5": 128,
+          "8": 181
+        },
+        "n": 443
+      },
+      {
+        "name": "Atlassian_Confluence_Server",
+        "mean": 3.08,
+        "small_pct": 36.2,
+        "counts": {
+          "1": 59,
+          "2": 107,
+          "3": 191,
+          "5": 82,
+          "8": 20
+        },
+        "n": 459
+      },
+      {
+        "name": "DotNetNuke_Platform",
+        "mean": 2.03,
+        "small_pct": 77.6,
+        "counts": {
+          "1": 700,
+          "2": 697,
+          "3": 280,
+          "5": 92,
+          "8": 32
+        },
+        "n": 1801
+      },
+      {
+        "name": "Hyperledger_Fabric",
+        "mean": 2.27,
+        "small_pct": 74.7,
+        "counts": {
+          "1": 199,
+          "2": 97,
+          "3": 49,
+          "5": 16,
+          "8": 35
+        },
+        "n": 396
+      },
+      {
+        "name": "Hyperledger_Indy_Node",
+        "mean": 3.41,
+        "small_pct": 33.1,
+        "counts": {
+          "1": 70,
+          "2": 90,
+          "3": 159,
+          "5": 131,
+          "8": 33
+        },
+        "n": 483
+      },
+      {
+        "name": "Hyperledger_Indy_SDK",
+        "mean": 3.7,
+        "small_pct": 29.2,
+        "counts": {
+          "1": 49,
+          "2": 94,
+          "3": 171,
+          "5": 114,
+          "8": 61
+        },
+        "n": 489
+      },
+      {
+        "name": "Hyperledger_Sawtooth",
+        "mean": 2.36,
+        "small_pct": 61.1,
+        "counts": {
+          "1": 198,
+          "2": 219,
+          "3": 182,
+          "5": 79,
+          "8": 4
+        },
+        "n": 682
+      },
+      {
+        "name": "Lyrasis_Dura_Cloud",
+        "mean": 1.81,
+        "small_pct": 80.0,
+        "counts": {
+          "1": 254,
+          "2": 107,
+          "3": 59,
+          "5": 26,
+          "8": 5
+        },
+        "n": 451
+      },
+      {
+        "name": "MongoDB_Core_Server",
+        "mean": 2.53,
+        "small_pct": 62.8,
+        "counts": {
+          "1": 169,
+          "2": 152,
+          "3": 111,
+          "5": 49,
+          "8": 30
+        },
+        "n": 511
+      },
+      {
+        "name": "Moodle",
+        "mean": 3.78,
+        "small_pct": 37.7,
+        "counts": {
+          "1": 164,
+          "2": 101,
+          "3": 145,
+          "5": 163,
+          "8": 130
+        },
+        "n": 703
+      },
+      {
+        "name": "Mule",
+        "mean": 4.15,
+        "small_pct": 40.9,
+        "counts": {
+          "1": 414,
+          "2": 433,
+          "3": 274,
+          "5": 371,
+          "8": 581
+        },
+        "n": 2073
+      },
+      {
+        "name": "Sonatype_Nexus",
+        "mean": 1.9,
+        "small_pct": 76.9,
+        "counts": {
+          "1": 534,
+          "2": 283,
+          "3": 171,
+          "5": 62,
+          "8": 12
+        },
+        "n": 1062
+      },
+      {
+        "name": "Spring_XD",
+        "mean": 3.28,
+        "small_pct": 45.7,
+        "counts": {
+          "1": 588,
+          "2": 461,
+          "3": 543,
+          "5": 407,
+          "8": 294
+        },
+        "n": 2293
+      },
+      {
+        "name": "The_MongoDB_Engineering",
+        "mean": 1.55,
+        "small_pct": 98.2,
+        "counts": {
+          "1": 1622,
+          "2": 1479,
+          "3": 26,
+          "5": 5,
+          "8": 27
+        },
+        "n": 3159
+      },
+      {
+        "name": "The_Titanium_SDK",
+        "mean": 4.22,
+        "small_pct": 21.9,
+        "counts": {
+          "1": 351,
+          "2": 243,
+          "3": 663,
+          "5": 1003,
+          "8": 451
+        },
+        "n": 2711
+      },
+      {
+        "name": "Titanium_Mobile_Platform",
+        "mean": 3.15,
+        "small_pct": 52.1,
+        "counts": {
+          "1": 286,
+          "2": 103,
+          "3": 147,
+          "5": 89,
+          "8": 122
+        },
+        "n": 747
+      }
+    ]
+  },
   "baselines": {
     "median": {
       "Apache_Mesos": {

@@ -31,7 +31,7 @@ export const STOPS = [
     title: "The front door",
     blurb: "What this project is, and the three questions it sets out to answer." },
 
-  { id: "poker-table", area: "why", step: 6, built: false,
+  { id: "poker-table", area: "why", step: 6, built: true,
     title: "The poker table",
     blurb: "Why teams guess effort at all, and why one team's 8 is another team's 3." },
 

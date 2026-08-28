@@ -155,3 +155,108 @@
   .handover { padding: var(--s-4); }
   .handover-next { width: 100%; justify-content: center; }
 }
+
+/* ==========================================================================
+   STOP 2 — THE POKER TABLE
+   ========================================================================== */
+
+.poker { display: grid; gap: var(--s-4); }
+
+/* The issue under judgement. Deliberately plain: the words are the whole
+   evidence a reader gets, exactly as they are the whole evidence the model
+   gets. */
+.poker-issue {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-5);
+  min-height: 9rem;
+  align-content: start;
+}
+.poker-meta {
+  margin: 0;
+  font-size: var(--t-xs);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+.poker-title {
+  margin: 0;
+  font-size: var(--t-lg);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.poker-body {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: var(--measure);
+}
+
+/* The deck. Real playing-card proportions, because that is what it is. */
+.poker-deck {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.poker-card {
+  flex: 1 1 4rem;
+  max-width: 6rem;
+  aspect-ratio: 3 / 4;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font: inherit;
+  color: var(--c-ink);
+  transition: transform var(--m-quick) var(--ease),
+              box-shadow var(--m-quick) var(--ease),
+              opacity var(--m-quick) var(--ease);
+}
+.poker-card:hover:not(:disabled) { transform: translateY(-4px); box-shadow: var(--e3); }
+.poker-card:active:not(:disabled) { transform: translateY(-1px); }
+.poker-card:disabled { cursor: default; opacity: .45; }
+
+.poker-card-value {
+  font-size: var(--t-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* After the reveal: the team's answer is filled in, your card is outlined.
+   No colour — this palette has none — so the difference is weight and fill. */
+.poker-card[data-state="truth"] {
+  opacity: 1;
+  background-color: var(--c-ink);
+  border-color: var(--c-ink);
+}
+.poker-card[data-state="truth"] .poker-card-value { color: var(--c-panel); }
+.poker-card[data-state="guess"] {
+  opacity: 1;
+  box-shadow: inset 0 0 0 2px var(--c-ink);
+}
+
+.poker-reveal {
+  display: grid;
+  gap: var(--s-1);
+  padding: var(--s-3) var(--s-4);
+}
+.poker-verdict { margin: 0; font-weight: 600; }
+.poker-answer { margin: 0; font-size: var(--t-sm); color: var(--c-ink-soft); }
+
+.poker-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.poker-tally {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .poker-card { max-width: none; aspect-ratio: 1 / 1; }
+  .poker-issue { padding: var(--s-4); }
+}

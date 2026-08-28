@@ -362,10 +362,118 @@ def collect_split(data_dir: Path, results_dir: Path, config: dict, facts: Facts,
         ],
     }
 
+    payload["examples"] = pick_examples(bundle.train_df, np)
+    payload["calibration"] = collect_calibration(bundle.train_df, facts)
+
     if with_baselines:
         payload["baselines"] = collect_baselines(bundle, facts, np, story_point_to_label)
 
     return payload
+
+
+# ---------------------------------------------------------------------------
+# 3b. Real issues to look at, and how differently projects use the scale
+# ---------------------------------------------------------------------------
+
+def pick_examples(train_df, np, per_class=5, max_words=70):
+    """
+    A small, fixed sample of real issues for the poker table.
+
+    Taken from the TRAINING split only: the test issues are the ones every
+    number on this site is measured on, and putting them on a web page invites
+    exactly the kind of casual reuse that quietly ruins a held-out set.
+
+    Chosen to be readable rather than representative -- short enough to judge
+    in a few seconds, one per project where possible, and the same every time
+    the script runs so the site does not change under a returning reader.
+    """
+    frame = train_df.copy()
+    frame["words"] = (frame.title + " " + frame.description).str.split().str.len()
+    readable = frame[(frame.words >= 10) & (frame.words <= max_words)
+                     & (frame.title.str.len() > 15)]
+
+    rng = np.random.default_rng(42)
+    chosen = []
+    for label in (1, 2, 3, 5, 8):
+        pool = readable[readable.story_point == label]
+        spread = pool.groupby("client_id", group_keys=False).head(1)
+        if len(spread) > per_class:
+            picks = sorted(rng.choice(len(spread), size=per_class, replace=False))
+            spread = spread.iloc[picks]
+        for _, row in spread.iterrows():
+            chosen.append({
+                "project": row.client_id,
+                "title": trim_words(row.title, 24),
+                "description": trim_words(row.description, 45),
+                "type": row.type,
+                "priority": row.priority,
+                "story_point": int(row.story_point),
+                "words": int(row.words),
+            })
+
+    # Interleave, so a reader is not shown every 1 before every 8.
+    order = rng.permutation(len(chosen))
+    return [chosen[i] for i in order]
+
+
+def trim_words(text, limit):
+    words = str(text).split()
+    if len(words) <= limit:
+        return " ".join(words)
+    return " ".join(words[:limit]) + " ..."
+
+
+def collect_calibration(train_df, facts):
+    """
+    How differently the projects use the same five numbers.
+
+    This is the central difficulty of the whole thesis, so it is measured
+    rather than asserted: if every team meant the same thing by a 5, these
+    figures would be nearly identical.
+    """
+    means = train_df.groupby("client_id").story_point.mean()
+    small = (train_df.assign(small=train_df.story_point.isin([1, 2]))
+             .groupby("client_id").small.mean() * 100)
+
+    low, high = means.idxmin(), means.idxmax()
+    fewest, most = small.idxmin(), small.idxmax()
+    src = "the training split, grouped by project"
+
+    facts.add("calibration.lowest_project", low, source=src, text=low,
+              how="the project whose issues carry the smallest points on average")
+    facts.add("calibration.lowest_mean", round(float(means[low]), 2), source=src,
+              how="its mean story point", text=f"{means[low]:.2f}")
+    facts.add("calibration.highest_project", high, source=src, text=high,
+              how="the project whose issues carry the largest points on average")
+    facts.add("calibration.highest_mean", round(float(means[high]), 2), source=src,
+              how="its mean story point", text=f"{means[high]:.2f}")
+    facts.add("calibration.mean_spread", round(float(means[high] - means[low]), 2),
+              source=src, how="the gap between those two averages",
+              text=f"{means[high] - means[low]:.2f}")
+    facts.add("calibration.small_share_max", round(float(small[most]), 0), source=src,
+              unit="%", how=f"share of {most}'s issues that are a 1 or a 2",
+              text=f"{small[most]:.0f}%")
+    facts.add("calibration.small_share_max_project", most, source=src, text=most,
+              how="the project that calls the most of its work small")
+    facts.add("calibration.small_share_min", round(float(small[fewest]), 0), source=src,
+              unit="%", how=f"share of {fewest}'s issues that are a 1 or a 2",
+              text=f"{small[fewest]:.0f}%")
+    facts.add("calibration.small_share_min_project", fewest, source=src, text=fewest,
+              how="the project that calls the least of its work small")
+
+    return {
+        "per_project": [
+            {
+                "name": name,
+                "mean": round(float(means[name]), 2),
+                "small_pct": round(float(small[name]), 1),
+                "counts": {str(k): int(v) for k, v in
+                           group.story_point.value_counts().sort_index().items()},
+                "n": int(len(group)),
+            }
+            for name, group in train_df.groupby("client_id")
+        ]
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -700,6 +808,10 @@ def main() -> int:
     write_json(out_dir / "split.json", {"about": stamp, **split})
     write_json(out_dir / "run.json", {"about": stamp, **run})
     write_json(out_dir / "params.json", {"about": stamp, **params})
+    write_json(out_dir / "examples.json",
+               {"about": stamp, "issues": split.get("examples", [])})
+    write_json(out_dir / "calibration.json",
+               {"about": stamp, **(split.get("calibration") or {})})
 
     kinds = {}
     for item in facts.items.values():
