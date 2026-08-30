@@ -260,3 +260,88 @@
   .poker-card { max-width: none; aspect-ratio: 1 / 1; }
   .poker-issue { padding: var(--s-4); }
 }
+
+/* ==========================================================================
+   STOP 3 — WHY NOT JUST POOL IT
+   ========================================================================== */
+
+.leaves-panel {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5);
+  min-height: 20rem;
+  align-content: start;
+}
+.leaves-head {
+  margin: 0;
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+.leaves-foot {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: var(--measure);
+}
+
+/* The pooled side: real issue text, so the reader sees what would travel. */
+.leaves-sample { display: grid; gap: var(--s-2); }
+.leaves-issue { padding: var(--s-3) var(--s-4); display: grid; gap: 2px; }
+.leaves-meta {
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+  letter-spacing: .06em;
+}
+.leaves-title { margin: 0; font-size: var(--t-sm); font-weight: 600; }
+.leaves-text {
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--c-ink-soft);
+  line-height: 1.5;
+}
+
+/* The federated side: the shape of the payload, at true relative size. */
+.payload-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s-3); }
+.payload-row {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  grid-template-areas: "count label" "bar bar";
+  gap: var(--s-1) var(--s-3);
+  align-items: baseline;
+}
+.payload-count {
+  grid-area: count;
+  font-family: var(--f-mono);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.payload-label { grid-area: label; font-size: var(--t-sm); color: var(--c-ink-soft); }
+.payload-bar {
+  grid-area: bar;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--c-ink);
+  opacity: .55;
+  /* width is the part's real share of the upload, so the bars are honest */
+  width: calc(var(--share, 0) * 100%);
+  min-width: 2px;
+}
+
+/* The limits of the privacy claim. */
+.caveat-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s-2); }
+.caveat { display: grid; gap: 2px; padding: var(--s-3) var(--s-4); }
+.caveat-title { font-size: var(--t-sm); font-weight: 600; }
+.caveat-body {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: var(--measure);
+}
+
+@media (max-width: 560px) {
+  .payload-row { grid-template-columns: 1fr; grid-template-areas: "count" "label" "bar"; }
+  .payload-count { text-align: left; }
+}

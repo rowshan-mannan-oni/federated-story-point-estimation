@@ -141,6 +141,7 @@ def collect_dataset(data_dir: Path, facts: Facts) -> dict:
     rows_in = rows_out = 0
     sp_counts = Counter()
     words = []
+    chars = []
 
     print(f"  reading {len(csvs)} project files ...")
     for path in csvs:
@@ -161,8 +162,10 @@ def collect_dataset(data_dir: Path, facts: Facts) -> dict:
         cleaned, stats = preprocess_project_df(raw, name)
 
         dates = pd.to_datetime(raw["Creation_Date"], errors="coerce")
-        combined = (cleaned["Title"] + " " + cleaned["Description"]).str.split().str.len()
-        words.append(combined)
+        joined = cleaned["Title"] + " " + cleaned["Description"]
+        words.append(joined.str.split().str.len())
+        # How much text this project would have to hand over, if it did.
+        chars.append(int(joined.str.encode("utf-8").str.len().sum()))
 
         rows_in += stats["rows_in"]
         rows_out += stats["rows_out"]
@@ -185,6 +188,7 @@ def collect_dataset(data_dir: Path, facts: Facts) -> dict:
         })
 
     all_words = pd.concat(words)
+    all_bytes = sum(chars)
     src = "data_to_train_on/*.csv"
     ran = "read every CSV and ran export_issues.preprocess_project_df on it"
 
@@ -217,6 +221,11 @@ def collect_dataset(data_dir: Path, facts: Facts) -> dict:
     facts.add("corpus.sp_distribution", distribution, source=src,
               how="counted each story point value after cleaning",
               text=" · ".join(f"{k}: {v['pct']}%" for k, v in distribution.items()))
+
+    facts.add("corpus.text_bytes", all_bytes, source=src, unit="bytes",
+              how="every cleaned title and description, added up as UTF-8")
+    facts.add("corpus.text_mb", round(all_bytes / 1_000_000, 1), source=src, unit="MB",
+              how="the same figure in megabytes", text=f"{all_bytes / 1_000_000:.1f} MB")
 
     for label, q in (("p50", .5), ("p90", .9), ("p95", .95)):
         facts.add(f"text.words_{label}", int(all_words.quantile(q)), source=src,

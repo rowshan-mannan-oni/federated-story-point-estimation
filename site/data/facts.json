@@ -1,6 +1,6 @@
 {
   "about": {
-    "generated": "2026-08-28 12:11 UTC",
+    "generated": "2026-08-28 12:18 UTC",
     "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
     "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
     "run_available": true,
@@ -365,6 +365,22 @@
       "unit": null,
       "source": "data_to_train_on/*.csv",
       "how": "counted each story point value after cleaning",
+      "kind": "measured"
+    },
+    "corpus.text_bytes": {
+      "value": 17722151,
+      "text": "17,722,151",
+      "unit": "bytes",
+      "source": "data_to_train_on/*.csv",
+      "how": "every cleaned title and description, added up as UTF-8",
+      "kind": "measured"
+    },
+    "corpus.text_mb": {
+      "value": 17.7,
+      "text": "17.7 MB",
+      "unit": "MB",
+      "source": "data_to_train_on/*.csv",
+      "how": "the same figure in megabytes",
       "kind": "measured"
     },
     "text.words_p50": {

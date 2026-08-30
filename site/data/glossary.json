@@ -25,6 +25,18 @@
       "short": "One pass through a set of training examples.",
       "more": "If a project has 1,000 issues, one epoch means the model has seen all thousand once."
     },
+    "gradient inversion": {
+      "short": "Reconstructing some of the training data from the numbers a model sends.",
+      "more": "It is why 'we only send weights' is not the same as 'we send nothing'. This project does not defend against it, and says so rather than claiming more privacy than it has."
+    },
+    "differential privacy": {
+      "short": "Adding measured noise so no single example can be traced in the result.",
+      "more": "It gives a mathematical guarantee, at some cost to accuracy. Not used here — it is named as future work."
+    },
+    "secure aggregation": {
+      "short": "A way for a server to add up everyone's contributions without seeing any of them individually.",
+      "more": "The server learns the total and nothing else. Not used here; also future work."
+    },
     "encoder": {
       "short": "The part that turns words into numbers.",
       "more": "It reads the issue text and produces a long list of numbers standing for its meaning. Everything after it works on those numbers, never on the words."

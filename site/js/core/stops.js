@@ -35,7 +35,7 @@ export const STOPS = [
     title: "The poker table",
     blurb: "Why teams guess effort at all, and why one team's 8 is another team's 3." },
 
-  { id: "why-not-pool", area: "why", step: 7, built: false,
+  { id: "why-not-pool", area: "why", step: 7, built: true,
     title: "Why not just pool it",
     blurb: "What would have to leave the building, against what actually leaves." },
 
