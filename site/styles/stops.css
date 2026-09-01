@@ -345,3 +345,53 @@
   .payload-row { grid-template-columns: 1fr; grid-template-areas: "count" "label" "bar"; }
   .payload-count { text-align: left; }
 }
+
+/* ==========================================================================
+   STOP 4 — THE ARCHIVE
+   ========================================================================== */
+
+.arch-name { display: inline-flex; align-items: baseline; gap: var(--s-2); }
+.arch-role {
+  font-size: var(--t-xs);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-sm);
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+.arch-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  gap: var(--s-3);
+}
+.arch-card { display: grid; gap: var(--s-3); padding: var(--s-4); }
+.arch-card-title { margin: 0; font-size: var(--t-sm); font-weight: 600; }
+.arch-facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px var(--s-3);
+  font-size: var(--t-xs);
+}
+.arch-facts dt { color: var(--c-ink-faint); }
+.arch-facts dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
+.arch-priorities {
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--c-ink-soft);
+  line-height: 1.6;
+}
+
+/* The awkward corners. */
+.corner-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s-2); }
+.corner { display: grid; gap: 2px; padding: var(--s-3) var(--s-4); }
+.corner-title { font-size: var(--t-sm); font-weight: 600; }
+.corner-body {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: var(--measure);
+}

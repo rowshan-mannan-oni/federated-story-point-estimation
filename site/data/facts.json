@@ -1,6 +1,6 @@
 {
   "about": {
-    "generated": "2026-08-28 12:18 UTC",
+    "generated": "2026-08-30 06:29 UTC",
     "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
     "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
     "run_available": true,
@@ -322,6 +322,54 @@
       "how": "latest Creation_Date across all projects",
       "kind": "measured"
     },
+    "corpus.largest_project": {
+      "value": "Lsstcorp_Data_management",
+      "text": "Lsstcorp_Data_management",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "the project with the most issues",
+      "kind": "measured"
+    },
+    "corpus.largest_rows": {
+      "value": 10047,
+      "text": "10,047",
+      "unit": "issues",
+      "source": "data_to_train_on/*.csv",
+      "how": "how many issues it has",
+      "kind": "measured"
+    },
+    "corpus.smallest_project": {
+      "value": "Hyperledger_Fabric",
+      "text": "Hyperledger_Fabric",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "the project with the fewest issues",
+      "kind": "measured"
+    },
+    "corpus.smallest_rows": {
+      "value": 550,
+      "text": "550",
+      "unit": "issues",
+      "source": "data_to_train_on/*.csv",
+      "how": "how many issues it has",
+      "kind": "measured"
+    },
+    "corpus.size_ratio": {
+      "value": 18.3,
+      "text": "18x",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "the largest project divided by the smallest",
+      "kind": "derived"
+    },
+    "corpus.no_priority_project": {
+      "value": "Lsstcorp_Data_management",
+      "text": "Lsstcorp_Data_management",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "a project where every single issue has an unrecorded priority",
+      "kind": "measured"
+    },
     "corpus.desc_missing_worst_pct": {
       "value": 42.74,
       "text": "42.7%",
@@ -337,6 +385,14 @@
       "source": "data_to_train_on/*.csv",
       "how": "the project with the most empty descriptions",
       "kind": "measured"
+    },
+    "corpus.imbalance_ratio": {
+      "value": 2.6,
+      "text": "2.6 to 1",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "the most common story point divided by the least common",
+      "kind": "derived"
     },
     "corpus.sp_distribution": {
       "value": {

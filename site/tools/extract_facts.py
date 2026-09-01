@@ -206,6 +206,30 @@ def collect_dataset(data_dir: Path, facts: Facts) -> dict:
     facts.add("corpus.first_issue", first, source=src, how="earliest Creation_Date across all projects", text=first)
     facts.add("corpus.last_issue", last, source=src, how="latest Creation_Date across all projects", text=last)
 
+    # The projects are wildly different sizes, which matters later: the server
+    # weights each project's contribution by how much data it trained on.
+    biggest = max(projects, key=lambda p: p["rows_clean"])
+    smallest = min(projects, key=lambda p: p["rows_clean"])
+    facts.add("corpus.largest_project", biggest["name"], source=src, text=biggest["name"],
+              how="the project with the most issues")
+    facts.add("corpus.largest_rows", biggest["rows_clean"], source=src,
+              how="how many issues it has", unit="issues")
+    facts.add("corpus.smallest_project", smallest["name"], source=src, text=smallest["name"],
+              how="the project with the fewest issues")
+    facts.add("corpus.smallest_rows", smallest["rows_clean"], source=src,
+              how="how many issues it has", unit="issues")
+    ratio = biggest["rows_clean"] / max(smallest["rows_clean"], 1)
+    facts.add("corpus.size_ratio", round(ratio, 1), source=src, kind="derived",
+              how="the largest project divided by the smallest", text=f"{ratio:.0f}x")
+
+    # Whether any project simply has no priorities recorded at all.
+    blank = [p for p in projects
+             if set(p["priorities"]) == {"Unknown"} or p["priorities"].get("Unknown", 0) == p["rows_clean"]]
+    if blank:
+        facts.add("corpus.no_priority_project", blank[0]["name"], source=src,
+                  text=blank[0]["name"],
+                  how="a project where every single issue has an unrecorded priority")
+
     worst = max(projects, key=lambda p: p["desc_missing_pct"])
     facts.add("corpus.desc_missing_worst_pct", worst["desc_missing_pct"], source=src,
               how=f"the project with the most empty descriptions ({worst['name']})",
@@ -218,6 +242,12 @@ def collect_dataset(data_dir: Path, facts: Facts) -> dict:
         str(k): {"count": v, "pct": round(100 * v / total_sp, 1)}
         for k, v in sorted(sp_counts.items())
     }
+    counts_only = [v["count"] for v in distribution.values()]
+    imbalance = max(counts_only) / max(min(counts_only), 1)
+    facts.add("corpus.imbalance_ratio", round(imbalance, 1), source=src, kind="derived",
+              how="the most common story point divided by the least common",
+              text=f"{imbalance:.1f} to 1")
+
     facts.add("corpus.sp_distribution", distribution, source=src,
               how="counted each story point value after cleaning",
               text=" · ".join(f"{k}: {v['pct']}%" for k, v in distribution.items()))

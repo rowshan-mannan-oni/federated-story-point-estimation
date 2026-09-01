@@ -98,3 +98,75 @@
 
 /* A set of strips stacked for comparison. */
 .dist-set { display: grid; gap: var(--s-4); }
+
+/* --------------------------------------------------------------------------
+   SORTABLE TABLE
+   -------------------------------------------------------------------------- */
+.table-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-line);
+}
+.dtable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-sm);
+  background: var(--c-panel);
+}
+.dtable th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--c-panel-2);
+  text-align: left;
+  font-weight: 500;
+  padding: 0;
+  border-bottom: 1px solid var(--c-line-strong);
+  white-space: nowrap;
+}
+.dtable th[data-align="right"], .dtable td[data-align="right"] { text-align: right; }
+
+.dtable-sort {
+  width: 100%;
+  font: inherit;
+  font-size: var(--t-xs);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+  background: none;
+  border: 0;
+  padding: var(--s-3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  justify-content: inherit;
+}
+.dtable th[data-align="right"] .dtable-sort { justify-content: flex-end; }
+.dtable-sort:hover { color: var(--c-ink); }
+
+/* The arrow only appears on the column actually in use, and points the way
+   the rows are ordered. */
+.dtable-arrow { width: 0; height: 0; opacity: 0; }
+.dtable th[data-sorted="true"] .dtable-sort { color: var(--c-ink); font-weight: 600; }
+.dtable th[data-sorted="true"] .dtable-arrow {
+  opacity: 1;
+  width: 0; height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+}
+.dtable th[data-dir="desc"] .dtable-arrow { border-top: 5px solid currentColor; }
+.dtable th[data-dir="asc"] .dtable-arrow { border-bottom: 5px solid currentColor; }
+
+.dtable td {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--c-line);
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+.dtable tbody tr:last-child td { border-bottom: 0; }
+.dtable tbody tr:hover td { background: var(--c-panel-2); }
+
+/* A row with a part to play in the study, marked without colour. */
+.dtable tbody tr[data-role] td:first-child { box-shadow: inset 3px 0 0 var(--c-ink); }

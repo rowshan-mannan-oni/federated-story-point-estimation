@@ -40,7 +40,7 @@ export const STOPS = [
     blurb: "What would have to leave the building, against what actually leaves." },
 
   /* ---- the data ------------------------------------------------------- */
-  { id: "archive", area: "data", step: 8, built: false,
+  { id: "archive", area: "data", step: 8, built: true,
     title: "The archive",
     blurb: "Nineteen projects, 42,002 issues, and the odd corners in them." },
 
