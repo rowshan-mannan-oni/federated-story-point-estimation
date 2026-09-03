@@ -12,7 +12,7 @@
 
 import { stopCard, block, prose, handover, statRow, pathOverview, el } from "../ui/stop-parts.js";
 import { createStatPlate, createDrawer } from "../ui/readouts.js";
-import { factText } from "../ui/provenance.js";
+import { factEl, factText } from "../ui/provenance.js";
 
 /* The three questions, in plain words and in the thesis's own words. Keeping
    both means a curious reader gets the idea and an examiner gets the exact
@@ -96,17 +96,17 @@ export function mount(el_, ctx) {
     statRow(
       createStatPlate({
         label: "projects",
-        value: factText("corpus.projects"),
+        value: factEl("corpus.projects"),
         caption: "public issue trackers",
       }),
       createStatPlate({
         label: "issues",
-        value: factText("corpus.rows_raw"),
+        value: factEl("corpus.rows_raw"),
         caption: `${factText("corpus.first_issue")} to ${factText("corpus.last_issue")}`,
       }),
       createStatPlate({
         label: "train together",
-        value: factText("split.clients"),
+        value: factEl("split.clients"),
         caption: "one is held back to start the model off",
       }),
     ),

@@ -16,7 +16,7 @@
 import { stopCard, block, prose, handover, statRow, el } from "../ui/stop-parts.js";
 import { createStatPlate, createDrawer } from "../ui/readouts.js";
 import { createDistStrip, createDistLegend } from "../viz/dist-strip.js";
-import { factText } from "../ui/provenance.js";
+import { factEl, factText } from "../ui/provenance.js";
 import * as data from "../core/data.js";
 
 const DECK = [1, 2, 3, 5, 8];
@@ -243,17 +243,17 @@ function buildCalibration(calibration) {
     statRow(
       createStatPlate({
         label: "average points, lowest project",
-        value: factText("calibration.lowest_mean"),
+        value: factEl("calibration.lowest_mean"),
         caption: prettyName(factText("calibration.lowest_project")),
       }),
       createStatPlate({
         label: "average points, highest project",
-        value: factText("calibration.highest_mean"),
+        value: factEl("calibration.highest_mean"),
         caption: prettyName(factText("calibration.highest_project")),
       }),
       createStatPlate({
         label: "apart",
-        value: factText("calibration.mean_spread"),
+        value: factEl("calibration.mean_spread"),
         caption: "on the same five-card deck",
       }),
     ),

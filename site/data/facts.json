@@ -1,6 +1,6 @@
 {
   "about": {
-    "generated": "2026-09-03 05:34 UTC",
+    "generated": "2026-09-03 05:55 UTC",
     "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
     "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
     "run_available": true,
@@ -829,6 +829,54 @@
       "unit": null,
       "source": "data_to_train_on/*.csv",
       "how": "raw/cleaned pairs the website's copy of the cleaner is tested against",
+      "kind": "measured"
+    },
+    "categorical.priority_raw": {
+      "value": 17,
+      "text": "17",
+      "unit": null,
+      "source": "data_to_train_on/*.csv with export_issues.normalize_priority",
+      "how": "distinct priority words across all nineteen trackers",
+      "kind": "measured"
+    },
+    "categorical.priority_canonical": {
+      "value": 6,
+      "text": "6",
+      "unit": null,
+      "source": "data_to_train_on/*.csv with export_issues.normalize_priority",
+      "how": "how many they are mapped down to",
+      "kind": "measured"
+    },
+    "categorical.priority_missing": {
+      "value": 10578,
+      "text": "10,578",
+      "unit": null,
+      "source": "data_to_train_on/*.csv with export_issues.normalize_priority",
+      "how": "issues with no priority recorded at all",
+      "kind": "measured"
+    },
+    "categorical.priority_missing_pct": {
+      "value": 25.2,
+      "text": "25.2%",
+      "unit": "%",
+      "source": "data_to_train_on/*.csv with export_issues.normalize_priority",
+      "how": "what share of the corpus that is",
+      "kind": "measured"
+    },
+    "categorical.priority_unmapped": {
+      "value": 280,
+      "text": "280",
+      "unit": null,
+      "source": "data_to_train_on/*.csv with export_issues.normalize_priority",
+      "how": "issues whose priority word matches no rule, so it becomes Unknown",
+      "kind": "measured"
+    },
+    "categorical.type_raw": {
+      "value": 17,
+      "text": "17",
+      "unit": null,
+      "source": "data_to_train_on/*.csv with export_issues.normalize_priority",
+      "how": "distinct issue-type words, which are NOT mapped together",
       "kind": "measured"
     }
   }

@@ -21,7 +21,7 @@ import { stopCard, block, prose, handover, statRow, el } from "../ui/stop-parts.
 import { createStatPlate, createDrawer } from "../ui/readouts.js";
 import { createTable } from "../viz/table.js";
 import { createDistStrip, createDistLegend } from "../viz/dist-strip.js";
-import { factText } from "../ui/provenance.js";
+import { factEl, factText } from "../ui/provenance.js";
 import * as data from "../core/data.js";
 
 /* Named in the run's own configuration, not chosen here. */
@@ -51,17 +51,17 @@ export async function mount(host, ctx) {
     statRow(
       createStatPlate({
         label: "issues, largest project",
-        value: factText("corpus.largest_rows"),
+        value: factEl("corpus.largest_rows"),
         caption: pretty(factText("corpus.largest_project")),
       }),
       createStatPlate({
         label: "issues, smallest project",
-        value: factText("corpus.smallest_rows"),
+        value: factEl("corpus.smallest_rows"),
         caption: pretty(factText("corpus.smallest_project")),
       }),
       createStatPlate({
         label: "size difference",
-        value: factText("corpus.size_ratio"),
+        value: factEl("corpus.size_ratio"),
         caption: "between the two ends",
       }),
     ),

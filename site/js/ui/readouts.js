@@ -226,7 +226,11 @@ export function createGauge({
    ========================================================================== */
 export function createStatPlate({ label, value = "—", caption = "", tone = "plain" } = {}) {
   const el = make("div", `part part-stat mat-sub is-${tone}`);
-  const valueEl = make("strong", "stat-value", String(value));
+  // A value may be a node — that is how a figure keeps its provenance chip
+  // when it sits on a plate rather than in a sentence.
+  const valueEl = make("strong", "stat-value");
+  if (value && value.nodeType) valueEl.append(value);
+  else valueEl.textContent = String(value);
   const labelEl = make("span", "stat-label", label);
   el.append(valueEl, labelEl);
   if (caption) el.append(make("span", "stat-caption", caption));
@@ -234,7 +238,10 @@ export function createStatPlate({ label, value = "—", caption = "", tone = "pl
   return {
     el,
     get: () => valueEl.textContent,
-    set(next) { valueEl.textContent = String(next); },
+    set(next) {
+      if (next && next.nodeType) valueEl.replaceChildren(next);
+      else valueEl.textContent = String(next);
+    },
   };
 }
 

@@ -1,0 +1,226 @@
+{
+  "about": {
+    "generated": "2026-09-03 05:55 UTC",
+    "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
+    "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
+    "run_available": true,
+    "data_available": true,
+    "notes": [
+      "19 of 19 CSVs here are the RAW export, which the training pipeline correctly refuses."
+    ]
+  },
+  "available": true,
+  "priorities": [
+    {
+      "raw": "(missing)",
+      "count": 10578,
+      "canonical": "Unknown"
+    },
+    {
+      "raw": "Medium",
+      "count": 5511,
+      "canonical": "Medium"
+    },
+    {
+      "raw": "Major",
+      "count": 5311,
+      "canonical": "High"
+    },
+    {
+      "raw": "Major - P3",
+      "count": 4940,
+      "canonical": "High"
+    },
+    {
+      "raw": "High",
+      "count": 4927,
+      "canonical": "High"
+    },
+    {
+      "raw": "Minor",
+      "count": 4459,
+      "canonical": "Low"
+    },
+    {
+      "raw": "Critical",
+      "count": 2598,
+      "canonical": "Highest"
+    },
+    {
+      "raw": "Low",
+      "count": 1960,
+      "canonical": "Low"
+    },
+    {
+      "raw": "Blocker",
+      "count": 980,
+      "canonical": "Highest"
+    },
+    {
+      "raw": "To be reviewed",
+      "count": 280,
+      "canonical": "Unknown"
+    },
+    {
+      "raw": "Trivial",
+      "count": 227,
+      "canonical": "Lowest"
+    },
+    {
+      "raw": "Minor - P4",
+      "count": 91,
+      "canonical": "Low"
+    },
+    {
+      "raw": "Highest",
+      "count": 73,
+      "canonical": "Highest"
+    },
+    {
+      "raw": "Critical - P2",
+      "count": 48,
+      "canonical": "Highest"
+    },
+    {
+      "raw": "Trivial - P5",
+      "count": 13,
+      "canonical": "Lowest"
+    },
+    {
+      "raw": "Lowest",
+      "count": 3,
+      "canonical": "Lowest"
+    },
+    {
+      "raw": "Blocker - P1",
+      "count": 3,
+      "canonical": "Highest"
+    }
+  ],
+  "unmapped": [
+    {
+      "raw": "To be reviewed",
+      "count": 280,
+      "canonical": "Unknown"
+    }
+  ],
+  "types": [
+    {
+      "raw": "Bug",
+      "count": 14336
+    },
+    {
+      "raw": "Story",
+      "count": 12924
+    },
+    {
+      "raw": "Improvement",
+      "count": 5661
+    },
+    {
+      "raw": "Task",
+      "count": 4902
+    },
+    {
+      "raw": "New Feature",
+      "count": 2040
+    },
+    {
+      "raw": "Enhancement Request",
+      "count": 690
+    },
+    {
+      "raw": "Sub-task",
+      "count": 520
+    },
+    {
+      "raw": "Technical task",
+      "count": 378
+    },
+    {
+      "raw": "Epic",
+      "count": 163
+    },
+    {
+      "raw": "Build Failure",
+      "count": 143
+    },
+    {
+      "raw": "Documentation",
+      "count": 111
+    },
+    {
+      "raw": "Suggestion",
+      "count": 46
+    },
+    {
+      "raw": "Problem Ticket",
+      "count": 46
+    },
+    {
+      "raw": "Question",
+      "count": 18
+    }
+  ],
+  "type_total": 17,
+  "dropped_short": [
+    {
+      "project": "Hyperledger_Sawtooth",
+      "rows": 2
+    },
+    {
+      "project": "Lsstcorp_Data_management",
+      "rows": 5
+    }
+  ],
+  "priority_rules": [
+    {
+      "word": "blocker",
+      "canonical": "Highest"
+    },
+    {
+      "word": "critical",
+      "canonical": "Highest"
+    },
+    {
+      "word": "highest",
+      "canonical": "Highest"
+    },
+    {
+      "word": "urgent",
+      "canonical": "Highest"
+    },
+    {
+      "word": "major",
+      "canonical": "High"
+    },
+    {
+      "word": "high",
+      "canonical": "High"
+    },
+    {
+      "word": "medium",
+      "canonical": "Medium"
+    },
+    {
+      "word": "normal",
+      "canonical": "Medium"
+    },
+    {
+      "word": "minor",
+      "canonical": "Low"
+    },
+    {
+      "word": "low",
+      "canonical": "Low"
+    },
+    {
+      "word": "trivial",
+      "canonical": "Lowest"
+    },
+    {
+      "word": "lowest",
+      "canonical": "Lowest"
+    }
+  ]
+}

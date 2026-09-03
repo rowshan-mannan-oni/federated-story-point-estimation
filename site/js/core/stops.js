@@ -48,7 +48,7 @@ export const STOPS = [
     title: "The cleaning bench",
     blurb: "Turning messy tracker text into something a model can actually read." },
 
-  { id: "cleaning-rest", area: "data", step: 10, built: false,
+  { id: "cleaning-rest", area: "data", step: 10, built: true,
     title: "Links, numbers, leftovers",
     blurb: "The rest of the cleaning, and the alarm that refuses uncleaned data." },
 

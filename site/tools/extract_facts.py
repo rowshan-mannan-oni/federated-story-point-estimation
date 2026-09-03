@@ -690,6 +690,83 @@ def collect_cleaning(data_dir: Path, facts: Facts) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# 3d. The two extra fields, made comparable across nineteen trackers
+# ---------------------------------------------------------------------------
+
+def collect_categorical(data_dir: Path, facts: Facts) -> dict:
+    """
+    Every tracker names its priorities differently. Before they can be fed to
+    one model they have to be mapped onto a single vocabulary -- and that
+    mapping loses information, which is worth showing rather than hiding.
+    """
+    import pandas as pd
+    from collections import Counter
+    import export_issues as ex
+
+    csvs = sorted(data_dir.glob("*.csv"))
+    if not csvs:
+        return {"available": False}
+
+    raw_priorities = Counter()
+    raw_types = Counter()
+    dropped = []
+
+    for path in csvs:
+        frame = pd.read_csv(path, encoding="utf-8-sig")
+        raw_priorities.update(frame["Priority"].fillna("(missing)").astype(str))
+        raw_types.update(frame["Type"].fillna("(missing)").astype(str))
+        cleaned, stats = ex.preprocess_project_df(frame, path.stem)
+        if stats["rows_dropped_short_text"]:
+            dropped.append({"project": path.stem,
+                            "rows": stats["rows_dropped_short_text"]})
+
+    def canonical(value):
+        return ex.normalize_priority(None if value == "(missing)" else value)
+
+    priority_rows = [
+        {"raw": value, "count": count, "canonical": canonical(value)}
+        for value, count in raw_priorities.most_common()
+    ]
+    # A value nobody wrote a rule for still has to go somewhere, and it goes to
+    # "Unknown" -- the same bucket as a genuinely absent priority.
+    unmapped = [row for row in priority_rows
+                if row["canonical"] == "Unknown" and row["raw"] != "(missing)"]
+
+    src = "data_to_train_on/*.csv with export_issues.normalize_priority"
+    total = sum(raw_priorities.values())
+    missing = raw_priorities.get("(missing)", 0)
+
+    facts.add("categorical.priority_raw", len(raw_priorities), source=src,
+              how="distinct priority words across all nineteen trackers")
+    facts.add("categorical.priority_canonical",
+              len({row["canonical"] for row in priority_rows}), source=src,
+              how="how many they are mapped down to")
+    facts.add("categorical.priority_missing", missing, source=src,
+              how="issues with no priority recorded at all")
+    facts.add("categorical.priority_missing_pct", round(100 * missing / max(total, 1), 1),
+              source=src, unit="%", how="what share of the corpus that is",
+              text=f"{100 * missing / max(total, 1):.1f}%")
+    facts.add("categorical.priority_unmapped",
+              sum(row["count"] for row in unmapped), source=src,
+              how="issues whose priority word matches no rule, so it becomes Unknown")
+    facts.add("categorical.type_raw", len(raw_types), source=src,
+              how="distinct issue-type words, which are NOT mapped together")
+
+    return {
+        "available": True,
+        "priorities": priority_rows,
+        "unmapped": unmapped,
+        "types": [{"raw": v, "count": c} for v, c in raw_types.most_common(14)],
+        "type_total": len(raw_types),
+        "dropped_short": dropped,
+        "priority_rules": [
+            {"word": word, "canonical": target}
+            for word, target in ex.PRIORITY_BASE_MAP.items()
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
 # 4. The simple comparators, and the score that lies
 # ---------------------------------------------------------------------------
 
@@ -993,6 +1070,7 @@ def main() -> int:
              if data_dir.exists() else {"available": False})
     params = collect_params(results_dir, config, facts) if results_dir.exists() else {"available": False}
     cleaning = collect_cleaning(data_dir, facts) if data_dir.exists() else {"available": False}
+    categorical = collect_categorical(data_dir, facts) if data_dir.exists() else {"available": False}
 
     if not dataset.get("available"):
         facts.note("The issue CSVs are not on this machine, so the data stops "
@@ -1031,6 +1109,7 @@ def main() -> int:
     write_json(out_dir / "cleaning.json", {"about": stamp, **cleaning})
     write_json(out_dir / "cleaning-vectors.json",
                {"about": stamp, "vectors": vectors})
+    write_json(out_dir / "categorical.json", {"about": stamp, **categorical})
     write_json(out_dir / "calibration.json",
                {"about": stamp, **(split.get("calibration") or {})})
 

@@ -16,7 +16,7 @@
 import { stopCard, block, prose, handover, statRow, el } from "../ui/stop-parts.js";
 import { createStatPlate, createDrawer } from "../ui/readouts.js";
 import { createTable } from "../viz/table.js";
-import { factText } from "../ui/provenance.js";
+import { factEl, factText } from "../ui/provenance.js";
 import { cleanStages, countSubstitutions } from "../sim/clean.js";
 import * as data from "../core/data.js";
 
@@ -171,17 +171,17 @@ function buildTotals(cleaning) {
     statRow(
       createStatPlate({
         label: "code blocks replaced",
-        value: factText("cleaning.code_blocks"),
+        value: factEl("cleaning.code_blocks"),
         caption: "pasted stack traces, logs, snippets",
       }),
       createStatPlate({
         label: "links replaced",
-        value: factText("cleaning.urls"),
+        value: factEl("cleaning.urls"),
         caption: "builds, docs, dead servers",
       }),
       createStatPlate({
         label: "ticket references replaced",
-        value: factText("cleaning.issue_refs"),
+        value: factEl("cleaning.issue_refs"),
         caption: "pointers to other issues",
       }),
     ),

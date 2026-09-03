@@ -20,7 +20,7 @@
 import { stopCard, block, prose, handover, statRow, el } from "../ui/stop-parts.js";
 import { createStatPlate, createDrawer } from "../ui/readouts.js";
 import { createSegmented } from "../ui/controls.js";
-import { factText } from "../ui/provenance.js";
+import { factEl, factText } from "../ui/provenance.js";
 import * as data from "../core/data.js";
 
 export async function mount(host, ctx) {
@@ -61,7 +61,7 @@ export async function mount(host, ctx) {
     statRow(
       createStatPlate({
         label: "all the issue text, once",
-        value: factText("corpus.text_mb"),
+        value: factEl("corpus.text_mb"),
         caption: "every title and description in the study",
       }),
       createStatPlate({

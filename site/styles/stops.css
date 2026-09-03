@@ -498,3 +498,56 @@
   padding: 1px 4px;
   border-radius: var(--r-sm);
 }
+
+/* ==========================================================================
+   STOP 6 — LINKS, NUMBERS, LEFTOVERS
+   ========================================================================== */
+
+.before-after {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--s-3);
+}
+.ba-box { display: grid; gap: var(--s-1); padding: var(--s-3) var(--s-4); }
+.ba-label {
+  font-size: var(--t-xs);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+.ba-text {
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+/* Rows lost to the length floor. */
+.drop-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s-2); }
+.drop-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-4);
+}
+.drop-n {
+  font-family: var(--f-mono);
+  font-size: var(--t-lg);
+  font-weight: 600;
+  min-width: 1.6rem;
+}
+.drop-name { font-size: var(--t-sm); color: var(--c-ink-soft); }
+
+/* The alarm. */
+.alarm-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-4);
+}
+.alarm-banner .stamp { flex: none; margin-top: 2px; }
+.alarm-text { margin: 0; font-size: var(--t-sm); max-width: var(--measure); }
+
+/* A refused file gets the same left-edge mark the archive uses for a role. */
+.dtable tbody tr[data-role="refused"] td:first-child { box-shadow: inset 3px 0 0 var(--c-ink); }
