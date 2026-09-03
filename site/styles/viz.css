@@ -170,3 +170,55 @@
 
 /* A row with a part to play in the study, marked without colour. */
 .dtable tbody tr[data-role] td:first-child { box-shadow: inset 3px 0 0 var(--c-ink); }
+
+/* --------------------------------------------------------------------------
+   DATE SPANS — ranges on a shared axis
+   -------------------------------------------------------------------------- */
+.spans { display: grid; gap: var(--s-2); }
+
+.spans-axis {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+  padding-left: 4.5rem;
+  padding-right: 6.5rem;
+}
+
+.span-row {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr 6.5rem;
+  align-items: center;
+  gap: var(--s-2);
+}
+.span-label { font-size: var(--t-sm); font-weight: 600; }
+.span-track { position: relative; height: 20px; border-radius: var(--r-sm); }
+.span-bar {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: calc(var(--from, 0) * 100%);
+  width: calc((var(--to, 1) - var(--from, 0)) * 100%);
+  min-width: 3px;
+  border-radius: 2px;
+  background: var(--c-ink);
+  opacity: .35;
+  transition: left var(--m-move) var(--ease), width var(--m-move) var(--ease);
+}
+.span-bar[data-tone="mid"] { opacity: .6; }
+.span-bar[data-tone="strong"] { opacity: 1; }
+.span-meta {
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+  text-align: right;
+  white-space: nowrap;
+}
+.spans-note { margin: 0; font-size: var(--t-sm); color: var(--c-ink-soft); }
+
+@media (max-width: 560px) {
+  .span-row { grid-template-columns: 3.4rem 1fr; }
+  .span-meta { display: none; }
+  .spans-axis { padding-right: 0; padding-left: 3.4rem; }
+}

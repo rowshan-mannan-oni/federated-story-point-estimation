@@ -52,7 +52,7 @@ export const STOPS = [
     title: "Links, numbers, leftovers",
     blurb: "The rest of the cleaning, and the alarm that refuses uncleaned data." },
 
-  { id: "splitting", area: "data", step: 11, built: false,
+  { id: "splitting", area: "data", step: 11, built: true,
     title: "Cutting the data three ways",
     blurb: "Train, check, final test — and why later issues make the honest test." },
 

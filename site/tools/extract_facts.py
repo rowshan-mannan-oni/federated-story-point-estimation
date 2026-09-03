@@ -338,6 +338,9 @@ def collect_split(data_dir: Path, results_dir: Path, config: dict, facts: Facts,
             "type": cleaned.Type, "priority": cleaned.Priority,
             "story_point": pd.to_numeric(cleaned.Story_Point),
             "client_id": path.stem, "source_file": path.name,
+            # Carried only so the split can be described by date. The split
+            # itself uses row order, exactly as the training code does.
+            "created": cleaned.Creation_Date.astype(str),
         }))
 
     data = pd.concat(frames, ignore_index=True)
@@ -401,6 +404,27 @@ def collect_split(data_dir: Path, results_dir: Path, config: dict, facts: Facts,
         ],
     }
 
+    # The same data cut the other way, so the site can show what the choice
+    # of split actually does rather than describing it.
+    other_mode = "temporal" if config.get("split_mode") == "random" else "random"
+    other = prepare_tabular_bundle(
+        pool,
+        test_size=config.get("test_size", 0.2),
+        random_state=config.get("random_state", 42),
+        split_mode=other_mode,
+        val_size=config.get("val_size", 0.1),
+    )
+    payload["modes"] = {
+        config.get("split_mode", "random"): describe_split(bundle),
+        other_mode: describe_split(other),
+    }
+    payload["mode_used"] = config.get("split_mode", "random")
+
+    facts.add("split.mode_used", config.get("split_mode", "random"),
+              source="results/config.json", kind="run",
+              text=config.get("split_mode", "random"),
+              how="how the finished run on this machine divided the data")
+
     payload["examples"] = pick_examples(bundle.train_df, np)
     payload["calibration"] = collect_calibration(bundle.train_df, facts)
 
@@ -413,6 +437,28 @@ def collect_split(data_dir: Path, results_dir: Path, config: dict, facts: Facts,
 # ---------------------------------------------------------------------------
 # 3b. Real issues to look at, and how differently projects use the scale
 # ---------------------------------------------------------------------------
+
+def describe_split(bundle):
+    """Per-project counts and date spans for each of the three piles."""
+    parts = {"train": bundle.train_df, "val": bundle.val_df, "test": bundle.test_df}
+    projects = sorted(bundle.train_df.client_id.unique())
+    rows = []
+    for name in projects:
+        entry = {"name": name}
+        for label, frame in parts.items():
+            slice_ = frame[frame.client_id == name]
+            dates = slice_["created"].dropna() if "created" in slice_ else []
+            entry[label] = {
+                "n": int(len(slice_)),
+                "first": str(min(dates))[:10] if len(dates) else None,
+                "last": str(max(dates))[:10] if len(dates) else None,
+            }
+        rows.append(entry)
+    return {
+        "totals": {label: int(len(frame)) for label, frame in parts.items()},
+        "projects": rows,
+    }
+
 
 def pick_examples(train_df, np, per_class=5, max_words=70):
     """

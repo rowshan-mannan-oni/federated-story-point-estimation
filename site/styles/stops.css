@@ -551,3 +551,44 @@
 
 /* A refused file gets the same left-edge mark the archive uses for a role. */
 .dtable tbody tr[data-role="refused"] td:first-child { box-shadow: inset 3px 0 0 var(--c-ink); }
+
+/* ==========================================================================
+   STOP 7 — CUTTING THE DATA THREE WAYS
+   ========================================================================== */
+
+.split-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.split-picker {
+  font: inherit;
+  font-size: var(--t-sm);
+  color: var(--c-ink);
+  background: var(--c-panel);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  padding: var(--s-2) var(--s-3);
+  max-width: 100%;
+}
+.split-chart { padding: var(--s-3) 0; }
+
+/* The verdict changes with the cut, so it has to be readable at a glance
+   without colour: leaky states are stated in bolder, darker type. */
+.split-verdict {
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-line);
+  background: var(--c-panel-2);
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: var(--measure);
+}
+.split-verdict[data-leak="true"] {
+  border-style: dashed;
+  border-color: var(--c-ink-soft);
+  color: var(--c-ink);
+  font-weight: 600;
+}

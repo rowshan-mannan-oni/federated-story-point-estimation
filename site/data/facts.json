@@ -1,6 +1,6 @@
 {
   "about": {
-    "generated": "2026-09-03 05:55 UTC",
+    "generated": "2026-09-03 13:15 UTC",
     "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
     "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
     "run_available": true,
@@ -550,6 +550,14 @@
       "source": "results/test_split.csv",
       "how": "compared the rebuilt test rows against the ones the run saved",
       "kind": "measured"
+    },
+    "split.mode_used": {
+      "value": "random",
+      "text": "random",
+      "unit": null,
+      "source": "results/config.json",
+      "how": "how the finished run on this machine divided the data",
+      "kind": "run"
     },
     "calibration.lowest_project": {
       "value": "The_MongoDB_Engineering",
