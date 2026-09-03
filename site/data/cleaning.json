@@ -1,0 +1,321 @@
+{
+  "about": {
+    "generated": "2026-09-03 05:34 UTC",
+    "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
+    "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
+    "run_available": true,
+    "data_available": true,
+    "notes": [
+      "19 of 19 CSVs here are the RAW export, which the training pipeline correctly refuses."
+    ]
+  },
+  "available": true,
+  "showcase": [
+    {
+      "raw": "\"Per comments on this review: https://reviews.apache.org/r/21750/  We've had numerous bugs around resource accounting in the master due to the trickiness of removing offers in the Master code.  There are a few ways to improve this:  1. Add multiple offer methods to differentiate semantics: {code} useOffer(offerId); rescindOffer(offerId); discardOffer(offerId); {code}  2. Add an enum to removeOffer to differentiate removal semantics: {code} removeOffer(offerId, USE); removeOffer(offerId, RESCIND); removeOffer(offerId, DISCARD); {code}\"",
+      "project": "Apache_Mesos",
+      "rules": [
+        "code",
+        "orphan",
+        "url"
+      ],
+      "stages": [
+        {
+          "id": "unwrap",
+          "what": "Strip the export's wrapping quotes",
+          "text": "Per comments on this review: https://reviews.apache.org/r/21750/  We've had numerous bugs around resource accounting in the master due to the trickiness of removing offers in the Master code.  There are a few ways to improve this:  1. Add multiple offer methods to differentiate semantics: {code} useOffer(offerId); rescindOffer(offerId); discardOffer(offerId); {code}  2. Add an enum to removeOffer to differentiate removal semantics: {code} removeOffer(offerId, USE); removeOffer(offerId, RESCIND); removeOffer(offerId, DISCARD); {code}"
+        },
+        {
+          "id": "entities",
+          "what": "Turn &amp;lt; and friends back into characters",
+          "text": "Per comments on this review: https://reviews.apache.org/r/21750/  We've had numerous bugs around resource accounting in the master due to the trickiness of removing offers in the Master code.  There are a few ways to improve this:  1. Add multiple offer methods to differentiate semantics: {code} useOffer(offerId); rescindOffer(offerId); discardOffer(offerId); {code}  2. Add an enum to removeOffer to differentiate removal semantics: {code} removeOffer(offerId, USE); removeOffer(offerId, RESCIND); removeOffer(offerId, DISCARD); {code}"
+        },
+        {
+          "id": "html",
+          "what": "Remove HTML tags",
+          "text": "Per comments on this review: https://reviews.apache.org/r/21750/  We've had numerous bugs around resource accounting in the master due to the trickiness of removing offers in the Master code.  There are a few ways to improve this:  1. Add multiple offer methods to differentiate semantics: {code} useOffer(offerId); rescindOffer(offerId); discardOffer(offerId); {code}  2. Add an enum to removeOffer to differentiate removal semantics: {code} removeOffer(offerId, USE); removeOffer(offerId, RESCIND); removeOffer(offerId, DISCARD); {code}"
+        },
+        {
+          "id": "code",
+          "what": "Replace pasted code blocks with one marker",
+          "text": "Per comments on this review: https://reviews.apache.org/r/21750/  We've had numerous bugs around resource accounting in the master due to the trickiness of removing offers in the Master code.  There are a few ways to improve this:  1. Add multiple offer methods to differentiate semantics:  [CODE]   2. Add an enum to removeOffer to differentiate removal semantics:  [CODE] "
+        },
+        {
+          "id": "macros",
+          "what": "Strip known Jira macros, leaving their contents",
+          "text": "Per comments on this review: https://reviews.apache.org/r/21750/  We've had numerous bugs around resource accounting in the master due to the trickiness of removing offers in the Master code.  There are a few ways to improve this:  1. Add multiple offer methods to differentiate semantics:  [CODE]   2. Add an enum to removeOffer to differentiate removal semantics:  [CODE] "
+        },
+        {
+          "id": "headings",
+          "what": "Remove wiki heading markers, keep the words",
+          "text": "Per comments on this review: https://reviews.apache.org/r/21750/  We've had numerous bugs around resource accounting in the master due to the trickiness of removing offers in the Master code.  There are a few ways to improve this:  1. Add multiple offer methods to differentiate semantics:  [CODE]   2. Add an enum to removeOffer to differentiate removal semantics:  [CODE] "
+        },
+        {
+          "id": "bullets",
+          "what": "Remove list markers at the start of lines",
+          "text": "Per comments on this review: https://reviews.apache.org/r/21750/  We've had numerous bugs around resource accounting in the master due to the trickiness of removing offers in the Master code.  There are a few ways to improve this:  1. Add multiple offer methods to differentiate semantics:  [CODE]   2. Add an enum to removeOffer to differentiate removal semantics:  [CODE] "
+        },
+        {
+          "id": "bold",
+          "what": "Unwrap *bold*, leave _italics_ alone",
+          "text": "Per comments on this review: https://reviews.apache.org/r/21750/  We've had numerous bugs around resource accounting in the master due to the trickiness of removing offers in the Master code.  There are a few ways to improve this:  1. Add multiple offer methods to differentiate semantics:  [CODE]   2. Add an enum to removeOffer to differentiate removal semantics:  [CODE] "
+        },
+        {
+          "id": "tables",
+          "what": "Remove table markers",
+          "text": "Per comments on this review: https://reviews.apache.org/r/21750/  We've had numerous bugs around resource accounting in the master due to the trickiness of removing offers in the Master code.  There are a few ways to improve this:  1. Add multiple offer methods to differentiate semantics:  [CODE]   2. Add an enum to removeOffer to differentiate removal semantics:  [CODE] "
+        },
+        {
+          "id": "urls",
+          "what": "Replace web links with one marker",
+          "text": "Per comments on this review: [URL]  We've had numerous bugs around resource accounting in the master due to the trickiness of removing offers in the Master code.  There are a few ways to improve this:  1. Add multiple offer methods to differentiate semantics:  [CODE]   2. Add an enum to removeOffer to differentiate removal semantics:  [CODE] "
+        },
+        {
+          "id": "refs",
+          "what": "Replace references to other tickets with one marker",
+          "text": "Per comments on this review: [URL]  We've had numerous bugs around resource accounting in the master due to the trickiness of removing offers in the Master code.  There are a few ways to improve this:  1. Add multiple offer methods to differentiate semantics:  [CODE]   2. Add an enum to removeOffer to differentiate removal semantics:  [CODE] "
+        },
+        {
+          "id": "space",
+          "what": "Collapse newlines, tabs and runs of spaces",
+          "text": "Per comments on this review: [URL] We've had numerous bugs around resource accounting in the master due to the trickiness of removing offers in the Master code. There are a few ways to improve this: 1. Add multiple offer methods to differentiate semantics: [CODE] 2. Add an enum to removeOffer to differentiate removal semantics: [CODE]"
+        }
+      ]
+    },
+    {
+      "raw": "\"As of right now different pages in our documentation use quite different styles. Consider for example the different emphasis for NOTE: * {noformat}> NOTE: http://mesos.apache.org/documentation/latest/slave-recovery/{noformat} *  {noformat}*NOTE*: http://mesos.apache.org/documentation/latest/upgrades/ {noformat}   Would be great to establish a common style for the documentation!\"",
+      "project": "Apache_Mesos",
+      "rules": [
+        "bold",
+        "noformat",
+        "url"
+      ],
+      "stages": [
+        {
+          "id": "unwrap",
+          "what": "Strip the export's wrapping quotes",
+          "text": "As of right now different pages in our documentation use quite different styles. Consider for example the different emphasis for NOTE: * {noformat}> NOTE: http://mesos.apache.org/documentation/latest/slave-recovery/{noformat} *  {noformat}*NOTE*: http://mesos.apache.org/documentation/latest/upgrades/ {noformat}   Would be great to establish a common style for the documentation!"
+        },
+        {
+          "id": "entities",
+          "what": "Turn &amp;lt; and friends back into characters",
+          "text": "As of right now different pages in our documentation use quite different styles. Consider for example the different emphasis for NOTE: * {noformat}> NOTE: http://mesos.apache.org/documentation/latest/slave-recovery/{noformat} *  {noformat}*NOTE*: http://mesos.apache.org/documentation/latest/upgrades/ {noformat}   Would be great to establish a common style for the documentation!"
+        },
+        {
+          "id": "html",
+          "what": "Remove HTML tags",
+          "text": "As of right now different pages in our documentation use quite different styles. Consider for example the different emphasis for NOTE: * {noformat}> NOTE: http://mesos.apache.org/documentation/latest/slave-recovery/{noformat} *  {noformat}*NOTE*: http://mesos.apache.org/documentation/latest/upgrades/ {noformat}   Would be great to establish a common style for the documentation!"
+        },
+        {
+          "id": "code",
+          "what": "Replace pasted code blocks with one marker",
+          "text": "As of right now different pages in our documentation use quite different styles. Consider for example the different emphasis for NOTE: *  [CODE]  *   [CODE]    Would be great to establish a common style for the documentation!"
+        },
+        {
+          "id": "macros",
+          "what": "Strip known Jira macros, leaving their contents",
+          "text": "As of right now different pages in our documentation use quite different styles. Consider for example the different emphasis for NOTE: *  [CODE]  *   [CODE]    Would be great to establish a common style for the documentation!"
+        },
+        {
+          "id": "headings",
+          "what": "Remove wiki heading markers, keep the words",
+          "text": "As of right now different pages in our documentation use quite different styles. Consider for example the different emphasis for NOTE: *  [CODE]  *   [CODE]    Would be great to establish a common style for the documentation!"
+        },
+        {
+          "id": "bullets",
+          "what": "Remove list markers at the start of lines",
+          "text": "As of right now different pages in our documentation use quite different styles. Consider for example the different emphasis for NOTE: *  [CODE]  *   [CODE]    Would be great to establish a common style for the documentation!"
+        },
+        {
+          "id": "bold",
+          "what": "Unwrap *bold*, leave _italics_ alone",
+          "text": "As of right now different pages in our documentation use quite different styles. Consider for example the different emphasis for NOTE:   [CODE]     [CODE]    Would be great to establish a common style for the documentation!"
+        },
+        {
+          "id": "tables",
+          "what": "Remove table markers",
+          "text": "As of right now different pages in our documentation use quite different styles. Consider for example the different emphasis for NOTE:   [CODE]     [CODE]    Would be great to establish a common style for the documentation!"
+        },
+        {
+          "id": "urls",
+          "what": "Replace web links with one marker",
+          "text": "As of right now different pages in our documentation use quite different styles. Consider for example the different emphasis for NOTE:   [CODE]     [CODE]    Would be great to establish a common style for the documentation!"
+        },
+        {
+          "id": "refs",
+          "what": "Replace references to other tickets with one marker",
+          "text": "As of right now different pages in our documentation use quite different styles. Consider for example the different emphasis for NOTE:   [CODE]     [CODE]    Would be great to establish a common style for the documentation!"
+        },
+        {
+          "id": "space",
+          "what": "Collapse newlines, tabs and runs of spaces",
+          "text": "As of right now different pages in our documentation use quite different styles. Consider for example the different emphasis for NOTE: [CODE] [CODE] Would be great to establish a common style for the documentation!"
+        }
+      ]
+    },
+    {
+      "raw": "\"Master::subscribe() incorrectly handles re-registration. It handles it as a registration request (not \"\"re-registration\"\") because of a bug in the if loop (should have been !frameworkInfo.has_id()).  {code} void Master::subscribe(     const UPID& from,     const scheduler::Call::Subscribe& subscribe) {   const FrameworkInfo& frameworkInfo = subscribe.framework_info();    // TODO(vinod): Instead of calling '(re-)registerFramework()' from   // here refactor those methods to call 'subscribe()'.   if (frameworkInfo.has_id() || frameworkInfo.id() == \"\"\"\") {     registerFramework(from, frameworkInfo);   } else {     reregisterFramework(from, frameworkInfo, subscribe.force());   } }  {code}\"",
+      "project": "Apache_Mesos",
+      "rules": [
+        "code",
+        "orphan",
+        "table"
+      ],
+      "stages": [
+        {
+          "id": "unwrap",
+          "what": "Strip the export's wrapping quotes",
+          "text": "Master::subscribe() incorrectly handles re-registration. It handles it as a registration request (not \"re-registration\") because of a bug in the if loop (should have been !frameworkInfo.has_id()).  {code} void Master::subscribe(     const UPID& from,     const scheduler::Call::Subscribe& subscribe) {   const FrameworkInfo& frameworkInfo = subscribe.framework_info();    // TODO(vinod): Instead of calling '(re-)registerFramework()' from   // here refactor those methods to call 'subscribe()'.   if (frameworkInfo.has_id() || frameworkInfo.id() == \"\") {     registerFramework(from, frameworkInfo);   } else {     reregisterFramework(from, frameworkInfo, subscribe.force());   } }  {code}"
+        },
+        {
+          "id": "entities",
+          "what": "Turn &amp;lt; and friends back into characters",
+          "text": "Master::subscribe() incorrectly handles re-registration. It handles it as a registration request (not \"re-registration\") because of a bug in the if loop (should have been !frameworkInfo.has_id()).  {code} void Master::subscribe(     const UPID& from,     const scheduler::Call::Subscribe& subscribe) {   const FrameworkInfo& frameworkInfo = subscribe.framework_info();    // TODO(vinod): Instead of calling '(re-)registerFramework()' from   // here refactor those methods to call 'subscribe()'.   if (frameworkInfo.has_id() || frameworkInfo.id() == \"\") {     registerFramework(from, frameworkInfo);   } else {     reregisterFramework(from, frameworkInfo, subscribe.force());   } }  {code}"
+        },
+        {
+          "id": "html",
+          "what": "Remove HTML tags",
+          "text": "Master::subscribe() incorrectly handles re-registration. It handles it as a registration request (not \"re-registration\") because of a bug in the if loop (should have been !frameworkInfo.has_id()).  {code} void Master::subscribe(     const UPID& from,     const scheduler::Call::Subscribe& subscribe) {   const FrameworkInfo& frameworkInfo = subscribe.framework_info();    // TODO(vinod): Instead of calling '(re-)registerFramework()' from   // here refactor those methods to call 'subscribe()'.   if (frameworkInfo.has_id() || frameworkInfo.id() == \"\") {     registerFramework(from, frameworkInfo);   } else {     reregisterFramework(from, frameworkInfo, subscribe.force());   } }  {code}"
+        },
+        {
+          "id": "code",
+          "what": "Replace pasted code blocks with one marker",
+          "text": "Master::subscribe() incorrectly handles re-registration. It handles it as a registration request (not \"re-registration\") because of a bug in the if loop (should have been !frameworkInfo.has_id()).   [CODE] "
+        },
+        {
+          "id": "macros",
+          "what": "Strip known Jira macros, leaving their contents",
+          "text": "Master::subscribe() incorrectly handles re-registration. It handles it as a registration request (not \"re-registration\") because of a bug in the if loop (should have been !frameworkInfo.has_id()).   [CODE] "
+        },
+        {
+          "id": "headings",
+          "what": "Remove wiki heading markers, keep the words",
+          "text": "Master::subscribe() incorrectly handles re-registration. It handles it as a registration request (not \"re-registration\") because of a bug in the if loop (should have been !frameworkInfo.has_id()).   [CODE] "
+        },
+        {
+          "id": "bullets",
+          "what": "Remove list markers at the start of lines",
+          "text": "Master::subscribe() incorrectly handles re-registration. It handles it as a registration request (not \"re-registration\") because of a bug in the if loop (should have been !frameworkInfo.has_id()).   [CODE] "
+        },
+        {
+          "id": "bold",
+          "what": "Unwrap *bold*, leave _italics_ alone",
+          "text": "Master::subscribe() incorrectly handles re-registration. It handles it as a registration request (not \"re-registration\") because of a bug in the if loop (should have been !frameworkInfo.has_id()).   [CODE] "
+        },
+        {
+          "id": "tables",
+          "what": "Remove table markers",
+          "text": "Master::subscribe() incorrectly handles re-registration. It handles it as a registration request (not \"re-registration\") because of a bug in the if loop (should have been !frameworkInfo.has_id()).   [CODE] "
+        },
+        {
+          "id": "urls",
+          "what": "Replace web links with one marker",
+          "text": "Master::subscribe() incorrectly handles re-registration. It handles it as a registration request (not \"re-registration\") because of a bug in the if loop (should have been !frameworkInfo.has_id()).   [CODE] "
+        },
+        {
+          "id": "refs",
+          "what": "Replace references to other tickets with one marker",
+          "text": "Master::subscribe() incorrectly handles re-registration. It handles it as a registration request (not \"re-registration\") because of a bug in the if loop (should have been !frameworkInfo.has_id()).   [CODE] "
+        },
+        {
+          "id": "space",
+          "what": "Collapse newlines, tabs and runs of spaces",
+          "text": "Master::subscribe() incorrectly handles re-registration. It handles it as a registration request (not \"re-registration\") because of a bug in the if loop (should have been !frameworkInfo.has_id()). [CODE]"
+        }
+      ]
+    }
+  ],
+  "rule_hits": {
+    "code": {
+      "rows": 4822,
+      "pct": 12.8
+    },
+    "orphan": {
+      "rows": 4833,
+      "pct": 12.9
+    },
+    "noformat": {
+      "rows": 1278,
+      "pct": 3.4
+    },
+    "macro": {
+      "rows": 767,
+      "pct": 2.0
+    },
+    "heading": {
+      "rows": 2285,
+      "pct": 6.1
+    },
+    "bullet": {
+      "rows": 0,
+      "pct": 0.0
+    },
+    "bold": {
+      "rows": 5685,
+      "pct": 15.1
+    },
+    "table": {
+      "rows": 153,
+      "pct": 0.4
+    },
+    "url": {
+      "rows": 7625,
+      "pct": 20.3
+    },
+    "ref": {
+      "rows": 4992,
+      "pct": 13.3
+    }
+  },
+  "rows_examined": 37592,
+  "stage_names": [
+    {
+      "id": "unwrap",
+      "what": "Strip the export's wrapping quotes"
+    },
+    {
+      "id": "entities",
+      "what": "Turn &amp;lt; and friends back into characters"
+    },
+    {
+      "id": "html",
+      "what": "Remove HTML tags"
+    },
+    {
+      "id": "code",
+      "what": "Replace pasted code blocks with one marker"
+    },
+    {
+      "id": "macros",
+      "what": "Strip known Jira macros, leaving their contents"
+    },
+    {
+      "id": "headings",
+      "what": "Remove wiki heading markers, keep the words"
+    },
+    {
+      "id": "bullets",
+      "what": "Remove list markers at the start of lines"
+    },
+    {
+      "id": "bold",
+      "what": "Unwrap *bold*, leave _italics_ alone"
+    },
+    {
+      "id": "tables",
+      "what": "Remove table markers"
+    },
+    {
+      "id": "urls",
+      "what": "Replace web links with one marker"
+    },
+    {
+      "id": "refs",
+      "what": "Replace references to other tickets with one marker"
+    },
+    {
+      "id": "space",
+      "what": "Collapse newlines, tabs and runs of spaces"
+    }
+  ]
+}

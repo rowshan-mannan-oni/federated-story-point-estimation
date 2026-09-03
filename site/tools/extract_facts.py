@@ -516,6 +516,180 @@ def collect_calibration(train_df, facts):
 
 
 # ---------------------------------------------------------------------------
+# 3c. Cleaning, stage by stage, plus proof the website's copy of it is right
+# ---------------------------------------------------------------------------
+
+def stage_trace(raw):
+    """
+    Run the cleaning one stage at a time, so the site can show the text
+    changing rather than just asserting that it does.
+
+    This mirrors export_issues.clean_text_field step for step. It is checked
+    against the real function below on every single example, so the two cannot
+    drift apart without the extraction failing loudly.
+    """
+    import html as html_mod
+    import export_issues as ex
+
+    stages = []
+    text = ex.decode_export_quoting(raw)
+    stages.append(("unwrap", "Strip the export's wrapping quotes", text))
+
+    text = html_mod.unescape(text)
+    stages.append(("entities", "Turn &amp;lt; and friends back into characters", text))
+
+    text = ex.RE_HTML_TAG.sub(" ", text)
+    stages.append(("html", "Remove HTML tags", text))
+
+    text = ex.RE_CODE_BLOCK.sub(" [CODE] ", text)
+    text = ex.RE_NOFORMAT_BLOCK.sub(" [CODE] ", text)
+    text = ex.RE_CODE_ORPHAN.sub(" [CODE] ", text)
+    text = ex.RE_NOFORMAT_ORPHAN.sub(" [CODE] ", text)
+    stages.append(("code", "Replace pasted code blocks with one marker", text))
+
+    text = ex.RE_JIRA_MACRO.sub(" ", text)
+    stages.append(("macros", "Strip known Jira macros, leaving their contents", text))
+
+    text = ex.RE_WIKI_HEADING.sub("", text)
+    stages.append(("headings", "Remove wiki heading markers, keep the words", text))
+
+    text = ex.RE_BULLET.sub(" ", text)
+    stages.append(("bullets", "Remove list markers at the start of lines", text))
+
+    text = ex.RE_BOLD.sub(r"\1", text)
+    stages.append(("bold", "Unwrap *bold*, leave _italics_ alone", text))
+
+    text = ex.RE_TABLE_HEADER.sub(" ", text)
+    stages.append(("tables", "Remove table markers", text))
+
+    text = ex.RE_URL.sub("[URL]", text)
+    stages.append(("urls", "Replace web links with one marker", text))
+
+    text = ex.RE_ISSUE_KEY.sub("[ISSUE_REF]", text)
+    stages.append(("refs", "Replace references to other tickets with one marker", text))
+
+    text = ex.RE_WS.sub(" ", text)
+    text = ex.RE_MULTISPACE.sub(" ", text)
+    text = text.strip()
+    stages.append(("space", "Collapse newlines, tabs and runs of spaces", text))
+
+    return stages
+
+
+def collect_cleaning(data_dir: Path, facts: Facts) -> dict:
+    """
+    Examples of the cleaning at work, and the vectors the site is tested with.
+
+    The website re-implements these rules in JavaScript so a reader can paste
+    their own text in. That copy is only trustworthy if it agrees with the real
+    Python, so this writes out several hundred raw/cleaned pairs taken from the
+    actual corpus, and the site's test suite checks its copy against every one.
+    """
+    import pandas as pd
+    from collections import Counter
+    import export_issues as ex
+
+    csvs = sorted(data_dir.glob("*.csv"))
+    if not csvs:
+        return {"available": False}
+
+    interesting = {
+        "code": ex.RE_CODE_BLOCK, "orphan": ex.RE_CODE_ORPHAN,
+        "noformat": ex.RE_NOFORMAT_BLOCK, "macro": ex.RE_JIRA_MACRO,
+        "heading": ex.RE_WIKI_HEADING, "bullet": ex.RE_BULLET,
+        "bold": ex.RE_BOLD, "table": ex.RE_TABLE_HEADER,
+        "url": ex.RE_URL, "ref": ex.RE_ISSUE_KEY,
+    }
+    wanted = Counter()
+    vectors = []
+    showcase = []
+    mismatches = 0
+
+    print("  gathering cleaning examples ...")
+    for path in csvs:
+        frame = pd.read_csv(path, encoding="utf-8-sig")
+        for column in ("Title", "Description"):
+            for raw in frame[column].dropna().astype(str):
+                if len(vectors) >= 600:
+                    break
+                hits = [name for name, rx in interesting.items() if rx.search(raw)]
+                entity = "&" in raw
+                # Keep anything that exercises a rule we have not covered much
+                # yet, plus a steady trickle of ordinary text.
+                useful = any(wanted[h] < 40 for h in hits) or (entity and wanted["entity"] < 30)
+                if not useful and wanted["plain"] >= 60:
+                    continue
+                for h in hits:
+                    wanted[h] += 1
+                if entity:
+                    wanted["entity"] += 1
+                if not hits:
+                    wanted["plain"] += 1
+
+                counters: Counter = Counter()
+                cleaned = ex.clean_text_field(ex.decode_export_quoting(raw), counters)
+                traced = stage_trace(raw)
+                if traced[-1][2] != cleaned:
+                    mismatches += 1
+                vectors.append({"raw": raw, "clean": cleaned})
+
+                rare = {"bold", "heading", "table", "macro", "noformat"}
+                if (len(showcase) < 3 and 200 < len(raw) < 900
+                        and len(hits) >= 3 and (rare & set(hits) or len(showcase) == 0)):
+                    showcase.append({
+                        "raw": raw,
+                        "project": path.stem,
+                        "rules": sorted(hits),
+                        "stages": [{"id": i, "what": w, "text": t} for i, w, t in traced],
+                    })
+        if len(vectors) >= 600:
+            break
+
+    # Which rules actually fire on this export? Two of them turn out never to,
+    # because whatever produced these CSVs already flattened every newline.
+    hits = Counter()
+    rows = 0
+    for path in csvs:
+        frame = pd.read_csv(path, encoding="utf-8-sig")
+        for raw in frame["Description"].dropna().astype(str):
+            rows += 1
+            if "\n" in raw or "\r" in raw:
+                hits["newline"] += 1
+            for name, rx in interesting.items():
+                if rx.search(raw):
+                    hits[name] += 1
+
+    facts.add("cleaning.newline_share",
+              round(100 * hits["newline"] / max(rows, 1), 1),
+              source="data_to_train_on/*.csv", unit="%",
+              how="share of descriptions containing a line break at all",
+              text=f"{100 * hits['newline'] / max(rows, 1):.1f}%")
+    facts.add("cleaning.bullet_hits", hits["bullet"], source="data_to_train_on/*.csv",
+              how="descriptions where the list-marker rule finds anything to remove")
+
+    rule_hits = {name: {"rows": hits[name],
+                        "pct": round(100 * hits[name] / max(rows, 1), 1)}
+                 for name in interesting}
+
+    if mismatches:
+        raise RuntimeError(
+            f"stage_trace disagrees with clean_text_field on {mismatches} examples — "
+            "the site would show a pipeline the code does not run")
+
+    facts.add("cleaning.vectors", len(vectors), source="data_to_train_on/*.csv",
+              how="raw/cleaned pairs the website's copy of the cleaner is tested against")
+
+    return {
+        "available": True,
+        "vectors": vectors,
+        "showcase": showcase,
+        "rule_hits": rule_hits,
+        "rows_examined": rows,
+        "stage_names": [{"id": i, "what": w} for i, w, _ in stage_trace("x")],
+    }
+
+
+# ---------------------------------------------------------------------------
 # 4. The simple comparators, and the score that lies
 # ---------------------------------------------------------------------------
 
@@ -818,6 +992,7 @@ def main() -> int:
     split = (collect_split(data_dir, results_dir, config, facts, not args.skip_baselines)
              if data_dir.exists() else {"available": False})
     params = collect_params(results_dir, config, facts) if results_dir.exists() else {"available": False}
+    cleaning = collect_cleaning(data_dir, facts) if data_dir.exists() else {"available": False}
 
     if not dataset.get("available"):
         facts.note("The issue CSVs are not on this machine, so the data stops "
@@ -849,6 +1024,13 @@ def main() -> int:
     write_json(out_dir / "params.json", {"about": stamp, **params})
     write_json(out_dir / "examples.json",
                {"about": stamp, "issues": split.get("examples", [])})
+    # The verification vectors are for the test suite, not for readers: they
+    # are megabytes of raw issue text and no page ever displays them. Split so
+    # the cleaning stop stays a light page load.
+    vectors = cleaning.pop("vectors", [])
+    write_json(out_dir / "cleaning.json", {"about": stamp, **cleaning})
+    write_json(out_dir / "cleaning-vectors.json",
+               {"about": stamp, "vectors": vectors})
     write_json(out_dir / "calibration.json",
                {"about": stamp, **(split.get("calibration") or {})})
 

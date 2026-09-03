@@ -89,3 +89,4 @@ export const params      = () => loadJson("params");
 export const glossary    = () => loadJson("glossary");
 export const examples    = () => loadJson("examples");
 export const calibration = () => loadJson("calibration");
+export const cleaning    = () => loadJson("cleaning");

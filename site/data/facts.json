@@ -1,6 +1,6 @@
 {
   "about": {
-    "generated": "2026-08-30 06:29 UTC",
+    "generated": "2026-09-03 05:34 UTC",
     "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
     "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
     "run_available": true,
@@ -806,6 +806,30 @@
       "source": "arithmetic from results/config.json",
       "how": "counted from the model's shape",
       "kind": "derived"
+    },
+    "cleaning.newline_share": {
+      "value": 0.0,
+      "text": "0.0%",
+      "unit": "%",
+      "source": "data_to_train_on/*.csv",
+      "how": "share of descriptions containing a line break at all",
+      "kind": "measured"
+    },
+    "cleaning.bullet_hits": {
+      "value": 0,
+      "text": "0",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "descriptions where the list-marker rule finds anything to remove",
+      "kind": "measured"
+    },
+    "cleaning.vectors": {
+      "value": 318,
+      "text": "318",
+      "unit": null,
+      "source": "data_to_train_on/*.csv",
+      "how": "raw/cleaned pairs the website's copy of the cleaner is tested against",
+      "kind": "measured"
     }
   }
 }

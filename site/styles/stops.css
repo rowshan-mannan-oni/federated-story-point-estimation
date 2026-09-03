@@ -395,3 +395,106 @@
   color: var(--c-ink-soft);
   max-width: var(--measure);
 }
+
+/* ==========================================================================
+   STOP 5 — THE CLEANING BENCH
+   ========================================================================== */
+
+.bench-controls { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.bench-input {
+  width: 100%;
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  line-height: 1.6;
+  color: var(--c-ink);
+  padding: var(--s-3);
+  resize: vertical;
+  min-height: 7rem;
+}
+
+.bench-counters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--s-2);
+}
+.bench-counter {
+  display: grid;
+  gap: 1px;
+  padding: var(--s-2) var(--s-3);
+  text-align: center;
+}
+.bench-counter strong {
+  font-size: var(--t-lg);
+  font-variant-numeric: tabular-nums;
+}
+.bench-counter span { font-size: var(--t-xs); color: var(--c-ink-faint); }
+
+/* The pipeline, one rule per row. Stages that did nothing recede, so the eye
+   lands on the rules that actually fired for this particular text. */
+.stage-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--s-1);
+  counter-reset: stage;
+}
+.stage {
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  border-left: 2px solid transparent;
+}
+.stage[data-changed="true"] {
+  background: var(--c-panel-2);
+  border-left-color: var(--c-ink);
+}
+.stage-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.stage-n {
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+}
+.stage-what { font-size: var(--t-sm); }
+.stage[data-changed="true"] .stage-what { font-weight: 600; }
+.stage-flag {
+  margin-left: auto;
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+  letter-spacing: .06em;
+}
+.stage[data-changed="true"] .stage-flag { color: var(--c-ink); }
+.stage-text {
+  margin: var(--s-1) 0 0;
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  line-height: 1.6;
+  color: var(--c-ink-soft);
+  word-break: break-word;
+  max-height: 6rem;
+  overflow-y: auto;
+}
+.stage[data-changed="true"] .stage-text { color: var(--c-ink); }
+
+/* What we deliberately do not do. */
+.restraint-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s-2); }
+.restraint { display: grid; gap: 2px; padding: var(--s-3) var(--s-4); }
+.restraint-title { font-size: var(--t-sm); font-weight: 600; }
+.restraint-body {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: var(--measure);
+}
+.restraint-body code, .stop-block code {
+  font-family: var(--f-mono);
+  font-size: .92em;
+  background: var(--c-recess);
+  padding: 1px 4px;
+  border-radius: var(--r-sm);
+}

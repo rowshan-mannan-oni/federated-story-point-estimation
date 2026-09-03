@@ -44,7 +44,7 @@ export const STOPS = [
     title: "The archive",
     blurb: "Nineteen projects, 42,002 issues, and the odd corners in them." },
 
-  { id: "cleaning-bench", area: "data", step: 9, built: false,
+  { id: "cleaning-bench", area: "data", step: 9, built: true,
     title: "The cleaning bench",
     blurb: "Turning messy tracker text into something a model can actually read." },
 
