@@ -425,6 +425,7 @@ def collect_split(data_dir: Path, results_dir: Path, config: dict, facts: Facts,
               text=config.get("split_mode", "random"),
               how="how the finished run on this machine divided the data")
 
+    payload["lengths"] = collect_lengths(bundle, facts, np)
     payload["examples"] = pick_examples(bundle.train_df, np)
     payload["calibration"] = collect_calibration(bundle.train_df, facts)
 
@@ -437,6 +438,66 @@ def collect_split(data_dir: Path, results_dir: Path, config: dict, facts: Facts,
 # ---------------------------------------------------------------------------
 # 3b. Real issues to look at, and how differently projects use the scale
 # ---------------------------------------------------------------------------
+
+def collect_lengths(bundle, facts, np) -> dict:
+    """
+    How long the issues are, and whether length carries any signal.
+
+    CLAUDE.md suspects that the issues cut short by the input limit are
+    disproportionately the big ones -- which would make truncation worse than
+    a neutral loss. That is checkable, so it gets checked here rather than
+    left as a suspicion.
+    """
+    frame = bundle.train_df.copy()
+    frame["words"] = frame["text"].str.split().str.len()
+
+    edges = [0, 16, 32, 64, 128, 192, 256, 384, 512, 100000]
+    labels = ["<16", "16-31", "32-63", "64-127", "128-191",
+              "192-255", "256-383", "384-511", "512+"]
+    buckets = []
+    for i, label in enumerate(labels):
+        lo, hi = edges[i], edges[i + 1]
+        chunk = frame[(frame.words >= lo) & (frame.words < hi)]
+        if not len(chunk):
+            buckets.append({"label": label, "n": 0, "mean_sp": None, "counts": {}})
+            continue
+        buckets.append({
+            "label": label,
+            "n": int(len(chunk)),
+            "mean_sp": round(float(chunk.story_point.mean()), 2),
+            "counts": {str(k): int(v) for k, v in
+                       chunk.story_point.value_counts().sort_index().items()},
+        })
+
+    src = "the training split, cleaned title + description"
+    long_cut = 256
+    long_ones = frame[frame.words > long_cut]
+    short_ones = frame[frame.words <= long_cut]
+    mean_long = float(long_ones.story_point.mean()) if len(long_ones) else 0.0
+    mean_short = float(short_ones.story_point.mean()) if len(short_ones) else 0.0
+
+    facts.add("length.mean_sp_long", round(mean_long, 2), source=src,
+              how=f"average story point of issues longer than {long_cut} words",
+              text=f"{mean_long:.2f}")
+    facts.add("length.mean_sp_short", round(mean_short, 2), source=src,
+              how=f"average story point of issues of {long_cut} words or fewer",
+              text=f"{mean_short:.2f}")
+    facts.add("length.long_issues", int(len(long_ones)), source=src,
+              how=f"training issues longer than {long_cut} words")
+
+    # Does length actually track effort, or does it only look like it?
+    correlation = float(np.corrcoef(frame.words, frame.story_point)[0, 1])
+    facts.add("length.correlation", round(correlation, 3), source=src, kind="derived",
+              how="correlation between how long an issue is and its story point",
+              text=f"{correlation:+.3f}")
+
+    return {
+        "available": True,
+        "buckets": buckets,
+        "cut": long_cut,
+        "total": int(len(frame)),
+    }
+
 
 def describe_split(bundle):
     """Per-project counts and date spans for each of the three piles."""

@@ -57,7 +57,7 @@ export const STOPS = [
     blurb: "Train, check, final test — and why later issues make the honest test." },
 
   /* ---- turning text into a guess -------------------------------------- */
-  { id: "reading-machine", area: "guess", step: 12, built: false,
+  { id: "reading-machine", area: "guess", step: 12, built: true,
     title: "The reading machine",
     blurb: "How a sentence becomes numbers, and what gets cut off when it runs long." },
 

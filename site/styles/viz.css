@@ -222,3 +222,69 @@
   .span-meta { display: none; }
   .spans-axis { padding-right: 0; padding-left: 3.4rem; }
 }
+
+/* --------------------------------------------------------------------------
+   HISTOGRAM
+   -------------------------------------------------------------------------- */
+.hist { margin: 0; display: grid; gap: var(--s-3); }
+.hist-plot {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--s-2);
+  align-items: end;
+  min-height: 11rem;
+}
+.hist-col {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  gap: var(--s-1);
+  align-items: end;
+  justify-items: center;
+  min-width: 0;
+}
+.hist-value {
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  color: var(--c-ink-soft);
+}
+.hist-stem {
+  width: 100%;
+  height: 7rem;
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--c-line-strong);
+}
+.hist-fill {
+  width: 100%;
+  height: calc(var(--h, 0) * 100%);
+  min-height: 2px;
+  background: var(--c-ink);
+  opacity: .55;
+  border-radius: 2px 2px 0 0;
+  transition: height var(--m-move) var(--ease);
+}
+/* Bars past the model's limit are outlined rather than filled, so "beyond the
+   cut" reads without colour. */
+.hist-col[data-mark="true"] .hist-fill {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--c-ink);
+  opacity: .75;
+}
+.hist-label {
+  font-family: var(--f-mono);
+  font-size: .64rem;
+  color: var(--c-ink-faint);
+  white-space: nowrap;
+}
+.hist-note {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hist-caption {
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+  max-width: var(--measure);
+}

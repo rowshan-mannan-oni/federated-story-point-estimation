@@ -592,3 +592,76 @@
   color: var(--c-ink);
   font-weight: 600;
 }
+
+/* ==========================================================================
+   STOP 8 — THE READING MACHINE
+   ========================================================================== */
+
+.chain {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--s-3);
+  counter-reset: chain;
+}
+.chain-step {
+  counter-increment: chain;
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-left: 2px solid var(--c-line-strong);
+  background: var(--c-panel-2);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+}
+.chain-title {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+.chain-title::before {
+  content: counter(chain);
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+}
+.chain-body { font-size: var(--t-sm); color: var(--c-ink-soft); max-width: var(--measure); }
+.chain-body .stamp-banner { margin-top: var(--s-2); }
+.chain-text {
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  line-height: 1.6;
+  color: var(--c-ink);
+  word-break: break-word;
+}
+
+/* The illustrative token split. */
+.token-row { display: flex; flex-wrap: wrap; gap: 3px; }
+.token {
+  font-family: var(--f-mono);
+  font-size: .68rem;
+  line-height: 1;
+  padding: 4px 5px;
+  border-radius: 3px;
+  background: var(--c-panel);
+  border: 1px solid var(--c-line);
+  color: var(--c-ink);
+}
+.token[data-special="true"] {
+  background: var(--c-ink);
+  color: var(--c-panel);
+  border-color: var(--c-ink);
+}
+
+.settings-list {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s-1) var(--s-4);
+  font-size: var(--t-sm);
+  max-width: 34rem;
+}
+.settings-list dt { color: var(--c-ink-faint); }
+.settings-list dd { margin: 0; font-variant-numeric: tabular-nums; }

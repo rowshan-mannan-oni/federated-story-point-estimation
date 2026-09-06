@@ -1,6 +1,6 @@
 {
   "about": {
-    "generated": "2026-09-03 13:15 UTC",
+    "generated": "2026-09-06 03:55 UTC",
     "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
     "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
     "run_available": true,
@@ -558,6 +558,38 @@
       "source": "results/config.json",
       "how": "how the finished run on this machine divided the data",
       "kind": "run"
+    },
+    "length.mean_sp_long": {
+      "value": 3.48,
+      "text": "3.48",
+      "unit": null,
+      "source": "the training split, cleaned title + description",
+      "how": "average story point of issues longer than 256 words",
+      "kind": "measured"
+    },
+    "length.mean_sp_short": {
+      "value": 3.17,
+      "text": "3.17",
+      "unit": null,
+      "source": "the training split, cleaned title + description",
+      "how": "average story point of issues of 256 words or fewer",
+      "kind": "measured"
+    },
+    "length.long_issues": {
+      "value": 406,
+      "text": "406",
+      "unit": null,
+      "source": "the training split, cleaned title + description",
+      "how": "training issues longer than 256 words",
+      "kind": "measured"
+    },
+    "length.correlation": {
+      "value": 0.085,
+      "text": "+0.085",
+      "unit": null,
+      "source": "the training split, cleaned title + description",
+      "how": "correlation between how long an issue is and its story point",
+      "kind": "derived"
     },
     "calibration.lowest_project": {
       "value": "The_MongoDB_Engineering",
