@@ -1,6 +1,6 @@
 {
   "about": {
-    "generated": "2026-09-09 05:09 UTC",
+    "generated": "2026-09-09 06:50 UTC",
     "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
     "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
     "run_available": true,
@@ -949,6 +949,70 @@
       "unit": null,
       "source": "arithmetic from results/config.json",
       "how": "counted from the model's shape",
+      "kind": "derived"
+    },
+    "lora.rank": {
+      "value": 8,
+      "text": "8",
+      "unit": null,
+      "source": "results/config.json",
+      "how": "how many numbers wide each patch strip is",
+      "kind": "run"
+    },
+    "lora.layers": {
+      "value": 12,
+      "text": "12",
+      "unit": null,
+      "source": "arithmetic over results/config.json and the recorded parameter counts",
+      "how": "layers in the encoder, worked back from the patch total",
+      "kind": "derived"
+    },
+    "lora.sites": {
+      "value": 24,
+      "text": "24",
+      "unit": null,
+      "source": "arithmetic over results/config.json and the recorded parameter counts",
+      "how": "places a patch attaches: 12 layers x 2 spots each",
+      "kind": "derived"
+    },
+    "lora.matrix_numbers": {
+      "value": 589824,
+      "text": "589,824",
+      "unit": null,
+      "source": "arithmetic over results/config.json and the recorded parameter counts",
+      "how": "numbers in one full 768 by 768 attention matrix",
+      "kind": "derived"
+    },
+    "lora.patch_numbers": {
+      "value": 12288,
+      "text": "12,288",
+      "unit": null,
+      "source": "arithmetic over results/config.json and the recorded parameter counts",
+      "how": "numbers in the two strips that replace it (both halves)",
+      "kind": "derived"
+    },
+    "lora.patch_share": {
+      "value": 2.08,
+      "text": "2.08%",
+      "unit": "%",
+      "source": "arithmetic over results/config.json and the recorded parameter counts",
+      "how": "how much of a full matrix the two strips come to",
+      "kind": "derived"
+    },
+    "lora.qv_numbers": {
+      "value": 14155776,
+      "text": "14,155,776",
+      "unit": null,
+      "source": "arithmetic over results/config.json and the recorded parameter counts",
+      "how": "numbers in all the attention matrices the patches attach to",
+      "kind": "derived"
+    },
+    "params.frozen": {
+      "value": 124793088,
+      "text": "124,793,088",
+      "unit": null,
+      "source": "arithmetic over results/config.json and the recorded parameter counts",
+      "how": "numbers that never change during training",
       "kind": "derived"
     },
     "cleaning.newline_share": {

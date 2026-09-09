@@ -65,7 +65,7 @@ export const STOPS = [
     title: "Type and priority",
     blurb: "The two extra facts we feed in beside the words." },
 
-  { id: "patches", area: "guess", step: 14, built: false,
+  { id: "patches", area: "guess", step: 14, built: true,
     title: "Patches, not models",
     blurb: "Why we send 252,484 numbers instead of 125 million." },
 

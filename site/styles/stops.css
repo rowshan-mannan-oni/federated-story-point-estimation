@@ -787,3 +787,109 @@
   .count-row { grid-template-columns: 5.5rem 1fr; }
   .count-note { display: none; }
 }
+
+/* ==========================================================================
+   STOP 10 — PATCHES, NOT MODELS
+   ========================================================================== */
+
+/* The square against the strips. Both are drawn at their true relative
+   proportions, so the picture IS the arithmetic rather than a diagram of it. */
+.rank-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-5);
+  flex-wrap: wrap;
+  padding: var(--s-4) 0;
+}
+.rank-box { display: grid; justify-items: center; gap: var(--s-2); }
+.rank-cap {
+  font-size: var(--t-xs);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+.rank-n {
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+}
+.rank-vs { font-size: var(--t-sm); color: var(--c-ink-faint); }
+
+.rank-square {
+  width: 160px;
+  height: 160px;
+  background-image:
+    repeating-linear-gradient(90deg, transparent 0 9px, var(--c-line) 9px 10px),
+    repeating-linear-gradient(0deg, transparent 0 9px, var(--c-line) 9px 10px);
+}
+
+.rank-strips {
+  width: 160px;
+  height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+/* The tall strip is `rank` wide out of 768; the wide one is `rank` tall. Both
+   clamp to a visible minimum so a rank of 1 does not vanish entirely. */
+.rank-strip { background: var(--c-recess); }
+.rank-tall {
+  width: max(4px, calc(var(--share, 0.01) * 160px));
+  height: 106px;
+  transition: width var(--m-move) var(--ease);
+}
+.rank-wide {
+  width: 160px;
+  height: max(4px, calc(var(--share, 0.01) * 160px));
+  transition: height var(--m-move) var(--ease);
+}
+
+.rank-verdict {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: var(--measure);
+}
+.rank-verdict[data-match="true"] { color: var(--c-ink); font-weight: 600; }
+
+/* The layer stack. */
+.layer-stack { display: grid; gap: 3px; }
+.layer-row {
+  display: grid;
+  grid-template-columns: 2rem auto 1fr;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-1) var(--s-3);
+}
+.layer-n {
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+  text-align: right;
+}
+.layer-slots { display: flex; gap: var(--s-1); }
+.layer-slot {
+  font-family: var(--f-mono);
+  font-size: .66rem;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  background: var(--c-ink);
+  color: var(--c-panel);
+}
+.layer-rest {
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .rank-square, .rank-strips { width: 120px; height: 120px; }
+  .rank-tall { height: 78px; width: max(4px, calc(var(--share, 0.01) * 120px)); }
+  .rank-wide { width: 120px; height: max(4px, calc(var(--share, 0.01) * 120px)); }
+  .layer-rest { display: none; }
+  .layer-row { grid-template-columns: 2rem auto; }
+}

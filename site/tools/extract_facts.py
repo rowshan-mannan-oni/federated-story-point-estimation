@@ -1206,6 +1206,39 @@ def collect_params(results_dir: Path, config: dict, facts: Facts) -> dict:
                 facts.add(f"params.{name}", value, source="arithmetic from results/config.json",
                           kind="derived", how="counted from the model's shape")
 
+    # The shape of the patches, derived from the numbers already recorded
+    # rather than assumed: the layer count falls out of the LoRA-B total.
+    if config:
+        rank = int(config.get("lora_r", 8))
+        targets = len(config.get("lora_target_modules", ["query", "value"]))
+        width = 768
+        lora_b = facts.items.get("params.lora_b", {}).get("value")
+        if lora_b:
+            layers = lora_b // (targets * width * rank)
+            sites = layers * targets
+            full_matrix = width * width
+            src = "arithmetic over results/config.json and the recorded parameter counts"
+
+            facts.add("lora.rank", rank, source="results/config.json", kind="run",
+                      how="how many numbers wide each patch strip is")
+            facts.add("lora.layers", layers, source=src, kind="derived",
+                      how="layers in the encoder, worked back from the patch total")
+            facts.add("lora.sites", sites, source=src, kind="derived",
+                      how=f"places a patch attaches: {layers} layers x {targets} spots each")
+            facts.add("lora.matrix_numbers", full_matrix, source=src, kind="derived",
+                      how=f"numbers in one full {width} by {width} attention matrix")
+            facts.add("lora.patch_numbers", 2 * width * rank, source=src, kind="derived",
+                      how="numbers in the two strips that replace it (both halves)")
+            facts.add("lora.patch_share", round(100 * (2 * width * rank) / full_matrix, 2),
+                      source=src, kind="derived", unit="%",
+                      how="how much of a full matrix the two strips come to",
+                      text=f"{100 * (2 * width * rank) / full_matrix:.2f}%")
+            facts.add("lora.qv_numbers", sites * full_matrix, source=src, kind="derived",
+                      how="numbers in all the attention matrices the patches attach to")
+            frozen = total - trainable
+            facts.add("params.frozen", frozen, source=src, kind="derived",
+                      how="numbers that never change during training")
+
     return {"available": True, "cost": cost, "breakdown": breakdown}
 
 
