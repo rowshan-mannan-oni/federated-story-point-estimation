@@ -426,6 +426,7 @@ def collect_split(data_dir: Path, results_dir: Path, config: dict, facts: Facts,
               how="how the finished run on this machine divided the data")
 
     payload["lengths"] = collect_lengths(bundle, facts, np)
+    payload["extras"] = collect_extras(bundle, facts, np)
     payload["examples"] = pick_examples(bundle.train_df, np)
     payload["calibration"] = collect_calibration(bundle.train_df, facts)
 
@@ -438,6 +439,70 @@ def collect_split(data_dir: Path, results_dir: Path, config: dict, facts: Facts,
 # ---------------------------------------------------------------------------
 # 3b. Real issues to look at, and how differently projects use the scale
 # ---------------------------------------------------------------------------
+
+def collect_extras(bundle, facts, np) -> dict:
+    """
+    The two categorical fields, and whether they carry any signal at all.
+
+    The model is given issue type and priority alongside the words. That is a
+    design choice worth checking rather than assuming: if every type carried
+    the same average story point, the embedding tables would be dead weight.
+    """
+    frame = bundle.train_df
+    out = {"available": True}
+
+    for field, label in (("type", "types"), ("priority", "priorities")):
+        rows = []
+        for value, group in frame.groupby(field):
+            rows.append({
+                "value": str(value),
+                "n": int(len(group)),
+                "mean_sp": round(float(group.story_point.mean()), 2),
+                "counts": {str(k): int(v) for k, v in
+                           group.story_point.value_counts().sort_index().items()},
+            })
+        rows.sort(key=lambda r: -r["n"])
+        out[label] = rows
+
+        # Only judge the spread on values with enough issues to mean anything.
+        solid = [r for r in rows if r["n"] >= 100]
+        if solid:
+            high = max(solid, key=lambda r: r["mean_sp"])
+            low = min(solid, key=lambda r: r["mean_sp"])
+            spread = high["mean_sp"] - low["mean_sp"]
+            src = "the training split, grouped by " + field
+            facts.add(f"extras.{field}_spread", round(spread, 2), source=src,
+                      how=f"gap in average story point between the highest and lowest {field}"
+                          " (values with at least 100 issues)",
+                      text=f"{spread:.2f}")
+            facts.add(f"extras.{field}_highest", high["value"], source=src,
+                      text=high["value"], how=f"the {field} whose issues average the most points")
+            facts.add(f"extras.{field}_highest_mean", high["mean_sp"], source=src,
+                      how="its average story point", text=f"{high['mean_sp']:.2f}")
+            facts.add(f"extras.{field}_lowest", low["value"], source=src,
+                      text=low["value"], how=f"the {field} whose issues average the fewest points")
+            facts.add(f"extras.{field}_lowest_mean", low["mean_sp"], source=src,
+                      how="its average story point", text=f"{low['mean_sp']:.2f}")
+
+    # The lookup table is not the same size as the number of values in the
+    # data: build_category_map always reserves an "unknown" row for anything
+    # it has never seen. Worth stating, because it explains the arithmetic.
+    facts.add("extras.types_seen", int(frame["type"].nunique()),
+              source="the training split",
+              how="distinct issue types that actually appear in training")
+    facts.add("extras.priorities_seen", int(frame["priority"].nunique()),
+              source="the training split",
+              how="distinct priorities that actually appear in training")
+
+    unknown = frame[frame.priority == "unknown"]
+    share = 100 * len(unknown) / max(len(frame), 1)
+    facts.add("extras.priority_unknown_share", round(share, 1),
+              source="the training split", unit="%",
+              how="share of training issues whose priority is Unknown",
+              text=f"{share:.1f}%")
+
+    return out
+
 
 def collect_lengths(bundle, facts, np) -> dict:
     """

@@ -61,7 +61,7 @@ export const STOPS = [
     title: "The reading machine",
     blurb: "How a sentence becomes numbers, and what gets cut off when it runs long." },
 
-  { id: "extras", area: "guess", step: 13, built: false,
+  { id: "extras", area: "guess", step: 13, built: true,
     title: "Type and priority",
     blurb: "The two extra facts we feed in beside the words." },
 

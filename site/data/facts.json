@@ -1,6 +1,6 @@
 {
   "about": {
-    "generated": "2026-09-06 03:55 UTC",
+    "generated": "2026-09-09 05:09 UTC",
     "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
     "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
     "run_available": true,
@@ -590,6 +590,110 @@
       "source": "the training split, cleaned title + description",
       "how": "correlation between how long an issue is and its story point",
       "kind": "derived"
+    },
+    "extras.type_spread": {
+      "value": 3.67,
+      "text": "3.67",
+      "unit": null,
+      "source": "the training split, grouped by type",
+      "how": "gap in average story point between the highest and lowest type (values with at least 100 issues)",
+      "kind": "measured"
+    },
+    "extras.type_highest": {
+      "value": "technical task",
+      "text": "technical task",
+      "unit": null,
+      "source": "the training split, grouped by type",
+      "how": "the type whose issues average the most points",
+      "kind": "measured"
+    },
+    "extras.type_highest_mean": {
+      "value": 5.04,
+      "text": "5.04",
+      "unit": null,
+      "source": "the training split, grouped by type",
+      "how": "its average story point",
+      "kind": "measured"
+    },
+    "extras.type_lowest": {
+      "value": "build failure",
+      "text": "build failure",
+      "unit": null,
+      "source": "the training split, grouped by type",
+      "how": "the type whose issues average the fewest points",
+      "kind": "measured"
+    },
+    "extras.type_lowest_mean": {
+      "value": 1.37,
+      "text": "1.37",
+      "unit": null,
+      "source": "the training split, grouped by type",
+      "how": "its average story point",
+      "kind": "measured"
+    },
+    "extras.priority_spread": {
+      "value": 2.04,
+      "text": "2.04",
+      "unit": null,
+      "source": "the training split, grouped by priority",
+      "how": "gap in average story point between the highest and lowest priority (values with at least 100 issues)",
+      "kind": "measured"
+    },
+    "extras.priority_highest": {
+      "value": "highest",
+      "text": "highest",
+      "unit": null,
+      "source": "the training split, grouped by priority",
+      "how": "the priority whose issues average the most points",
+      "kind": "measured"
+    },
+    "extras.priority_highest_mean": {
+      "value": 3.97,
+      "text": "3.97",
+      "unit": null,
+      "source": "the training split, grouped by priority",
+      "how": "its average story point",
+      "kind": "measured"
+    },
+    "extras.priority_lowest": {
+      "value": "lowest",
+      "text": "lowest",
+      "unit": null,
+      "source": "the training split, grouped by priority",
+      "how": "the priority whose issues average the fewest points",
+      "kind": "measured"
+    },
+    "extras.priority_lowest_mean": {
+      "value": 1.93,
+      "text": "1.93",
+      "unit": null,
+      "source": "the training split, grouped by priority",
+      "how": "its average story point",
+      "kind": "measured"
+    },
+    "extras.types_seen": {
+      "value": 17,
+      "text": "17",
+      "unit": null,
+      "source": "the training split",
+      "how": "distinct issue types that actually appear in training",
+      "kind": "measured"
+    },
+    "extras.priorities_seen": {
+      "value": 6,
+      "text": "6",
+      "unit": null,
+      "source": "the training split",
+      "how": "distinct priorities that actually appear in training",
+      "kind": "measured"
+    },
+    "extras.priority_unknown_share": {
+      "value": 2.5,
+      "text": "2.5%",
+      "unit": "%",
+      "source": "the training split",
+      "how": "share of training issues whose priority is Unknown",
+      "kind": "measured"
     },
     "calibration.lowest_project": {
       "value": "The_MongoDB_Engineering",

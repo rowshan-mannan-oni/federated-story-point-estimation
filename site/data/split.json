@@ -1,6 +1,6 @@
 {
   "about": {
-    "generated": "2026-09-06 03:55 UTC",
+    "generated": "2026-09-09 05:09 UTC",
     "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
     "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
     "run_available": true,
@@ -906,6 +906,276 @@
     ],
     "cut": 256,
     "total": 22986
+  },
+  "extras": {
+    "available": true,
+    "types": [
+      {
+        "value": "bug",
+        "n": 9625,
+        "mean_sp": 3.07,
+        "counts": {
+          "1": 2830,
+          "2": 2101,
+          "3": 1871,
+          "5": 1902,
+          "8": 921
+        }
+      },
+      {
+        "value": "improvement",
+        "n": 3681,
+        "mean_sp": 3.08,
+        "counts": {
+          "1": 1027,
+          "2": 892,
+          "3": 735,
+          "5": 635,
+          "8": 392
+        }
+      },
+      {
+        "value": "task",
+        "n": 3511,
+        "mean_sp": 3.07,
+        "counts": {
+          "1": 931,
+          "2": 1016,
+          "3": 625,
+          "5": 523,
+          "8": 416
+        }
+      },
+      {
+        "value": "story",
+        "n": 3301,
+        "mean_sp": 3.56,
+        "counts": {
+          "1": 783,
+          "2": 614,
+          "3": 721,
+          "5": 631,
+          "8": 552
+        }
+      },
+      {
+        "value": "new feature",
+        "n": 1452,
+        "mean_sp": 3.08,
+        "counts": {
+          "1": 369,
+          "2": 425,
+          "3": 286,
+          "5": 194,
+          "8": 178
+        }
+      },
+      {
+        "value": "enhancement request",
+        "n": 506,
+        "mean_sp": 4.79,
+        "counts": {
+          "1": 70,
+          "2": 64,
+          "3": 74,
+          "5": 126,
+          "8": 172
+        }
+      },
+      {
+        "value": "sub-task",
+        "n": 378,
+        "mean_sp": 2.57,
+        "counts": {
+          "1": 154,
+          "2": 96,
+          "3": 50,
+          "5": 49,
+          "8": 29
+        }
+      },
+      {
+        "value": "technical task",
+        "n": 210,
+        "mean_sp": 5.04,
+        "counts": {
+          "1": 16,
+          "2": 24,
+          "3": 33,
+          "5": 67,
+          "8": 70
+        }
+      },
+      {
+        "value": "build failure",
+        "n": 113,
+        "mean_sp": 1.37,
+        "counts": {
+          "1": 71,
+          "2": 42
+        }
+      },
+      {
+        "value": "documentation",
+        "n": 80,
+        "mean_sp": 2.61,
+        "counts": {
+          "1": 28,
+          "2": 19,
+          "3": 17,
+          "5": 12,
+          "8": 4
+        }
+      },
+      {
+        "value": "suggestion",
+        "n": 38,
+        "mean_sp": 3.74,
+        "counts": {
+          "1": 4,
+          "2": 9,
+          "3": 10,
+          "5": 10,
+          "8": 5
+        }
+      },
+      {
+        "value": "epic",
+        "n": 30,
+        "mean_sp": 5.47,
+        "counts": {
+          "1": 4,
+          "2": 1,
+          "3": 3,
+          "5": 9,
+          "8": 13
+        }
+      },
+      {
+        "value": "problem ticket",
+        "n": 29,
+        "mean_sp": 1.59,
+        "counts": {
+          "1": 12,
+          "2": 17
+        }
+      },
+      {
+        "value": "question",
+        "n": 12,
+        "mean_sp": 2.0,
+        "counts": {
+          "1": 3,
+          "2": 8,
+          "5": 1
+        }
+      },
+      {
+        "value": "technical debt",
+        "n": 10,
+        "mean_sp": 2.5,
+        "counts": {
+          "1": 5,
+          "2": 2,
+          "3": 1,
+          "5": 1,
+          "8": 1
+        }
+      },
+      {
+        "value": "incident",
+        "n": 7,
+        "mean_sp": 1.43,
+        "counts": {
+          "1": 4,
+          "2": 3
+        }
+      },
+      {
+        "value": "wish",
+        "n": 3,
+        "mean_sp": 4.33,
+        "counts": {
+          "2": 1,
+          "3": 1,
+          "8": 1
+        }
+      }
+    ],
+    "priorities": [
+      {
+        "value": "high",
+        "n": 10943,
+        "mean_sp": 3.02,
+        "counts": {
+          "1": 3183,
+          "2": 2963,
+          "3": 1823,
+          "5": 1772,
+          "8": 1202
+        }
+      },
+      {
+        "value": "low",
+        "n": 4715,
+        "mean_sp": 2.94,
+        "counts": {
+          "1": 1571,
+          "2": 994,
+          "3": 967,
+          "5": 681,
+          "8": 502
+        }
+      },
+      {
+        "value": "medium",
+        "n": 3915,
+        "mean_sp": 3.36,
+        "counts": {
+          "1": 870,
+          "2": 755,
+          "3": 955,
+          "5": 918,
+          "8": 417
+        }
+      },
+      {
+        "value": "highest",
+        "n": 2665,
+        "mean_sp": 3.97,
+        "counts": {
+          "1": 470,
+          "2": 454,
+          "3": 555,
+          "5": 653,
+          "8": 533
+        }
+      },
+      {
+        "value": "unknown",
+        "n": 580,
+        "mean_sp": 3.6,
+        "counts": {
+          "1": 108,
+          "2": 145,
+          "3": 114,
+          "5": 118,
+          "8": 95
+        }
+      },
+      {
+        "value": "lowest",
+        "n": 168,
+        "mean_sp": 1.93,
+        "counts": {
+          "1": 109,
+          "2": 23,
+          "3": 13,
+          "5": 18,
+          "8": 5
+        }
+      }
+    ]
   },
   "examples": [
     {

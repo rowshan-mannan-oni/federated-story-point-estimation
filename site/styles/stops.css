@@ -665,3 +665,125 @@
 }
 .settings-list dt { color: var(--c-ink-faint); }
 .settings-list dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+/* ==========================================================================
+   STOP 9 — TYPE AND PRIORITY
+   ========================================================================== */
+
+.sub-title {
+  margin: var(--s-3) 0 0;
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+.sub-block { display: grid; gap: var(--s-3); }
+
+/* Priority, listed in the order the label claims rather than sorted, so a
+   break in the pattern shows up where the eye expects order. */
+.prio-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s-2); }
+.prio-row {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr 3rem 7rem;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-4);
+}
+.prio-name { font-size: var(--t-sm); font-weight: 600; text-transform: capitalize; }
+.prio-bar {
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--c-recess);
+  overflow: hidden;
+}
+.prio-fill {
+  display: block;
+  height: 100%;
+  width: calc(var(--w, 0) * 100%);
+  background: var(--c-ink);
+  opacity: .5;
+  border-radius: var(--r-pill);
+}
+.prio-mean {
+  font-family: var(--f-mono);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.prio-n { font-size: var(--t-xs); color: var(--c-ink-faint); text-align: right; }
+
+/* A row that breaks the claimed order — marked without colour. */
+.prio-row[data-break="true"] {
+  border-style: dashed;
+  box-shadow: inset 3px 0 0 var(--c-ink);
+}
+.prio-row[data-break="true"] .prio-fill { opacity: .9; }
+
+/* The three inputs joining into one row. */
+.route {
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.route-part {
+  flex: 1 1 8rem;
+  display: grid;
+  gap: 1px;
+  padding: var(--s-3) var(--s-4);
+  text-align: center;
+  align-content: center;
+}
+.route-size {
+  font-family: var(--f-mono);
+  font-size: var(--t-lg);
+  font-weight: 600;
+}
+.route-label { font-size: var(--t-sm); }
+.route-note { font-size: var(--t-xs); color: var(--c-ink-faint); }
+.route-join { display: flex; align-items: center; gap: var(--s-3); flex: 1 1 12rem; }
+.route-arrow { font-size: var(--t-lg); color: var(--c-ink-faint); }
+.route-out { flex: 1 1 auto; }
+
+/* The live counter. */
+.count-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--s-4);
+}
+.count-readouts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--s-3);
+}
+.count-breakdown { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s-1); }
+.count-row {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr auto;
+  gap: var(--s-3);
+  align-items: baseline;
+  padding: var(--s-1) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+.count-n {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-sm);
+}
+.count-label { font-size: var(--t-sm); }
+.count-note { font-size: var(--t-xs); color: var(--c-ink-faint); font-family: var(--f-mono); }
+.count-verdict {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: var(--measure);
+}
+.count-verdict[data-match="true"] { color: var(--c-ink); font-weight: 600; }
+
+@media (max-width: 640px) {
+  .prio-row { grid-template-columns: 4.5rem 1fr 3rem; }
+  .prio-n { display: none; }
+  .count-row { grid-template-columns: 5.5rem 1fr; }
+  .count-note { display: none; }
+}
