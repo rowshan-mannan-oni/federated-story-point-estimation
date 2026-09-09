@@ -69,7 +69,7 @@ export const STOPS = [
     title: "Patches, not models",
     blurb: "Why we send 252,484 numbers instead of 125 million." },
 
-  { id: "merging", area: "guess", step: 15, built: false,
+  { id: "merging", area: "guess", step: 15, built: true,
     title: "The merging problem",
     blurb: "Why merging patches the obvious way breaks, and the one change that fixes it." },
 

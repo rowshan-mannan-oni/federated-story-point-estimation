@@ -1,6 +1,6 @@
 {
   "about": {
-    "generated": "2026-09-09 06:50 UTC",
+    "generated": "2026-09-09 13:38 UTC",
     "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
     "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
     "run_available": true,
@@ -1013,6 +1013,46 @@
       "unit": null,
       "source": "arithmetic over results/config.json and the recorded parameter counts",
       "how": "numbers that never change during training",
+      "kind": "derived"
+    },
+    "merge.error_independent": {
+      "value": 0.9557,
+      "text": "95.6%",
+      "unit": null,
+      "source": "run here at the real size: 768x768, rank 8, 18 projects",
+      "how": "how wrong the merged patch is when every project trains both halves",
+      "kind": "derived"
+    },
+    "merge.error_frozen": {
+      "value": 2.8731911171809366e-16,
+      "text": "2.9e-16",
+      "unit": null,
+      "source": "run here at the real size: 768x768, rank 8, 18 projects",
+      "how": "the same error when one half is frozen and shared",
+      "kind": "derived"
+    },
+    "merge.identity_residual": {
+      "value": 8.673617379884035e-19,
+      "text": "8.7e-19",
+      "unit": null,
+      "source": "run here at the real size: 768x768, rank 8, 18 projects",
+      "how": "how far the closed form of the error is from the measured gap",
+      "kind": "derived"
+    },
+    "merge.clients": {
+      "value": 18,
+      "text": "18",
+      "unit": null,
+      "source": "run here at the real size: 768x768, rank 8, 18 projects",
+      "how": "projects in the experiment",
+      "kind": "derived"
+    },
+    "merge.width": {
+      "value": 768,
+      "text": "768",
+      "unit": null,
+      "source": "run here at the real size: 768x768, rank 8, 18 projects",
+      "how": "size of the square each patch stands in for",
       "kind": "derived"
     },
     "cleaning.newline_share": {

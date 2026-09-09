@@ -1,0 +1,41 @@
+{
+  "about": {
+    "generated": "2026-09-09 13:38 UTC",
+    "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
+    "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
+    "run_available": true,
+    "data_available": true,
+    "notes": [
+      "19 of 19 CSVs here are the RAW export, which the training pipeline correctly refuses."
+    ]
+  },
+  "available": true,
+  "width": 768,
+  "rank": 8,
+  "clients": 18,
+  "error_independent": 0.955743,
+  "error_frozen": 2.8731911171809366e-16,
+  "identity_residual": 8.673617379884035e-19,
+  "curve": [
+    {
+      "spread": 0.0,
+      "error": 0.0
+    },
+    {
+      "spread": 0.005,
+      "error": 0.234
+    },
+    {
+      "spread": 0.01,
+      "error": 0.429
+    },
+    {
+      "spread": 0.02,
+      "error": 0.6789
+    },
+    {
+      "spread": 0.04,
+      "error": 0.8544
+    }
+  ]
+}

@@ -939,6 +939,88 @@ def collect_categorical(data_dir: Path, facts: Facts) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# 3e. The merging argument, run at the model's real size
+# ---------------------------------------------------------------------------
+
+def collect_merging(facts, config) -> dict:
+    """
+    Averaging the two halves of a patch separately is not the same as averaging
+    the patches. The website lets a reader play with that at a small size so it
+    redraws as they drag; this runs the same experiment at the REAL dimensions
+    the thesis uses, so the page can say the argument survives full size.
+
+    It also checks the closed form of the error. The gap between the two ways
+    of averaging is exactly the weighted cross-covariance of the clients'
+    deviations -- if that identity ever stopped holding, the explanation on the
+    page would be wrong and this would fail loudly.
+    """
+    import numpy as np
+
+    width = 768
+    rank = int(config.get("lora_r", 8)) if config else 8
+    clients = 18
+
+    rng = np.random.default_rng(0)
+    weights = rng.random(clients)
+    weights /= weights.sum()
+
+    shared_a = rng.normal(0, 0.02, (rank, width))
+    b_mats = [rng.normal(0, 0.02, (width, rank)) for _ in range(clients)]
+    b_bar = sum(w * b for w, b in zip(weights, b_mats))
+
+    def relative_error(a_mats):
+        truth = sum(w * b @ a for w, b, a in zip(weights, b_mats, a_mats))
+        a_bar = sum(w * a for w, a in zip(weights, a_mats))
+        naive = b_bar @ a_bar
+        return float(np.linalg.norm(naive - truth) / np.linalg.norm(truth)), truth, naive, a_bar
+
+    # 1. Every client trains its own A -- the naive case.
+    independent = [rng.normal(0, 0.02, (rank, width)) for _ in range(clients)]
+    err_independent, truth, naive, a_bar = relative_error(independent)
+
+    # 2. The closed form of that error, checked to machine precision.
+    covariance = sum(w * (b - b_bar) @ (a - a_bar)
+                     for w, b, a in zip(weights, b_mats, independent))
+    residual = float(np.abs((truth - naive) - covariance).max())
+
+    # 3. A frozen and shared -- what the thesis actually does.
+    err_frozen, _, _, _ = relative_error([shared_a] * clients)
+
+    # 4. How the error grows as clients drift apart.
+    curve = []
+    for spread in (0.0, 0.005, 0.01, 0.02, 0.04):
+        drifted = [shared_a + rng.normal(0, spread, (rank, width)) for _ in range(clients)]
+        err, _, _, _ = relative_error(drifted)
+        curve.append({"spread": spread, "error": round(err, 4)})
+
+    src = f"run here at the real size: {width}x{width}, rank {rank}, {clients} projects"
+    facts.add("merge.error_independent", round(err_independent, 4), source=src, kind="derived",
+              how="how wrong the merged patch is when every project trains both halves",
+              text=f"{100 * err_independent:.1f}%")
+    facts.add("merge.error_frozen", err_frozen, source=src, kind="derived",
+              how="the same error when one half is frozen and shared",
+              text=f"{err_frozen:.1e}")
+    facts.add("merge.identity_residual", residual, source=src, kind="derived",
+              how="how far the closed form of the error is from the measured gap",
+              text=f"{residual:.1e}")
+    facts.add("merge.clients", clients, source=src, kind="derived",
+              how="projects in the experiment")
+    facts.add("merge.width", width, source=src, kind="derived",
+              how="size of the square each patch stands in for")
+
+    if residual > 1e-12:
+        raise RuntimeError(
+            f"the closed form of the aggregation error no longer matches "
+            f"(residual {residual:.2e}) - the explanation on the site would be wrong")
+
+    return {"available": True, "width": width, "rank": rank, "clients": clients,
+            "error_independent": round(err_independent, 6),
+            "error_frozen": err_frozen,
+            "identity_residual": residual,
+            "curve": curve}
+
+
+# ---------------------------------------------------------------------------
 # 4. The simple comparators, and the score that lies
 # ---------------------------------------------------------------------------
 
@@ -1274,6 +1356,7 @@ def main() -> int:
     split = (collect_split(data_dir, results_dir, config, facts, not args.skip_baselines)
              if data_dir.exists() else {"available": False})
     params = collect_params(results_dir, config, facts) if results_dir.exists() else {"available": False}
+    merging = collect_merging(facts, config)
     cleaning = collect_cleaning(data_dir, facts) if data_dir.exists() else {"available": False}
     categorical = collect_categorical(data_dir, facts) if data_dir.exists() else {"available": False}
 
@@ -1314,6 +1397,7 @@ def main() -> int:
     write_json(out_dir / "cleaning.json", {"about": stamp, **cleaning})
     write_json(out_dir / "cleaning-vectors.json",
                {"about": stamp, "vectors": vectors})
+    write_json(out_dir / "merging.json", {"about": stamp, **merging})
     write_json(out_dir / "categorical.json", {"about": stamp, **categorical})
     write_json(out_dir / "calibration.json",
                {"about": stamp, **(split.get("calibration") or {})})

@@ -893,3 +893,128 @@
   .layer-rest { display: none; }
   .layer-row { grid-template-columns: 2rem auto; }
 }
+
+/* ==========================================================================
+   STOP 11 — THE MERGING PROBLEM
+   ========================================================================== */
+
+.merge-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--s-4);
+  align-items: end;
+}
+.merge-readouts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--s-4);
+}
+
+/* Three matrices side by side: what it should be, what averaging gives, and
+   the difference. */
+.merge-grids {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--s-4);
+  justify-items: center;
+}
+.merge-grid { display: grid; justify-items: center; gap: var(--s-2); }
+.merge-grid-label {
+  font-size: var(--t-xs);
+  color: var(--c-ink-faint);
+  text-align: center;
+  max-width: 12rem;
+}
+.merge-cells {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1px;
+  width: 11rem;
+  aspect-ratio: 1;
+  padding: 2px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  background: var(--c-recess);
+}
+/* Magnitude is darkness; sign is a hairline outline. No colour, so the
+   picture survives both themes and the flat-surfaces setting. */
+.merge-cell {
+  background: var(--c-ink);
+  opacity: calc(var(--v, 0) * 0.92);
+  border-radius: 1px;
+}
+.merge-cell[data-sign="neg"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--c-ink);
+  opacity: calc(var(--v, 0) * 0.85);
+}
+
+.merge-verdict {
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-line);
+  background: var(--c-panel-2);
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: var(--measure);
+}
+.merge-verdict[data-state="bad"] {
+  border-style: dashed;
+  border-color: var(--c-ink-soft);
+  color: var(--c-ink);
+}
+.merge-verdict[data-state="exact"] {
+  border-color: var(--c-ink);
+  color: var(--c-ink);
+  font-weight: 600;
+}
+
+/* The identity, set apart so it reads as the statement it is. */
+.formula {
+  display: grid;
+  justify-items: center;
+  gap: var(--s-2);
+  padding: var(--s-5) var(--s-4);
+  text-align: center;
+}
+.formula-line {
+  font-family: var(--f-mono);
+  font-size: clamp(var(--t-sm), 0.8rem + 0.5vw, var(--t-lg));
+  letter-spacing: .01em;
+}
+.formula-eq { font-size: var(--t-lg); color: var(--c-ink-faint); }
+
+/* Error against drift, at full size. */
+.drift-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s-2); }
+.drift-row {
+  display: grid;
+  grid-template-columns: 5rem 1fr 3.5rem;
+  align-items: center;
+  gap: var(--s-3);
+}
+.drift-x, .drift-y {
+  font-family: var(--f-mono);
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+}
+.drift-y { text-align: right; font-weight: 600; }
+.drift-bar {
+  height: 12px;
+  border-radius: var(--r-pill);
+  background: var(--c-recess);
+  overflow: hidden;
+}
+.drift-fill {
+  display: block;
+  height: 100%;
+  width: calc(var(--w, 0) * 100%);
+  background: var(--c-ink);
+  opacity: .55;
+  border-radius: var(--r-pill);
+}
+
+@media (max-width: 560px) {
+  .merge-cells { width: 9rem; }
+  .drift-row { grid-template-columns: 4.2rem 1fr 3rem; }
+}
