@@ -73,7 +73,7 @@ export const STOPS = [
     title: "The merging problem",
     blurb: "Why merging patches the obvious way breaks, and the one change that fixes it." },
 
-  { id: "ordered", area: "guess", step: 16, built: false,
+  { id: "ordered", area: "guess", step: 16, built: true,
     title: "The answers are ordered",
     blurb: "Why guessing 8 for a 3 should hurt more than guessing 2." },
 

@@ -1278,6 +1278,25 @@ def collect_params(results_dir: Path, config: dict, facts: Facts) -> dict:
             outputs = 4 if config.get("head_type") == "corn" else 5
             head = 2 * fusion + (fusion * hidden_dim + hidden_dim) + (hidden_dim * outputs + outputs)
             parts = {"lora_b": lora_b, "embeddings": embeddings, "head": head}
+
+            # The other head the thesis could have used, for comparison. CORN
+            # emits one logit per threshold (classes - 1); CE emits one per
+            # class, so it is very slightly larger.
+            other = 5 if config.get("head_type") == "corn" else 4
+            head_other = (2 * fusion + (fusion * hidden_dim + hidden_dim)
+                          + (hidden_dim * other + other))
+            facts.add("head.outputs", outputs, source="results/config.json", kind="run",
+                      how=("threshold questions the ordinal head answers"
+                           if config.get("head_type") == "corn"
+                           else "one score per story point value"))
+            facts.add("head.outputs_other", other, source=src, kind="derived",
+                      how="what the other kind of head would emit")
+            facts.add("head.params_other", head_other, source=src, kind="derived",
+                      how="size of that other head")
+            facts.add("head.params_delta", abs(head_other - head), source=src,
+                      kind="derived",
+                      how="how much bigger the unordered head would be",
+                      text=f"{abs(head_other - head)}")
             adds_up = sum(parts.values()) == trainable
             breakdown = {"parts": parts, "sum": sum(parts.values()),
                          "recorded": trainable, "adds_up": adds_up}

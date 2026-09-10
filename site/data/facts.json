@@ -1,6 +1,6 @@
 {
   "about": {
-    "generated": "2026-09-09 13:38 UTC",
+    "generated": "2026-09-09 13:44 UTC",
     "data_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\data_to_train_on",
     "results_dir": "C:\\Users\\USER\\Desktop\\Thesis\\federated-story-point-estimation\\results",
     "run_available": true,
@@ -918,6 +918,38 @@
       "source": "results/communication_cost.json",
       "how": "the same run without the patches",
       "kind": "run"
+    },
+    "head.outputs": {
+      "value": 4,
+      "text": "4",
+      "unit": null,
+      "source": "results/config.json",
+      "how": "threshold questions the ordinal head answers",
+      "kind": "run"
+    },
+    "head.outputs_other": {
+      "value": 5,
+      "text": "5",
+      "unit": null,
+      "source": "results/communication_cost.json",
+      "how": "what the other kind of head would emit",
+      "kind": "derived"
+    },
+    "head.params_other": {
+      "value": 104773,
+      "text": "104,773",
+      "unit": null,
+      "source": "results/communication_cost.json",
+      "how": "size of that other head",
+      "kind": "derived"
+    },
+    "head.params_delta": {
+      "value": 129,
+      "text": "129",
+      "unit": null,
+      "source": "results/communication_cost.json",
+      "how": "how much bigger the unordered head would be",
+      "kind": "derived"
     },
     "params.breakdown_adds_up": {
       "value": true,

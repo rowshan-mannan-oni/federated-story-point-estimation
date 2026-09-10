@@ -1018,3 +1018,105 @@
   .merge-cells { width: 9rem; }
   .drift-row { grid-template-columns: 4.2rem 1fr 3rem; }
 }
+
+/* ==========================================================================
+   STOP 12 — THE ANSWERS ARE ORDERED
+   ========================================================================== */
+
+.cost-grid-wrap { overflow-x: auto; }
+.cost-grid {
+  border-collapse: collapse;
+  font-size: var(--t-sm);
+  margin-inline: auto;
+}
+.cost-grid th {
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--c-ink-faint);
+  padding: var(--s-2);
+  text-align: center;
+  white-space: nowrap;
+}
+.cost-corner {
+  font-size: .62rem !important;
+  text-align: right !important;
+  letter-spacing: .04em;
+}
+.cost-cell {
+  width: 3rem;
+  height: 3rem;
+  text-align: center;
+  vertical-align: middle;
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--c-panel);
+  /* Cost becomes darkness; the number is always printed as well, so the grid
+     is readable without relying on the shading at all. */
+  background-color: color-mix(in srgb, var(--c-ink) calc(var(--v, 0) * 78%), var(--c-panel-2));
+  color: color-mix(in srgb, var(--c-panel) calc(var(--v, 0) * 100%), var(--c-ink));
+  transition: background-color var(--m-move) var(--ease), color var(--m-move) var(--ease);
+}
+.cost-cell[data-right="true"] {
+  box-shadow: inset 0 0 0 2px var(--c-ink);
+}
+.cost-legend {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: var(--measure);
+}
+
+/* The four threshold questions. */
+.organ {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--s-3);
+}
+.organ-row { min-width: 0; }
+.organ-trace {
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-line);
+  background: var(--c-panel-2);
+  font-size: var(--t-sm);
+  color: var(--c-ink-soft);
+  max-width: var(--measure);
+}
+.organ-trace[data-odd="true"] {
+  border-style: dashed;
+  border-color: var(--c-ink-soft);
+  color: var(--c-ink);
+}
+
+/* Grading one guess against the four questions. */
+.grade-caption { margin: 0; font-size: var(--t-sm); font-weight: 600; }
+.grade-example { display: grid; gap: var(--s-2); }
+.grade-row {
+  display: grid;
+  grid-template-columns: 6rem auto 1fr;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-2) var(--s-4);
+}
+.grade-row[data-right="true"] { box-shadow: inset 3px 0 0 var(--c-ink); }
+.grade-guess { font-size: var(--t-sm); font-weight: 600; }
+.grade-marks { display: flex; gap: var(--s-2); }
+.grade-mark {
+  width: 1.4rem;
+  height: 1.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  font-size: var(--t-xs);
+  border: 1px solid var(--c-line);
+}
+.grade-mark[data-ok="false"] { background: var(--c-ink); color: var(--c-panel); border-color: var(--c-ink); }
+.grade-mark[data-ok="true"] { color: var(--c-ink-faint); }
+.grade-count { font-size: var(--t-sm); color: var(--c-ink-soft); }
+
+@media (max-width: 560px) {
+  .cost-cell { width: 2.4rem; height: 2.4rem; font-size: var(--t-xs); }
+  .grade-row { grid-template-columns: 4.5rem auto; }
+  .grade-count { display: none; }
+}
